@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-01-11)
 
 **Core value:** Transform fault.watch into a news/media-style crisis monitor with TikTok content generation
-**Current focus:** Phase 1 — UI Foundation
+**Current focus:** Phase 2 — Breaking News Components
 
 ## Current Position
 
-Phase: 1 of 4 (UI Foundation)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-01-11 — Completed 01-01-PLAN.md
+Phase: 2 of 4 (Breaking News Components)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-01-11 — Completed Phase 1 (UI Foundation)
 
-Progress: █░░░░░░░░░ 10%
+Progress: ██░░░░░░░░ 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 12 min
-- Total execution time: 0.2 hours
+- Total plans completed: 2
+- Average duration: 13.5 min
+- Total execution time: 0.45 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-ui-foundation | 1 | 12 min | 12 min |
+| 01-ui-foundation | 2 | 27 min | 13.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (12 min)
-- Trend: Starting
+- Last 5 plans: 01-01 (12 min), 01-02 (15 min)
+- Trend: Steady
 
 ## Accumulated Context
 
@@ -46,6 +46,9 @@ Recent decisions affecting current work:
 - CNN red (#e31837) as primary accent color
 - Sharp corners for news aesthetic
 - Breaking banner triggers at risk >= 7
+- 4-level visual hierarchy: Hero → Key Metrics → Summary → Expandable
+- Only 4 key metrics on Dashboard (Silver, MS, VIX, KRE)
+- Secondary content in st.expander components
 
 ### Deferred Issues
 
@@ -58,5 +61,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-11
-Stopped at: Completed 01-01-PLAN.md (CSS System & News/Media Styling)
+Stopped at: Completed Phase 1 (UI Foundation) - both plans executed
 Resume file: None
