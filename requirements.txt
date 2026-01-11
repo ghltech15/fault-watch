@@ -1,0 +1,32 @@
+# fault.watch - Production Dependencies
+# =====================================
+
+# Web Framework
+streamlit==1.40.0
+
+# Data Processing
+pandas==2.2.0
+numpy==1.26.3
+
+# Financial Data
+yfinance==0.2.36
+
+# HTTP Requests
+requests==2.31.0
+
+# Visualization
+plotly==5.18.0
+
+# Database (Supabase)
+supabase==2.3.4
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Production Server
+gunicorn==21.2.0
+
+# Content Generation
+Pillow>=10.0.0
+moviepy>=1.0.3
+kaleido>=0.2.1

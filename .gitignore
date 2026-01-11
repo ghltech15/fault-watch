@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env
+
+# Content Generation Output (keep structure, ignore generated files)
+content-output/*.png
+content-output/*.mp4
+content-output/images/*.png
+content-output/images/*.jpg
+content-output/videos/*.mp4
+!content-output/.gitkeep
+!content-output/images/.gitkeep
+!content-output/videos/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
