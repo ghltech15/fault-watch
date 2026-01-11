@@ -1913,6 +1913,16 @@ def main():
     st.sidebar.markdown("- [Fed Repo](https://www.newyorkfed.org/markets/desk-operations)")
     st.sidebar.markdown("- [COMEX Silver](https://www.cmegroup.com/markets/metals/precious/silver.html)")
     st.sidebar.markdown("- [OCC Derivatives](https://www.occ.gov/publications-and-resources/publications/quarterly-report-on-bank-trading-and-derivatives-activities/index-quarterly-report-on-bank-trading-and-derivatives-activities.html)")
+
+    # Content trigger status indicator
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📱 Content")
+    if 'trigger_manager' in st.session_state:
+        tm = st.session_state.trigger_manager
+        status = tm.get_trigger_status()
+        trigger_status = "🟢 Enabled" if status['enabled'] else "🔴 Disabled"
+        st.sidebar.markdown(f"Auto-triggers: {trigger_status}")
+        st.sidebar.caption(f"Generated: {status['total_generated']} files")
     
     # Fetch data
     with st.spinner("Loading market data..."):
@@ -1946,6 +1956,31 @@ def main():
         ('slow_burn', 5), ('credit_crunch', 9), ('inflation_spike', 7),
         ('deflation_bust', 9), ('monetary_reset', 10)
     ])
+
+    # Initialize trigger manager in session state
+    if 'trigger_manager' not in st.session_state:
+        st.session_state.trigger_manager = TriggerManager()
+
+    # Check auto-triggers after price fetch
+    trigger_manager = st.session_state.trigger_manager
+    if trigger_manager.config.enabled:
+        # Check price triggers
+        trigger_prices = {
+            'silver': prices.get('silver', {}).get('price', 0),
+            'silver_change': prices.get('silver', {}).get('change_pct', 0),
+            'ms_change': prices.get('morgan_stanley', {}).get('change_pct', 0),
+            'ms_price': prices.get('morgan_stanley', {}).get('price', 0),
+            'vix': prices.get('vix', {}).get('price', 0),
+            'vix_change': prices.get('vix', {}).get('change_pct', 0),
+        }
+        generated = trigger_manager.check_price_triggers(trigger_prices)
+        if generated:
+            st.toast(f"🎬 Auto-generated {len(generated)} content files!")
+
+        # Check scheduled triggers
+        scheduled_file = trigger_manager.check_scheduled_triggers()
+        if scheduled_file:
+            st.toast(f"📊 Generated daily summary: {scheduled_file.name}")
 
     # Breaking News Banner (shows when risk is elevated)
     render_breaking_header(alerts, risk_index, countdown)
