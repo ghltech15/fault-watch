@@ -48,7 +48,7 @@ None — using standard web/Python patterns
 - PIL/Pillow for image processing
 - 9:16 aspect ratio composition
 
-**Status:** In progress (1/3 plans complete)
+**Status:** In progress (2/3 plans complete)
 
 ---
 
@@ -108,11 +108,11 @@ Phase 1 ─────► Phase 2 ─────► Phase 3 ─────►
 | Phase | Status | Plans | Completed |
 |-------|--------|-------|-----------|
 | 1. UI Foundation | Complete | 2 | 2 |
-| 2. Content Export Engine | In progress | 3 | 1 |
+| 2. Content Export Engine | In progress | 3 | 2 |
 | 3. Auto-Clip Generator | Not started | 0 | 0 |
 | 4. Breaking News Components | Deferred | 0 | 0 |
 
-**Overall:** 30% complete (3 of ~10 estimated plans)
+**Overall:** 40% complete (4 of ~10 estimated plans)
 
 ---
 
