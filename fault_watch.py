@@ -943,12 +943,37 @@ def render_dashboard_tab(prices, indicators, scenarios, allocation, alerts, risk
 
 def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
     """Render MS Collapse tracking tab"""
-    
+
+    # Determine urgency level for countdown styling
+    is_urgent = countdown['days'] < 7 and not countdown['expired']
+    is_critical = countdown['days'] < 3 and not countdown['expired']
+
+    # Dynamic urgency message
+    if countdown['expired']:
+        urgency_msg = "DEADLINE PASSED - MONITORING FOR FORCED CLOSURE"
+    elif is_critical:
+        urgency_msg = "CRITICAL: FORCED COVERING IMMINENT"
+    elif is_urgent:
+        urgency_msg = "URGENT: MS RUNNING OUT OF TIME"
+    elif countdown['days'] < 14:
+        urgency_msg = "WATCH FOR EARLY COVERING ACTIVITY"
+    else:
+        urgency_msg = "MONITORING SEC COMPLIANCE DEADLINE"
+
     st.markdown(f"""
-    <div class="countdown-box">
-        <div style="color:#8888a0;font-size:14px;text-transform:uppercase;letter-spacing:2px;">⏰ SEC DEADLINE COUNTDOWN</div>
-        <div class="countdown-number">{countdown['days']} DAYS : {countdown['hours']:02d} HRS : {countdown['minutes']:02d} MIN</div>
-        <div style="color:#ff8c42;font-size:14px;margin-top:10px;">February 15, 2026 - MS must close 5.9B oz silver short</div>
+    <div class="countdown-box" {'style="animation: alert-pulse 1s ease-in-out infinite;"' if is_urgent else ''}>
+        <div class="countdown-number">{countdown['days']}</div>
+        <div class="countdown-label">DAYS REMAINING</div>
+        <div style="font-size:28px;color:#ffffff;font-weight:700;margin:15px 0;letter-spacing:2px;">
+            {countdown['hours']:02d}<span style="color:#e31837;">:</span>{countdown['minutes']:02d}<span style="color:#e31837;">:</span>00
+        </div>
+        <div style="color:#b0b0b0;font-size:13px;text-transform:uppercase;letter-spacing:1px;">
+            February 15, 2026 • SEC Deadline
+        </div>
+        <div class="countdown-urgent">{urgency_msg}</div>
+        <div style="color:#888;font-size:12px;margin-top:10px;">
+            MS must close 5.9 billion oz silver short position
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
