@@ -138,25 +138,221 @@ class ContentGenerator:
 
         return output_path
 
+    def _get_font(self, size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+        """Get a font at specified size, with fallback to default."""
+        font_names = ["arialbd.ttf", "Arial Bold.ttf"] if bold else ["arial.ttf", "Arial.ttf"]
+        for font_name in font_names:
+            try:
+                return ImageFont.truetype(font_name, size)
+            except OSError:
+                continue
+        return ImageFont.load_default()
+
+    def _center_text(self, draw: ImageDraw.Draw, text: str, y: int, font: ImageFont.FreeTypeFont, fill: tuple) -> None:
+        """Draw centered text at specified y position."""
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        x = (self.config.image_width - text_width) // 2
+        draw.text((x, y), text, fill=fill, font=font)
+
     def _draw_price_alert(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any]) -> None:
-        """Draw price alert template."""
-        # Will be implemented in Task 3
-        pass
+        """
+        Draw price alert template.
+
+        Expected data keys:
+            - asset: str (e.g., "SILVER")
+            - price: float (e.g., 89.50)
+            - change: float (percentage, e.g., 5.2 or -3.1)
+        """
+        asset = data.get('asset', 'SILVER')
+        price = data.get('price', 0.0)
+        change = data.get('change', 0.0)
+
+        white = self._hex_to_rgb(self.config.text_color)
+        brand = self._hex_to_rgb(self.config.brand_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+
+        # "BREAKING" label at top
+        font_label = self._get_font(48, bold=True)
+        self._center_text(draw, "BREAKING", 280, font_label, brand)
+
+        # Asset name (large)
+        font_asset = self._get_font(120, bold=True)
+        self._center_text(draw, asset.upper(), 380, font_asset, white)
+
+        # Huge price in center
+        font_price = self._get_font(200, bold=True)
+        price_text = f"${price:.2f}"
+        self._center_text(draw, price_text, 600, font_price, white)
+
+        # Change percentage with arrow
+        arrow = "▲" if change >= 0 else "▼"
+        change_color = (0, 200, 0) if change >= 0 else brand  # Green for up, red for down
+        font_change = self._get_font(80, bold=True)
+        change_text = f"{arrow} {abs(change):.1f}%"
+        self._center_text(draw, change_text, 850, font_change, change_color)
+
+        # Timestamp at bottom
+        font_time = self._get_font(36)
+        timestamp = datetime.now().strftime("%B %d, %Y • %I:%M %p")
+        self._center_text(draw, timestamp, 1750, font_time, secondary)
 
     def _draw_countdown(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any]) -> None:
-        """Draw countdown template."""
-        # Will be implemented in Task 3
-        pass
+        """
+        Draw countdown template.
+
+        Expected data keys:
+            - days: int (days remaining)
+            - event: str (event name, e.g., "COMEX Deadline")
+            - date: str (target date, e.g., "March 27, 2026")
+        """
+        days = data.get('days', 0)
+        event = data.get('event', 'DEADLINE')
+        date = data.get('date', '')
+
+        white = self._hex_to_rgb(self.config.text_color)
+        brand = self._hex_to_rgb(self.config.brand_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+
+        # "DEADLINE" label at top
+        font_label = self._get_font(60, bold=True)
+        self._center_text(draw, "DEADLINE", 300, font_label, brand)
+
+        # Giant days number in center
+        font_days = self._get_font(350, bold=True)
+        days_text = str(days)
+        self._center_text(draw, days_text, 500, font_days, white)
+
+        # "DAYS REMAINING" below number
+        font_subtitle = self._get_font(60, bold=True)
+        self._center_text(draw, "DAYS REMAINING", 900, font_subtitle, secondary)
+
+        # Event name
+        font_event = self._get_font(48)
+        self._center_text(draw, event.upper(), 1050, font_event, white)
+
+        # Target date
+        font_date = self._get_font(40)
+        self._center_text(draw, date, 1150, font_date, secondary)
 
     def _draw_bank_crisis(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any]) -> None:
-        """Draw bank crisis template."""
-        # Will be implemented in Task 3
-        pass
+        """
+        Draw bank crisis template.
+
+        Expected data keys:
+            - bank: str (bank name, e.g., "Morgan Stanley")
+            - price: float (stock price)
+            - change: float (percentage drop, typically negative)
+            - exposure: str (e.g., "$18.5B")
+            - loss: str (optional, e.g., "$12.3B")
+        """
+        bank = data.get('bank', 'BANK')
+        price = data.get('price', 0.0)
+        change = data.get('change', 0.0)
+        exposure = data.get('exposure', '$0')
+        loss = data.get('loss', '')
+
+        white = self._hex_to_rgb(self.config.text_color)
+        brand = self._hex_to_rgb(self.config.brand_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+
+        # Red flash bar at top
+        draw.rectangle([(0, 250), (self.config.image_width, 320)], fill=brand)
+
+        # Bank name in white on red bar
+        font_bank = self._get_font(60, bold=True)
+        self._center_text(draw, bank.upper(), 255, font_bank, white)
+
+        # "CRISIS" label
+        font_crisis = self._get_font(100, bold=True)
+        self._center_text(draw, "CRISIS", 400, font_crisis, brand)
+
+        # Stock price
+        font_price = self._get_font(140, bold=True)
+        price_text = f"${price:.2f}"
+        self._center_text(draw, price_text, 550, font_price, white)
+
+        # Dramatic percentage drop
+        font_change = self._get_font(80, bold=True)
+        change_text = f"▼ {abs(change):.1f}%"
+        self._center_text(draw, change_text, 720, font_change, brand)
+
+        # Exposure section
+        font_label = self._get_font(36)
+        font_value = self._get_font(60, bold=True)
+
+        self._center_text(draw, "SILVER EXPOSURE", 900, font_label, secondary)
+        self._center_text(draw, exposure, 950, font_value, white)
+
+        # Loss if provided
+        if loss:
+            self._center_text(draw, "POTENTIAL LOSS", 1100, font_label, secondary)
+            self._center_text(draw, loss, 1150, font_value, brand)
 
     def _draw_daily_summary(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any]) -> None:
-        """Draw daily summary template."""
-        # Will be implemented in Task 3
-        pass
+        """
+        Draw daily summary template.
+
+        Expected data keys:
+            - silver: float (silver price)
+            - gold: float (gold price)
+            - ms: float (Morgan Stanley price)
+            - vix: float (VIX level)
+            - risk: float (risk index 0-10)
+            - date: str (optional, defaults to today)
+        """
+        silver = data.get('silver', 0.0)
+        gold = data.get('gold', 0.0)
+        ms = data.get('ms', 0.0)
+        vix = data.get('vix', 0.0)
+        risk = data.get('risk', 0.0)
+        date_str = data.get('date', datetime.now().strftime("%B %d, %Y"))
+
+        white = self._hex_to_rgb(self.config.text_color)
+        brand = self._hex_to_rgb(self.config.brand_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+
+        # "DAILY RECAP" header
+        font_header = self._get_font(70, bold=True)
+        self._center_text(draw, "DAILY RECAP", 280, font_header, white)
+
+        # Date below header
+        font_date = self._get_font(36)
+        self._center_text(draw, date_str, 370, font_date, secondary)
+
+        # Metrics list
+        font_label = self._get_font(40)
+        font_value = self._get_font(70, bold=True)
+
+        metrics = [
+            ("SILVER", f"${silver:.2f}"),
+            ("GOLD", f"${gold:.2f}"),
+            ("MORGAN STANLEY", f"${ms:.2f}"),
+            ("VIX", f"{vix:.1f}"),
+        ]
+
+        y_start = 500
+        y_spacing = 180
+
+        for i, (label, value) in enumerate(metrics):
+            y = y_start + (i * y_spacing)
+            self._center_text(draw, label, y, font_label, secondary)
+            self._center_text(draw, value, y + 50, font_value, white)
+
+        # Risk index section
+        risk_y = y_start + (len(metrics) * y_spacing) + 50
+
+        # Risk color: green < 4, yellow 4-7, red > 7
+        if risk < 4:
+            risk_color = (0, 200, 0)
+        elif risk < 7:
+            risk_color = (255, 200, 0)
+        else:
+            risk_color = brand
+
+        self._center_text(draw, "RISK INDEX", risk_y, font_label, secondary)
+        font_risk = self._get_font(100, bold=True)
+        self._center_text(draw, f"{risk:.1f}", risk_y + 60, font_risk, risk_color)
 
     def generate_video(self, data: Dict[str, Any], template: TemplateType, config: VideoConfig = None) -> Path:
         """
