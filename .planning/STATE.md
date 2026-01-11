@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-01-11)
 
 **Core value:** Transform fault.watch into a news/media-style crisis monitor with TikTok content generation
-**Current focus:** Phase 2 — Breaking News Components
+**Current focus:** Phase 2 — Content Export Engine (PRIORITY)
 
 ## Current Position
 
-Phase: 2 of 4 (Breaking News Components)
+Phase: 2 of 4 (Content Export Engine)
 Plan: 0 of ? in current phase
 Status: Ready to plan
-Last activity: 2026-01-11 — Completed Phase 1 (UI Foundation)
+Last activity: 2026-01-11 — Reprioritized: Content creation before UI polish
 
 Progress: ██░░░░░░░░ 20%
 

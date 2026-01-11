@@ -16,7 +16,7 @@ None — using standard web/Python patterns
 
 ## Phases
 
-### Phase 1: UI Foundation
+### Phase 1: UI Foundation ✓
 **Goal:** Restructure layout, typography, and visual hierarchy for news/media style
 
 **Deliverables:**
@@ -31,22 +31,7 @@ None — using standard web/Python patterns
 
 ---
 
-### Phase 2: Breaking News Components
-**Goal:** Create dramatic alert components with breaking news urgency
-
-**Deliverables:**
-- "Breaking Alert" banner component with animation
-- Headline styling (large, bold, attention-grabbing)
-- Status indicators with dramatic color coding
-- Animated transitions for key metrics
-
-**Research:** Unlikely (CSS animations, Streamlit components)
-
-**Status:** Not started
-
----
-
-### Phase 3: Content Export Engine
+### Phase 2: Content Export Engine ⬅️ PRIORITY
 **Goal:** Enable one-click export of charts and metrics as video-ready assets
 
 **Deliverables:**
@@ -54,6 +39,7 @@ None — using standard web/Python patterns
 - 9:16 aspect ratio export for TikTok/Reels
 - Chart export as high-quality images
 - Export-ready graphics with branding
+- Trigger-based export (price alerts, deadlines)
 
 **Research:** Likely (image/video export libraries)
 **Research topics:**
@@ -66,7 +52,7 @@ None — using standard web/Python patterns
 
 ---
 
-### Phase 4: Auto-Clip Generator
+### Phase 3: Auto-Clip Generator
 **Goal:** Automatically generate TikTok clips from market events
 
 **Deliverables:**
@@ -74,6 +60,7 @@ None — using standard web/Python patterns
 - Daily summary video generation
 - Breaking event video generation
 - One-click video download
+- Output to deployment folder
 
 **Research:** Likely (video generation libraries)
 **Research topics:**
@@ -86,16 +73,33 @@ None — using standard web/Python patterns
 
 ---
 
+### Phase 4: Breaking News Components (DEFERRED)
+**Goal:** Create dramatic alert components with breaking news urgency
+
+**Deliverables:**
+- Enhanced "Breaking Alert" banner component
+- Headline styling (large, bold, attention-grabbing)
+- Status indicators with dramatic color coding
+- Animated transitions for key metrics
+
+**Research:** Unlikely (CSS animations, Streamlit components)
+
+**Status:** Deferred (content creation prioritized)
+
+---
+
 ## Dependencies
 
 ```
 Phase 1 ─────► Phase 2 ─────► Phase 3 ─────► Phase 4
-(foundation)   (components)   (export)       (video)
+(foundation)   (export)       (video)        (UI polish)
 ```
 
-- Phase 2 depends on Phase 1 (needs new layout)
-- Phase 3 depends on Phase 2 (exports the new components)
-- Phase 4 depends on Phase 3 (combines exports into video)
+- Phase 2 depends on Phase 1 (exports current UI)
+- Phase 3 depends on Phase 2 (combines exports into video)
+- Phase 4 can happen anytime (UI polish, not blocking)
+
+**RATIONALE:** Content creation prioritized to build audience while developing.
 
 ---
 
@@ -104,9 +108,9 @@ Phase 1 ─────► Phase 2 ─────► Phase 3 ─────►
 | Phase | Status | Plans | Completed |
 |-------|--------|-------|-----------|
 | 1. UI Foundation | Complete | 2 | 2 |
-| 2. Breaking News Components | Not started | 0 | 0 |
-| 3. Content Export Engine | Not started | 0 | 0 |
-| 4. Auto-Clip Generator | Not started | 0 | 0 |
+| 2. Content Export Engine | Not started | 0 | 0 |
+| 3. Auto-Clip Generator | Not started | 0 | 0 |
+| 4. Breaking News Components | Deferred | 0 | 0 |
 
 **Overall:** 20% complete (2 of ~10 estimated plans)
 
