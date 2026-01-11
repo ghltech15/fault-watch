@@ -847,38 +847,79 @@ def generate_all_alerts(indicators, prices, countdown, stress_level):
 # =============================================================================
 
 def render_dashboard_tab(prices, indicators, scenarios, allocation, alerts, risk_index):
-    """Render main dashboard tab"""
-    
+    """Render main dashboard tab with 4-level visual hierarchy"""
+
     risk_color = '#ff3b5c' if risk_index >= 7 else '#ff8c42' if risk_index >= 5 else '#4ade80'
-    
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        st.markdown("## 📊 System Overview")
-    with col2:
-        st.markdown(f"""
+    risk_label = 'CRITICAL' if risk_index >= 7 else 'ELEVATED' if risk_index >= 5 else 'STABLE'
+    n_crit = len([a for a in alerts if a['level'] == 'critical'])
+
+    # =========================================================================
+    # LEVEL 1: HERO SECTION - Risk Index as centerpiece
+    # =========================================================================
+    st.markdown(f'''
+    <div style="text-align:center;padding:30px 0 20px 0;">
+        <div class="text-label" style="margin-bottom:10px;">SYSTEMIC RISK INDEX</div>
+        <div class="text-hero" style="color:{risk_color};line-height:1;">{risk_index:.1f}</div>
+        <div class="text-subhead" style="color:{risk_color};margin-top:5px;">{risk_label}</div>
+        <div class="text-caption" style="margin-top:15px;">
+            {f'⚠️ {n_crit} CRITICAL ALERT{"S" if n_crit != 1 else ""} ACTIVE' if n_crit > 0 else '✓ No critical alerts'}
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # =========================================================================
+    # LEVEL 2: KEY METRICS - Only 4 most critical
+    # =========================================================================
+    st.markdown('<div class="text-label" style="text-align:center;margin:20px 0 15px 0;">KEY INDICATORS</div>', unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        s = prices.get('silver', {})
+        silver_price = s.get('price', 0)
+        silver_color = '#ff3b5c' if silver_price > 100 else '#ff8c42' if silver_price > 90 else '#ffffff'
+        st.markdown(f'''
         <div class="metric-card" style="text-align:center;">
-            <div style="color:#8888a0;font-size:11px;">RISK INDEX</div>
-            <div style="color:{risk_color};font-size:36px;font-weight:bold;">{risk_index:.1f}/10</div>
-        </div>""", unsafe_allow_html=True)
-    with col3:
-        n_crit = len([a for a in alerts if a['level'] == 'critical'])
-        n_warn = len([a for a in alerts if a['level'] == 'warning'])
-        st.markdown(f"""
+            <div class="text-label">SILVER</div>
+            <div class="text-headline" style="color:{silver_color};">${silver_price:.2f}</div>
+            <div class="text-caption">{s.get('change_pct', 0):+.2f}% today</div>
+        </div>''', unsafe_allow_html=True)
+    with c2:
+        ms = prices.get('morgan_stanley', {})
+        ms_price = ms.get('price', 0)
+        ms_change = ms.get('change_pct', 0)
+        ms_color = '#ff3b5c' if ms_change < -5 or ms_price < 100 else '#ff8c42' if ms_change < -2 else '#ffffff'
+        st.markdown(f'''
         <div class="metric-card" style="text-align:center;">
-            <div style="color:#8888a0;font-size:11px;">ALERTS</div>
-            <div style="font-size:24px;"><span style="color:#ff3b5c;">{n_crit}🔴</span> <span style="color:#ff8c42;">{n_warn}🟠</span></div>
-        </div>""", unsafe_allow_html=True)
-    
-    if alerts:
-        with st.expander(f"🚨 Active Alerts ({len(alerts)})", expanded=True):
-            for a in alerts[:5]:
-                css_class = f"alert-{a['level']}" if a['level'] != 'info' else 'alert-info'
-                st.markdown(f'<div class="{css_class}"><strong>{a["title"]}</strong><br>{a["msg"]}<br><em style="color:#aaa;">→ {a["action"]}</em></div>', unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Scenario probabilities
-    st.markdown("### 📊 Scenario Probabilities")
+            <div class="text-label">MS STOCK</div>
+            <div class="text-headline" style="color:{ms_color};">${ms_price:.2f}</div>
+            <div class="text-caption">{ms_change:+.2f}% today</div>
+        </div>''', unsafe_allow_html=True)
+    with c3:
+        v = prices.get('vix', {})
+        vix_val = v.get('price', 0)
+        vix_color = '#ff3b5c' if vix_val > 35 else '#ff8c42' if vix_val > 25 else '#ffffff'
+        st.markdown(f'''
+        <div class="metric-card" style="text-align:center;">
+            <div class="text-label">VIX FEAR</div>
+            <div class="text-headline" style="color:{vix_color};">{vix_val:.1f}</div>
+            <div class="text-caption">{v.get('change_pct', 0):+.1f}% today</div>
+        </div>''', unsafe_allow_html=True)
+    with c4:
+        kre = prices.get('regional_banks', {})
+        kre_week = kre.get('week_change', 0)
+        kre_color = '#ff3b5c' if kre_week < -10 else '#ff8c42' if kre_week < -5 else '#ffffff'
+        st.markdown(f'''
+        <div class="metric-card" style="text-align:center;">
+            <div class="text-label">BANKS (KRE)</div>
+            <div class="text-headline" style="color:{kre_color};">{kre_week:+.1f}%</div>
+            <div class="text-caption">weekly change</div>
+        </div>''', unsafe_allow_html=True)
+
+    # =========================================================================
+    # LEVEL 3: SCENARIO BAR - Compact horizontal display
+    # =========================================================================
+    st.markdown('<div class="text-label" style="text-align:center;margin:30px 0 15px 0;">SCENARIO OUTLOOK</div>', unsafe_allow_html=True)
+
     scenario_config = {
         'slow_burn': {'name': 'Slow Burn', 'color': '#4ade80'},
         'credit_crunch': {'name': 'Credit Crunch', 'color': '#ff3b5c'},
@@ -886,60 +927,77 @@ def render_dashboard_tab(prices, indicators, scenarios, allocation, alerts, risk
         'deflation_bust': {'name': 'Deflation', 'color': '#3b82f6'},
         'monetary_reset': {'name': 'Reset', 'color': '#a855f7'},
     }
-    cols = st.columns(5)
-    for i, (key, prob) in enumerate(scenarios.items()):
+
+    # Build horizontal scenario bar
+    bar_html = '<div style="display:flex;height:40px;border:1px solid #2a2a2a;overflow:hidden;">'
+    for key, prob in scenarios.items():
         cfg = scenario_config.get(key, {'name': key, 'color': '#888'})
-        with cols[i]:
-            st.markdown(f"""
-            <div class="scenario-card" style="border-left:4px solid {cfg['color']};">
-                <div style="color:#8888a0;font-size:10px;">{cfg['name']}</div>
-                <div style="color:{cfg['color']};font-size:28px;font-weight:bold;">{prob*100:.0f}%</div>
-            </div>""", unsafe_allow_html=True)
-    
+        width_pct = prob * 100
+        if width_pct > 5:  # Only show label if wide enough
+            bar_html += f'<div style="width:{width_pct}%;background:{cfg["color"]};display:flex;align-items:center;justify-content:center;"><span style="font-size:11px;font-weight:700;color:#000;">{cfg["name"]} {prob*100:.0f}%</span></div>'
+        else:
+            bar_html += f'<div style="width:{width_pct}%;background:{cfg["color"]};"></div>'
+    bar_html += '</div>'
+    st.markdown(bar_html, unsafe_allow_html=True)
+
+    # =========================================================================
+    # LEVEL 4: EXPANDABLE DETAILS
+    # =========================================================================
     st.markdown("---")
-    
-    # Real-time prices
-    st.markdown("### 📈 Real-Time Prices")
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    with c1:
-        g = prices.get('gold', {})
-        st.metric("🥇 Gold", f"${g.get('price', 0):,.0f}", f"{g.get('change_pct', 0):+.2f}%")
-    with c2:
-        s = prices.get('silver', {})
-        st.metric("🥈 Silver", f"${s.get('price', 0):.2f}", f"{s.get('change_pct', 0):+.2f}%")
-    with c3:
-        r = prices.get('gold_silver_ratio', {})
-        st.metric("⚖️ G/S Ratio", f"{r.get('price', 0):.1f}", "")
-    with c4:
-        v = prices.get('vix', {})
-        st.metric("😰 VIX", f"{v.get('price', 0):.1f}", f"{v.get('change_pct', 0):+.1f}%", delta_color="inverse")
-    with c5:
-        b = prices.get('bitcoin', {})
-        st.metric("₿ Bitcoin", f"${b.get('price', 0):,.0f}", f"{b.get('change_pct', 0):+.1f}%")
-    with c6:
-        d = prices.get('dollar_index', {})
-        st.metric("💵 DXY", f"{d.get('price', 0):.1f}", f"{d.get('change_pct', 0):+.1f}%")
-    
-    # Row 2
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    with c1:
-        x = prices.get('gold_miners', {})
-        st.metric("⛏️ GDX", f"${x.get('price', 0):.2f}", f"{x.get('change_pct', 0):+.1f}%")
-    with c2:
-        x = prices.get('silver_miners', {})
-        st.metric("⛏️ SILJ", f"${x.get('price', 0):.2f}", f"{x.get('change_pct', 0):+.1f}%")
-    with c3:
-        x = prices.get('regional_banks', {})
-        st.metric("🏦 KRE", f"${x.get('price', 0):.2f}", f"{x.get('week_change', 0):+.1f}%wk")
-    with c4:
-        x = prices.get('high_yield', {})
-        st.metric("📉 HYG", f"${x.get('price', 0):.2f}", f"{x.get('week_change', 0):+.1f}%wk")
-    with c5:
-        x = prices.get('long_treasury', {})
-        st.metric("📜 TLT", f"${x.get('price', 0):.2f}", f"{x.get('change_pct', 0):+.1f}%")
-    with c6:
-        x = prices.get('sp500', {})
-        st.metric("📊 SPY", f"${x.get('price', 0):.2f}", f"{x.get('change_pct', 0):+.1f}%")
+
+    # Alerts expander
+    if alerts:
+        with st.expander(f"🚨 Active Alerts ({len(alerts)})", expanded=n_crit > 0):
+            for a in alerts[:5]:
+                css_class = f"alert-{a['level']}" if a['level'] != 'info' else 'alert-info'
+                st.markdown(f'<div class="{css_class}"><strong>{a["title"]}</strong><br>{a["msg"]}<br><em style="color:#aaa;">→ {a["action"]}</em></div>', unsafe_allow_html=True)
+
+    # All prices expander
+    with st.expander("📈 All Market Prices", expanded=False):
+        st.markdown("##### Precious Metals")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            g = prices.get('gold', {})
+            st.metric("Gold", f"${g.get('price', 0):,.0f}", f"{g.get('change_pct', 0):+.2f}%")
+        with c2:
+            s = prices.get('silver', {})
+            st.metric("Silver", f"${s.get('price', 0):.2f}", f"{s.get('change_pct', 0):+.2f}%")
+        with c3:
+            x = prices.get('gold_miners', {})
+            st.metric("GDX", f"${x.get('price', 0):.2f}", f"{x.get('change_pct', 0):+.1f}%")
+        with c4:
+            x = prices.get('silver_miners', {})
+            st.metric("SILJ", f"${x.get('price', 0):.2f}", f"{x.get('change_pct', 0):+.1f}%")
+
+        st.markdown("##### Market Indicators")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            x = prices.get('sp500', {})
+            st.metric("SPY", f"${x.get('price', 0):.2f}", f"{x.get('change_pct', 0):+.1f}%")
+        with c2:
+            x = prices.get('long_treasury', {})
+            st.metric("TLT", f"${x.get('price', 0):.2f}", f"{x.get('change_pct', 0):+.1f}%")
+        with c3:
+            d = prices.get('dollar_index', {})
+            st.metric("DXY", f"{d.get('price', 0):.1f}", f"{d.get('change_pct', 0):+.1f}%")
+        with c4:
+            b = prices.get('bitcoin', {})
+            st.metric("Bitcoin", f"${b.get('price', 0):,.0f}", f"{b.get('change_pct', 0):+.1f}%")
+
+        st.markdown("##### Stress Indicators")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            x = prices.get('regional_banks', {})
+            st.metric("KRE", f"${x.get('price', 0):.2f}", f"{x.get('week_change', 0):+.1f}%wk")
+        with c2:
+            x = prices.get('high_yield', {})
+            st.metric("HYG", f"${x.get('price', 0):.2f}", f"{x.get('week_change', 0):+.1f}%wk")
+        with c3:
+            r = prices.get('gold_silver_ratio', {})
+            st.metric("G/S Ratio", f"{r.get('price', 0):.1f}", "")
+        with c4:
+            v = prices.get('vix', {})
+            st.metric("VIX", f"{v.get('price', 0):.1f}", f"{v.get('change_pct', 0):+.1f}%")
 
 def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
     """Render MS Collapse tracking tab"""
