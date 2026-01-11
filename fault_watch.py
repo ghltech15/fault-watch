@@ -340,6 +340,35 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =============================================================================
+# BREAKING NEWS HEADER
+# =============================================================================
+
+def render_breaking_header(alerts, risk_index, countdown):
+    """Render CNN-style breaking news banner at the top of the app"""
+    # Determine if we should show breaking banner
+    has_critical = any(a['level'] == 'critical' for a in alerts)
+    deadline_urgent = countdown['days'] < 7 and not countdown['expired']
+
+    if risk_index >= 7 or has_critical or deadline_urgent:
+        # Get the most critical alert message
+        critical_alerts = [a for a in alerts if a['level'] == 'critical']
+        if critical_alerts:
+            headline = critical_alerts[0]['title'].replace('🚨 ', '').replace('⚠️ ', '')
+        elif deadline_urgent:
+            headline = f"SEC DEADLINE IN {countdown['days']} DAYS - MS MUST CLOSE 5.9B OZ SHORT"
+        else:
+            headline = "SYSTEMIC RISK ELEVATED - MONITORING CRISIS INDICATORS"
+
+        label = "BREAKING" if risk_index >= 8 or has_critical else "ALERT"
+
+        st.markdown(f'''
+        <div class="breaking-banner">
+            <span class="breaking-label">{label}</span>
+            <span class="breaking-text">{headline}</span>
+        </div>
+        ''', unsafe_allow_html=True)
+
+# =============================================================================
 # DATA FETCHING
 # =============================================================================
 
@@ -1380,7 +1409,10 @@ def main():
         ('slow_burn', 5), ('credit_crunch', 9), ('inflation_spike', 7),
         ('deflation_bust', 9), ('monetary_reset', 10)
     ])
-    
+
+    # Breaking News Banner (shows when risk is elevated)
+    render_breaking_header(alerts, risk_index, countdown)
+
     # Header
     st.markdown("""
     <div style="text-align:center;padding:10px 0;">
