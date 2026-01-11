@@ -1039,7 +1039,7 @@ def render_dashboard_tab(prices, indicators, scenarios, allocation, alerts, risk
             st.metric("VIX", f"{v.get('price', 0):.1f}", f"{v.get('change_pct', 0):+.1f}%")
 
 def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
-    """Render MS Collapse tracking tab"""
+    """Render MS Collapse tracking tab with visual hierarchy"""
 
     # Determine urgency level for countdown styling
     is_urgent = countdown['days'] < 7 and not countdown['expired']
@@ -1057,6 +1057,9 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
     else:
         urgency_msg = "MONITORING SEC COMPLIANCE DEADLINE"
 
+    # =========================================================================
+    # HERO: COUNTDOWN (full width, centered)
+    # =========================================================================
     st.markdown(f"""
     <div class="countdown-box" {'style="animation: alert-pulse 1s ease-in-out infinite;"' if is_urgent else ''}>
         <div class="countdown-number">{countdown['days']}</div>
@@ -1073,146 +1076,202 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.markdown("### 🏦 Morgan Stanley Stress Monitor")
-        stress_color = '#4ade80' if stress_level < 30 else '#fbbf24' if stress_level < 50 else '#ff8c42' if stress_level < 70 else '#ff3b5c'
-        stress_label = 'LOW' if stress_level < 30 else 'MODERATE' if stress_level < 50 else 'HIGH' if stress_level < 70 else 'CRITICAL'
-        st.markdown(f"""
-        <div class="stress-meter">
-            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
-                <span style="color:#e8e8f0;">Stress Level: <strong>{stress_label}</strong></span>
-                <span style="color:{stress_color};font-size:24px;font-weight:bold;">{stress_level}/100</span>
-            </div>
-            <div style="background:#2a2a4a;height:30px;border-radius:15px;overflow:hidden;">
-                <div style="background:linear-gradient(90deg, #4ade80, #fbbf24, #ff8c42, #ff3b5c);width:{stress_level}%;height:100%;border-radius:15px;"></div>
-            </div>
+
+    # =========================================================================
+    # STRESS METER (simplified, full width)
+    # =========================================================================
+    stress_color = '#4ade80' if stress_level < 30 else '#fbbf24' if stress_level < 50 else '#ff8c42' if stress_level < 70 else '#ff3b5c'
+    stress_label = 'LOW' if stress_level < 30 else 'MODERATE' if stress_level < 50 else 'HIGH' if stress_level < 70 else 'CRITICAL'
+
+    st.markdown(f'''
+    <div class="stress-meter" style="margin-top:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span class="text-label">MS STRESS LEVEL</span>
+            <span style="color:{stress_color};font-size:28px;font-weight:900;">{stress_level}<span style="font-size:14px;color:#888;">/100</span></span>
         </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("### 💀 Theoretical Losses")
-        st.metric("Paper Loss", f"${ms_exposure['paper_loss']/1e9:.0f}B")
-        st.metric("vs Equity", f"{ms_exposure['loss_vs_equity']:.1f}x")
-        if ms_exposure['insolvent']:
-            st.error(f"⚠️ INSOLVENT ({ms_exposure['insolvency_multiple']:.1f}x)")
-    
+        <div style="background:#1a1a1a;height:12px;overflow:hidden;border:1px solid #2a2a2a;">
+            <div style="background:linear-gradient(90deg, {stress_color}, {stress_color});width:{stress_level}%;height:100%;"></div>
+        </div>
+        <div class="text-caption" style="text-align:right;margin-top:5px;">{stress_label}</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # =========================================================================
+    # KEY METRICS: MS Stock + Paper Loss (compact row)
+    # =========================================================================
     st.markdown("---")
-    
-    # Bank stocks
-    st.markdown("### 🏦 Bank Stock Monitor")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    banks = [('morgan_stanley', '🎯 MS'), ('jpmorgan', 'JPM'), ('citibank', 'C'), ('bank_of_america', 'BAC'), ('goldman', 'GS')]
-    for col, (key, name) in zip([c1, c2, c3, c4, c5], banks):
-        with col:
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        ms = prices.get('morgan_stanley', {})
+        ms_change = ms.get('change_pct', 0)
+        ms_color = '#ff3b5c' if ms_change < -5 else '#ff8c42' if ms_change < -2 else '#4ade80' if ms_change > 0 else '#ffffff'
+        st.markdown(f'''
+        <div class="metric-card" style="text-align:center;">
+            <div class="text-label">MS STOCK</div>
+            <div class="text-headline" style="color:{ms_color};">${ms.get('price', 0):.2f}</div>
+            <div class="text-caption">{ms_change:+.2f}%</div>
+        </div>''', unsafe_allow_html=True)
+    with c2:
+        loss_color = '#ff3b5c' if ms_exposure['paper_loss'] > 100e9 else '#ff8c42'
+        st.markdown(f'''
+        <div class="metric-card" style="text-align:center;">
+            <div class="text-label">PAPER LOSS</div>
+            <div class="text-headline" style="color:{loss_color};">${ms_exposure['paper_loss']/1e9:.0f}B</div>
+            <div class="text-caption">theoretical</div>
+        </div>''', unsafe_allow_html=True)
+    with c3:
+        eq_color = '#ff3b5c' if ms_exposure['loss_vs_equity'] > 1 else '#ff8c42'
+        st.markdown(f'''
+        <div class="metric-card" style="text-align:center;">
+            <div class="text-label">VS EQUITY</div>
+            <div class="text-headline" style="color:{eq_color};">{ms_exposure['loss_vs_equity']:.1f}x</div>
+            <div class="text-caption">{'INSOLVENT' if ms_exposure['insolvent'] else 'exposure'}</div>
+        </div>''', unsafe_allow_html=True)
+    with c4:
+        silver = prices.get('silver', {})
+        st.markdown(f'''
+        <div class="metric-card" style="text-align:center;">
+            <div class="text-label">SILVER</div>
+            <div class="text-headline">${silver.get('price', 0):.2f}</div>
+            <div class="text-caption">{silver.get('change_pct', 0):+.2f}%</div>
+        </div>''', unsafe_allow_html=True)
+
+    # =========================================================================
+    # EXPANDABLE: Bank Stocks & Calculations
+    # =========================================================================
+    with st.expander("🏦 Bank Stock Monitor", expanded=False):
+        banks = [
+            ('morgan_stanley', 'Morgan Stanley', '🎯'),
+            ('jpmorgan', 'JPMorgan', ''),
+            ('citibank', 'Citigroup', ''),
+            ('bank_of_america', 'Bank of America', ''),
+            ('goldman', 'Goldman Sachs', '')
+        ]
+        for key, name, icon in banks:
             b = prices.get(key, {})
-            st.metric(name, f"${b.get('price', 0):.2f}", f"{b.get('change_pct', 0):+.2f}%")
+            change = b.get('change_pct', 0)
+            color = '#ff3b5c' if change < -3 else '#ff8c42' if change < 0 else '#4ade80'
+            st.markdown(f'''
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2a2a;">
+                <span style="color:#e0e0e0;">{icon} {name}</span>
+                <span><span style="color:#ffffff;font-weight:600;">${b.get('price', 0):.2f}</span> <span style="color:{color};">{change:+.2f}%</span></span>
+            </div>''', unsafe_allow_html=True)
+
+    with st.expander("📊 Detailed Calculations", expanded=False):
+        st.markdown(f"""
+        **Short Position Details:**
+        - Position Size: {ms_exposure['position_oz']/1e9:.1f} billion oz
+        - Current Value: ${ms_exposure['current_value']/1e12:.2f}T
+        - Entry Value (est. $30): ${ms_exposure['position_oz'] * 30 / 1e9:.0f}B
+
+        **Insolvency Analysis:**
+        - MS Equity: $100B
+        - Paper Loss: ${ms_exposure['paper_loss']/1e9:.0f}B
+        - Loss/Equity Ratio: {ms_exposure['loss_vs_equity']:.2f}x
+        - Status: {'🔴 THEORETICALLY INSOLVENT' if ms_exposure['insolvent'] else '🟡 At Risk'}
+        """)
 
 def render_bank_exposure_tab(prices, bank_risk_scores):
-    """Render Bank Exposure tab"""
-    
-    st.markdown("### 🏦 Bank PM Derivatives Exposure")
-    st.markdown("*Data from OCC Q3 2025 Quarterly Report on Bank Derivatives*")
-    
-    st.markdown("---")
-    
-    # Summary stats
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        total_pm = 437.4 + 204.3 + 47.9 + 0.6
-        st.metric("Total US Bank PM Derivatives", f"${total_pm:.1f}B")
-    with col2:
-        st.metric("JPM + Citi Share", "91.1%", "Extreme concentration")
-    with col3:
-        st.metric("Banks Tracked", "10", "US + European")
-    
-    st.markdown("---")
-    
-    # Tier 1: US Big Banks
-    st.markdown("### 🔴 TIER 1: Extreme Risk (US Majors)")
-    
+    """Render Bank Exposure tab with visual hierarchy"""
+
+    # =========================================================================
+    # HERO: Summary Stats
+    # =========================================================================
+    total_pm = 437.4 + 204.3 + 47.9 + 0.6
+
+    st.markdown(f'''
+    <div style="text-align:center;padding:20px 0;">
+        <div class="text-label">TOTAL US BANK PM DERIVATIVES EXPOSURE</div>
+        <div class="text-hero" style="color:#ff3b5c;">${total_pm:.0f}B</div>
+        <div class="text-caption" style="margin-top:10px;">JPM + Citi control 91.1% • Data: OCC Q3 2025</div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # =========================================================================
+    # TIER 1: Extreme Risk (Always visible)
+    # =========================================================================
+    st.markdown('<div class="text-label" style="margin:20px 0 15px 0;">TIER 1: EXTREME RISK</div>', unsafe_allow_html=True)
+
     for key in ['JPM', 'C', 'MS']:
         bank = BANK_PM_EXPOSURE[key]
         risk = bank_risk_scores.get(key, {})
         score = risk.get('score', 50)
         score_color = '#ff3b5c' if score >= 70 else '#ff8c42' if score >= 50 else '#4ade80'
-        
+
         pm_display = f"${bank['pm_derivatives']/1e9:.1f}B" if bank['pm_derivatives'] else "HIDDEN"
         pct_display = f"{bank['pct_total']:.1f}%" if bank['pct_total'] else "N/A"
-        
+
         st.markdown(f"""
         <div class="bank-card">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div>
-                    <span style="color:#e8e8f0;font-size:20px;font-weight:bold;">{bank['name']}</span>
-                    <span style="color:#888;font-size:14px;margin-left:10px;">({bank['ticker']})</span>
+                    <span class="text-subhead" style="color:#ffffff;">{bank['name']}</span>
+                    <span class="text-caption" style="margin-left:10px;">({bank['ticker']})</span>
                 </div>
                 <div style="text-align:right;">
-                    <span style="color:{score_color};font-size:24px;font-weight:bold;">{score}/100</span>
-                    <span style="color:#888;font-size:12px;"> RISK</span>
+                    <span style="color:{score_color};font-size:24px;font-weight:bold;">{score}</span>
+                    <span class="text-caption">/100 RISK</span>
                 </div>
             </div>
-            <div style="display:flex;gap:30px;margin-top:10px;">
-                <div><span style="color:#888;">PM Derivatives:</span> <span style="color:#e8e8f0;font-weight:bold;">{pm_display}</span></div>
-                <div><span style="color:#888;">% of Total:</span> <span style="color:#e8e8f0;">{pct_display}</span></div>
-                <div><span style="color:#888;">Equity:</span> <span style="color:#e8e8f0;">${bank['equity']/1e9:.0f}B</span></div>
-                <div><span style="color:#888;">Price:</span> <span style="color:#e8e8f0;">${risk.get('price', 0):.2f}</span> <span style="color:{'#ff3b5c' if risk.get('daily_change', 0) < 0 else '#4ade80'};">{risk.get('daily_change', 0):+.2f}%</span></div>
+            <div style="display:flex;gap:30px;margin-top:10px;flex-wrap:wrap;">
+                <div><span class="text-caption">PM Derivatives:</span> <span style="color:#ffffff;font-weight:600;">{pm_display}</span></div>
+                <div><span class="text-caption">Share:</span> <span style="color:#ffffff;">{pct_display}</span></div>
+                <div><span class="text-caption">Equity:</span> <span style="color:#ffffff;">${bank['equity']/1e9:.0f}B</span></div>
+                <div><span class="text-caption">Price:</span> <span style="color:#ffffff;">${risk.get('price', 0):.2f}</span> <span style="color:{'#ff3b5c' if risk.get('daily_change', 0) < 0 else '#4ade80'};">{risk.get('daily_change', 0):+.2f}%</span></div>
             </div>
-            {f'<div style="color:#ff8c42;font-size:12px;margin-top:5px;">⚠️ {bank.get("note", "")}</div>' if bank.get('note') else ''}
+            {f'<div style="color:#ff8c42;font-size:12px;margin-top:8px;">⚠️ {bank.get("note", "")}</div>' if bank.get('note') else ''}
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Tier 2: Other US Banks
-    st.markdown("### 🟠 TIER 2: High Risk")
-    
-    col1, col2 = st.columns(2)
-    for i, key in enumerate(['BAC', 'GS']):
-        bank = BANK_PM_EXPOSURE[key]
-        risk = bank_risk_scores.get(key, {})
-        with col1 if i == 0 else col2:
-            pm_display = f"${bank['pm_derivatives']/1e9:.1f}B" if bank['pm_derivatives'] else "N/A"
+
+    # =========================================================================
+    # TIER 2 & 3: Collapsible
+    # =========================================================================
+    with st.expander("🟠 Tier 2: High Risk (US Banks)", expanded=False):
+        col1, col2 = st.columns(2)
+        for i, key in enumerate(['BAC', 'GS']):
+            bank = BANK_PM_EXPOSURE[key]
+            risk = bank_risk_scores.get(key, {})
+            with col1 if i == 0 else col2:
+                pm_display = f"${bank['pm_derivatives']/1e9:.1f}B" if bank['pm_derivatives'] else "N/A"
+                st.markdown(f"""
+                <div class="bank-card" style="border-left-color:#ff8c42;">
+                    <div class="text-subhead" style="color:#e8e8f0;">{bank['name']}</div>
+                    <div class="text-caption">PM: {pm_display} | Equity: ${bank['equity']/1e9:.0f}B</div>
+                    <div class="text-caption">Price: ${risk.get('price', 0):.2f} ({risk.get('daily_change', 0):+.2f}%)</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    with st.expander("🟡 Tier 3: European Banks (LBMA)", expanded=False):
+        for key in ['HSBC', 'DB', 'UBS', 'BCS', 'BNS']:
+            bank = BANK_PM_EXPOSURE[key]
+            risk = bank_risk_scores.get(key, {})
             st.markdown(f"""
-            <div class="bank-card" style="border-left-color:#ff8c42;">
-                <div style="font-size:16px;font-weight:bold;color:#e8e8f0;">{bank['name']} ({bank['ticker']})</div>
-                <div style="color:#888;font-size:12px;">PM Derivatives: {pm_display} | Equity: ${bank['equity']/1e9:.0f}B</div>
-                <div style="color:#888;font-size:12px;">Price: ${risk.get('price', 0):.2f} ({risk.get('daily_change', 0):+.2f}%)</div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2a2a2a;">
+                <div>
+                    <span style="color:#e0e0e0;font-weight:600;">{bank['name']}</span>
+                    <span class="text-caption" style="margin-left:8px;">{bank['ticker']}</span>
+                </div>
+                <div>
+                    <span style="color:#ffffff;">${risk.get('price', 0):.2f}</span>
+                    <span style="color:{'#ff3b5c' if risk.get('daily_change', 0) < 0 else '#4ade80'};">{risk.get('daily_change', 0):+.2f}%</span>
+                </div>
             </div>
+            <div class="text-caption" style="color:#ff8c42;padding-bottom:5px;">{bank.get('note', '')}</div>
             """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Tier 3: European Banks
-    st.markdown("### 🟡 TIER 3: European Exposure (LBMA)")
-    
-    cols = st.columns(3)
-    for i, key in enumerate(['HSBC', 'DB', 'UBS', 'BCS', 'BNS']):
-        bank = BANK_PM_EXPOSURE[key]
-        risk = bank_risk_scores.get(key, {})
-        with cols[i % 3]:
-            st.markdown(f"""
-            <div class="bank-card" style="border-left-color:#fbbf24;">
-                <div style="font-size:14px;font-weight:bold;color:#e8e8f0;">{bank['name']}</div>
-                <div style="color:#888;font-size:11px;">{bank['ticker']} | ${risk.get('price', 0):.2f}</div>
-                <div style="color:#ff8c42;font-size:10px;">{bank.get('note', '')}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Put options table
-    st.markdown("### 🎯 Suggested Put Options (Contagion Plays)")
-    
-    puts_data = [
-        {"Bank": "Morgan Stanley", "Ticker": "MS", "Current": "$135", "Strike": "$60", "Exp": "Mar 21", "Premium": "$0.01", "Payout @$0": "$6M"},
-        {"Bank": "Citigroup", "Ticker": "C", "Current": "$75", "Strike": "$40", "Exp": "Mar 21", "Premium": "$0.03", "Payout @$20": "$400K"},
-        {"Bank": "JPMorgan", "Ticker": "JPM", "Current": "$250", "Strike": "$150", "Exp": "Mar 21", "Premium": "$0.05", "Payout @$100": "$500K"},
-        {"Bank": "Deutsche Bank", "Ticker": "DB", "Current": "$18", "Strike": "$10", "Exp": "Apr 17", "Premium": "$0.05", "Payout @$5": "$100K"},
-        {"Bank": "Barclays", "Ticker": "BCS", "Current": "$13", "Strike": "$8", "Exp": "Apr 17", "Premium": "$0.03", "Payout @$4": "$80K"},
-    ]
-    st.table(pd.DataFrame(puts_data))
+
+    # =========================================================================
+    # TRADING IDEAS: Collapsible
+    # =========================================================================
+    with st.expander("🎯 Trading Ideas (Put Options)", expanded=False):
+        st.markdown("*Suggested contagion plays - NOT financial advice*")
+        puts_data = [
+            {"Bank": "Morgan Stanley", "Ticker": "MS", "Current": "$135", "Strike": "$60", "Exp": "Mar 21", "Premium": "$0.01", "Payout @$0": "$6M"},
+            {"Bank": "Citigroup", "Ticker": "C", "Current": "$75", "Strike": "$40", "Exp": "Mar 21", "Premium": "$0.03", "Payout @$20": "$400K"},
+            {"Bank": "JPMorgan", "Ticker": "JPM", "Current": "$250", "Strike": "$150", "Exp": "Mar 21", "Premium": "$0.05", "Payout @$100": "$500K"},
+            {"Bank": "Deutsche Bank", "Ticker": "DB", "Current": "$18", "Strike": "$10", "Exp": "Apr 17", "Premium": "$0.05", "Payout @$5": "$100K"},
+            {"Bank": "Barclays", "Ticker": "BCS", "Current": "$13", "Strike": "$8", "Exp": "Apr 17", "Premium": "$0.03", "Payout @$4": "$80K"},
+        ]
+        st.table(pd.DataFrame(puts_data))
 
 def render_fed_response_tab(prices, silver_price):
     """Render Fed Response Tracker tab"""
