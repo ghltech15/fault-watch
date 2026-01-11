@@ -12,6 +12,7 @@ TABS:
 5. Domino Effects - Cascade tracker
 6. My Positions - Trade tracking & P/L calculator
 7. Scenarios - Detailed scenario analysis
+8. Content - TikTok content generation & export
 
 Run with: streamlit run fault_watch_v4.py
 """
@@ -22,10 +23,14 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from pathlib import Path
 import yfinance as yf
 import requests
 import json
 import time
+
+from content_generator import ContentGenerator, TemplateType
+from content_triggers import TriggerManager, TriggerConfig
 
 # =============================================================================
 # PAGE CONFIG
@@ -1734,6 +1739,157 @@ def render_scenarios_tab(scenarios, allocation):
             st.markdown(f"**Probability:** {prob*100:.1f}%")
             st.markdown(f"**Description:** {details.get('desc', '')}")
 
+
+def render_content_tab(prices, countdown):
+    """Render Content Export tab for TikTok content generation"""
+
+    st.markdown("### 📱 Content Export")
+    st.markdown("Generate TikTok-ready content from market data")
+
+    # Initialize trigger manager in session state
+    if 'trigger_manager' not in st.session_state:
+        st.session_state.trigger_manager = TriggerManager()
+
+    trigger_manager = st.session_state.trigger_manager
+
+    # Section 1: Manual Generation
+    st.markdown("#### 🎬 Manual Generation")
+
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        generate_video = st.toggle("Generate Video", value=False, help="Generate video instead of image (slower)")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        if st.button("📈 Price Alert", use_container_width=True):
+            silver_price = prices.get('silver', {}).get('price', 0)
+            silver_change = prices.get('silver', {}).get('change_pct', 0)
+            data = {'asset': 'SILVER', 'price': silver_price, 'change': silver_change}
+            path = trigger_manager.manual_generate(TemplateType.PRICE_ALERT, data, generate_video)
+            st.success(f"Generated: {path.name}")
+
+    with col2:
+        if st.button("⏰ Countdown", use_container_width=True):
+            days = countdown.get('comex', {}).get('days', 0)
+            data = {
+                'days': days,
+                'event': 'COMEX Deadline',
+                'date': 'March 27, 2026'
+            }
+            path = trigger_manager.manual_generate(TemplateType.COUNTDOWN, data, generate_video)
+            st.success(f"Generated: {path.name}")
+
+    with col3:
+        if st.button("🏦 Bank Crisis", use_container_width=True):
+            ms_price = prices.get('morgan_stanley', {}).get('price', 0)
+            ms_change = prices.get('morgan_stanley', {}).get('change_pct', 0)
+            data = {
+                'bank': 'Morgan Stanley',
+                'price': ms_price,
+                'change': ms_change,
+                'exposure': '$18.5B',
+                'loss': '$12.3B'
+            }
+            path = trigger_manager.manual_generate(TemplateType.BANK_CRISIS, data, generate_video)
+            st.success(f"Generated: {path.name}")
+
+    with col4:
+        if st.button("📊 Daily Summary", use_container_width=True):
+            data = {
+                'silver': prices.get('silver', {}).get('price', 0),
+                'gold': prices.get('gold', {}).get('price', 0),
+                'ms': prices.get('morgan_stanley', {}).get('price', 0),
+                'vix': prices.get('vix', {}).get('price', 0),
+                'risk': 7.5,  # TODO: Use actual risk index
+            }
+            path = trigger_manager.manual_generate(TemplateType.DAILY_SUMMARY, data, generate_video)
+            st.success(f"Generated: {path.name}")
+
+    st.markdown("---")
+
+    # Section 2: Trigger Status
+    st.markdown("#### ⚡ Auto-Trigger Status")
+
+    status = trigger_manager.get_trigger_status()
+
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        enabled = st.toggle("Enable Auto-Triggers", value=status['enabled'])
+        trigger_manager.set_enabled(enabled)
+
+        st.markdown("**Price Thresholds:**")
+        thresholds = status['price_thresholds']
+        st.markdown(f"- Silver: {thresholds.get('silver', [])}")
+        st.markdown(f"- MS Drop: {thresholds.get('ms_drop', [])}%")
+        st.markdown(f"- VIX: {thresholds.get('vix', [])}")
+
+    with col2:
+        st.markdown("**Schedule:**")
+        st.markdown(f"- Times: {', '.join(status['scheduled_times'])}")
+        st.markdown(f"- Next: {status['next_scheduled'] or 'N/A'}")
+        st.markdown(f"- Cooldown: {status['cooldown_hours']}h")
+
+        if status['last_triggered']:
+            st.markdown("**Last Triggered:**")
+            for key, time in list(status['last_triggered'].items())[:3]:
+                st.caption(f"- {key}: {time}")
+
+    st.markdown("---")
+
+    # Section 3: Recent Content
+    st.markdown("#### 📁 Recent Content")
+
+    recent_files = trigger_manager.get_recent_files(5)
+
+    if recent_files:
+        for file_path in recent_files:
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                st.text(file_path.name)
+            with col2:
+                file_type = "🎬" if file_path.suffix == '.mp4' else "🖼️"
+                st.text(file_type)
+            with col3:
+                # Read file for download
+                if file_path.exists():
+                    with open(file_path, 'rb') as f:
+                        st.download_button(
+                            "⬇️",
+                            f.read(),
+                            file_name=file_path.name,
+                            key=f"dl_{file_path.name}"
+                        )
+    else:
+        st.info("No content generated yet. Use the buttons above to create content.")
+
+    # Also check content-output directory for existing files
+    output_dir = Path("content-output")
+    if output_dir.exists():
+        images = list((output_dir / "images").glob("*.png"))[-5:]
+        videos = list((output_dir / "videos").glob("*.mp4"))[-5:]
+
+        if images or videos:
+            st.markdown("**Files in content-output/:**")
+            all_files = sorted(images + videos, key=lambda x: x.stat().st_mtime, reverse=True)[:5]
+            for file_path in all_files:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.text(file_path.name)
+                with col2:
+                    file_type = "🎬" if file_path.suffix == '.mp4' else "🖼️"
+                    st.text(file_type)
+                with col3:
+                    with open(file_path, 'rb') as f:
+                        st.download_button(
+                            "⬇️",
+                            f.read(),
+                            file_name=file_path.name,
+                            key=f"dl_existing_{file_path.name}"
+                        )
+
+
 # =============================================================================
 # MAIN APP
 # =============================================================================
@@ -1803,36 +1959,40 @@ def main():
     """, unsafe_allow_html=True)
     
     # Tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📊 Dashboard",
         "🏦 MS Collapse",
         "💀 Bank Exposure",
         "🏛️ Fed Response",
         "🎯 Dominoes",
         "💰 Positions",
-        "📈 Scenarios"
+        "📈 Scenarios",
+        "📱 Content"
     ])
-    
+
     with tab1:
         render_dashboard_tab(prices, indicators, scenarios, allocation, alerts, risk_index)
-    
+
     with tab2:
         render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure)
-    
+
     with tab3:
         render_bank_exposure_tab(prices, bank_risk_scores)
-    
+
     with tab4:
         render_fed_response_tab(prices, silver_price)
-    
+
     with tab5:
         render_domino_tab(prices, dominoes)
-    
+
     with tab6:
         render_positions_tab(prices)
-    
+
     with tab7:
         render_scenarios_tab(scenarios, allocation)
+
+    with tab8:
+        render_content_tab(prices, countdown)
     
     # Footer
     st.markdown("---")
