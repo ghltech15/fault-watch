@@ -400,7 +400,7 @@ class ContentGenerator:
             if audio.duration < config.duration:
                 loops_needed = int(np.ceil(config.duration / audio.duration))
                 audio = concatenate_audioclips([audio] * loops_needed)
-            audio = audio.subclip(0, config.duration)
+            audio = audio.subclipped(0, config.duration)
             video = video.with_audio(audio)
 
         # Export video
