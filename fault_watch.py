@@ -36,7 +36,39 @@ st.set_page_config(page_title="fault.watch", page_icon="⚠️", layout="wide")
 # CONSTANTS
 # =============================================================================
 SEC_DEADLINE = datetime(2026, 2, 15, 16, 0, 0)
-MS_SHORT_POSITION_OZ = 5_900_000_000
+LLOYDS_DEADLINE = datetime(2026, 1, 31, 23, 59, 59)  # Lloyd's stops insuring Citi
+
+# Bank Silver Short Positions (in ounces)
+MS_SHORT_POSITION_OZ = 5_900_000_000      # Morgan Stanley
+CITI_SHORT_POSITION_OZ = 6_340_000_000    # Citigroup - LARGER than MS!
+JPM_LONG_POSITION_OZ = 750_000_000        # JPMorgan FLIPPED to LONG (was 200M short)
+
+# Bank Short Position Details
+BANK_SHORT_POSITIONS = {
+    'C': {
+        'name': 'Citigroup',
+        'position': 'SHORT',
+        'ounces': 6_340_000_000,
+        'equity': 175_000_000_000,
+        'insolvency_price': 80,  # Price at which they become insolvent
+        'note': 'LARGEST short - Lloyd\'s insurance deadline Jan 31'
+    },
+    'MS': {
+        'name': 'Morgan Stanley',
+        'position': 'SHORT',
+        'ounces': 5_900_000_000,
+        'equity': 100_000_000_000,
+        'insolvency_price': 47,
+        'note': 'SEC deadline Feb 15'
+    },
+    'JPM': {
+        'name': 'JPMorgan',
+        'position': 'LONG',
+        'ounces': 750_000_000,
+        'equity': 330_000_000_000,
+        'note': 'FLIPPED from 200M short to 750M LONG (Jun-Oct 2025)'
+    },
+}
 
 # Bank PM Derivatives Exposure (Q3 2025 OCC Data)
 BANK_PM_EXPOSURE = {
@@ -52,12 +84,13 @@ BANK_PM_EXPOSURE = {
     'BNS': {'name': 'Scotiabank', 'ticker': 'BNS', 'pm_derivatives': None, 'equity': 65e9, 'pct_total': None, 'note': '$127M fine 2020 PM manipulation'},
 }
 
-# Fed Emergency Lending History
+# Fed Emergency Lending History - UPDATED TO $51B
 FED_REPO_HISTORY = [
-    {'date': '2025-12-27', 'amount': 17.25, 'note': 'Silver spike to $83'},
-    {'date': '2025-12-30', 'amount': 5.8, 'note': 'Continued stress'},
-    {'date': '2025-12-31', 'amount': 0, 'note': 'Holiday'},
+    {'date': '2025-12-26', 'amount': 17.25, 'note': 'Dec 26-27 repo'},
+    {'date': '2025-12-27', 'amount': 34.0, 'note': 'Dec 27-28 overnight - MASSIVE'},
+    {'date': '2025-12-30', 'amount': 0, 'note': 'Holiday week'},
 ]
+FED_REPO_TOTAL = 51.25  # Total: $17.25B + $34B = ~$51B
 
 # Historical Bailout Comparisons
 BAILOUT_HISTORY = [
@@ -384,19 +417,26 @@ st.markdown("""
 
 def render_breaking_header(alerts, risk_index, countdown):
     """Render CNN-style breaking news banner at the top of the app"""
+    # Calculate Lloyd's countdown
+    lloyds_countdown = calculate_lloyds_countdown()
+
     # Determine if we should show breaking banner
     has_critical = any(a['level'] == 'critical' for a in alerts)
-    deadline_urgent = countdown['days'] < 7 and not countdown['expired']
+    sec_deadline_urgent = countdown['days'] < 7 and not countdown['expired']
+    lloyds_deadline_urgent = lloyds_countdown['days'] < 7 and not lloyds_countdown['expired']
+    deadline_urgent = sec_deadline_urgent or lloyds_deadline_urgent
 
     if risk_index >= 7 or has_critical or deadline_urgent:
         # Get the most critical alert message
         critical_alerts = [a for a in alerts if a['level'] == 'critical']
         if critical_alerts:
             headline = critical_alerts[0]['title'].replace('🚨 ', '').replace('⚠️ ', '')
-        elif deadline_urgent:
-            headline = f"SEC DEADLINE IN {countdown['days']} DAYS - MS MUST CLOSE 5.9B OZ SHORT"
+        elif lloyds_deadline_urgent:
+            headline = f"LLOYD'S DEADLINE IN {lloyds_countdown['days']} DAYS - CITI LOSES INSURANCE JAN 31"
+        elif sec_deadline_urgent:
+            headline = f"SEC DEADLINE IN {countdown['days']} DAYS - 12.24B OZ SILVER SHORTS MUST CLOSE"
         else:
-            headline = "SYSTEMIC RISK ELEVATED - MONITORING CRISIS INDICATORS"
+            headline = "SYSTEMIC RISK ELEVATED - CITI + MS COMBINED 12.24B OZ SHORT"
 
         label = "BREAKING" if risk_index >= 8 or has_critical else "ALERT"
 
@@ -516,6 +556,35 @@ def calculate_countdown():
         'expired': False
     }
 
+def calculate_lloyds_countdown():
+    """Calculate time remaining to Lloyd's insurance deadline (Jan 31, 2026)"""
+    now = datetime.now()
+    remaining = LLOYDS_DEADLINE - now
+    if remaining.total_seconds() <= 0:
+        return {'days': 0, 'hours': 0, 'minutes': 0, 'expired': True}
+    return {
+        'days': remaining.days,
+        'hours': remaining.seconds // 3600,
+        'minutes': (remaining.seconds % 3600) // 60,
+        'expired': False
+    }
+
+def calculate_citi_exposure(silver_price, entry_price=30):
+    """Calculate Citigroup theoretical exposure and losses from short position"""
+    position_oz = CITI_SHORT_POSITION_OZ
+    current_value = position_oz * silver_price
+    entry_value = position_oz * entry_price
+    paper_loss = current_value - entry_value
+    citi_equity = 175_000_000_000
+    return {
+        'position_oz': position_oz,
+        'current_value': current_value,
+        'paper_loss': paper_loss,
+        'loss_vs_equity': paper_loss / citi_equity,
+        'insolvent': paper_loss > citi_equity,
+        'insolvency_multiple': paper_loss / citi_equity if paper_loss > citi_equity else 0
+    }
+
 def calculate_ms_exposure(silver_price, entry_price=30):
     """Calculate MS theoretical exposure and losses"""
     position_oz = MS_SHORT_POSITION_OZ
@@ -622,24 +691,25 @@ def calculate_bank_risk_scores(prices):
 
 def calculate_fed_response_adequacy(silver_price):
     """Calculate if Fed response is adequate for the crisis"""
-    # Current known Fed repo
-    current_repo = 23.05  # billions
-    
-    # Calculate what's needed
+    # Current known Fed repo - UPDATED TO $51B
+    current_repo = FED_REPO_TOTAL  # $51.25B
+
+    # Calculate what's needed - now including CITI SHORT
     ms_loss = MS_SHORT_POSITION_OZ * (silver_price - 30)
-    jpm_potential_loss = 437.4e9 * 0.25  # 25% of PM derivatives
-    citi_potential_loss = 204.3e9 * 0.25
-    
-    total_potential_loss = ms_loss + jpm_potential_loss + citi_potential_loss
-    total_potential_loss_b = total_potential_loss / 1e9
-    
+    citi_short_loss = CITI_SHORT_POSITION_OZ * (silver_price - 30)  # Citi's 6.34B oz short
+    jpm_gain = JPM_LONG_POSITION_OZ * (silver_price - 30)  # JPM is LONG now - they PROFIT
+
+    # Total short losses (MS + Citi shorts)
+    total_short_loss = ms_loss + citi_short_loss
+    total_potential_loss_b = total_short_loss / 1e9
+
     coverage_pct = (current_repo / total_potential_loss_b) * 100 if total_potential_loss_b > 0 else 0
-    
+
     return {
         'current_repo': current_repo,
         'ms_need': ms_loss / 1e9,
-        'jpm_need': jpm_potential_loss / 1e9,
-        'citi_need': citi_potential_loss / 1e9,
+        'citi_need': citi_short_loss / 1e9,  # Citi's short position loss
+        'jpm_gain': jpm_gain / 1e9,  # JPM profits (they're long now)
         'total_need': total_potential_loss_b,
         'coverage_pct': coverage_pct,
         'gap': total_potential_loss_b - current_repo,
@@ -824,12 +894,37 @@ def calculate_allocation(probs):
 def generate_all_alerts(indicators, prices, countdown, stress_level):
     """Generate all alerts"""
     alerts = []
-    
+    lloyds_countdown = calculate_lloyds_countdown()
+
+    # CITIGROUP alerts (LARGEST SHORT)
+    citi = prices.get('citibank', {})
+    citi_daily = citi.get('change_pct', 0)
+    citi_price = citi.get('price', 75)
+
+    if citi_daily < -10:
+        alerts.append({'level': 'critical', 'title': '🚨 CITI STOCK CRASHING',
+            'msg': f'Citigroup down {citi_daily:.1f}% today. 6.34B oz short position at risk.',
+            'action': 'Monitor for trading halt. Citi puts may explode.'})
+    elif citi_daily < -5:
+        alerts.append({'level': 'warning', 'title': '⚠️ CITI UNDER PRESSURE',
+            'msg': f'Citigroup down {citi_daily:.1f}% today. LARGEST silver short.',
+            'action': 'Watch for Lloyd\'s insurance deadline impact.'})
+
+    # Lloyd's Insurance Deadline (BEFORE SEC deadline!)
+    if lloyds_countdown['days'] < 7 and not lloyds_countdown['expired']:
+        alerts.append({'level': 'critical', 'title': '⏰ LLOYD\'S DEADLINE IMMINENT',
+            'msg': f"Only {lloyds_countdown['days']} days until Lloyd's stops insuring Citi (Jan 31).",
+            'action': 'Citi must close 6.34B oz short or lose insurance.'})
+    elif lloyds_countdown['days'] < 14 and not lloyds_countdown['expired']:
+        alerts.append({'level': 'warning', 'title': '⏰ LLOYD\'S DEADLINE APPROACHING',
+            'msg': f"{lloyds_countdown['days']} days until Lloyd's insurance deadline.",
+            'action': 'Watch for Citi covering activity before Jan 31.'})
+
     # MS-specific alerts
     ms = prices.get('morgan_stanley', {})
     ms_daily = ms.get('change_pct', 0)
     ms_price = ms.get('price', 135)
-    
+
     if ms_daily < -10:
         alerts.append({'level': 'critical', 'title': '🚨 MS STOCK CRASHING',
             'msg': f'Morgan Stanley down {ms_daily:.1f}% today. Collapse may be imminent.',
@@ -838,19 +933,19 @@ def generate_all_alerts(indicators, prices, countdown, stress_level):
         alerts.append({'level': 'warning', 'title': '⚠️ MS UNDER PRESSURE',
             'msg': f'Morgan Stanley down {ms_daily:.1f}% today.',
             'action': 'Watch for acceleration. Set tight alerts.'})
-    
+
     if ms_price < 100:
         alerts.append({'level': 'critical', 'title': '🚨 MS BELOW $100',
             'msg': f'Morgan Stanley at ${ms_price:.2f}. Critical support broken.',
             'action': 'MS puts deep ITM. Consider taking profits.'})
-    
-    # Countdown alerts
+
+    # SEC Countdown alerts
     if countdown['days'] < 7 and not countdown['expired']:
-        alerts.append({'level': 'critical', 'title': '⏰ DEADLINE IMMINENT',
+        alerts.append({'level': 'critical', 'title': '⏰ SEC DEADLINE IMMINENT',
             'msg': f"Only {countdown['days']} days until SEC Feb 15 deadline.",
             'action': 'Maximum alert. MS must act soon.'})
     elif countdown['days'] < 14 and not countdown['expired']:
-        alerts.append({'level': 'warning', 'title': '⏰ DEADLINE APPROACHING',
+        alerts.append({'level': 'warning', 'title': '⏰ SEC DEADLINE APPROACHING',
             'msg': f"{countdown['days']} days until SEC Feb 15 deadline.",
             'action': 'Watch for MS covering activity.'})
     
@@ -1039,41 +1134,142 @@ def render_dashboard_tab(prices, indicators, scenarios, allocation, alerts, risk
             st.metric("VIX", f"{v.get('price', 0):.1f}", f"{v.get('change_pct', 0):+.1f}%")
 
 def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
-    """Render MS Collapse tracking tab with visual hierarchy"""
+    """Render Silver Shorts Crisis tab with dual countdowns and bank positions"""
 
-    # Determine urgency level for countdown styling
-    is_urgent = countdown['days'] < 7 and not countdown['expired']
-    is_critical = countdown['days'] < 3 and not countdown['expired']
-
-    # Dynamic urgency message
-    if countdown['expired']:
-        urgency_msg = "DEADLINE PASSED - MONITORING FOR FORCED CLOSURE"
-    elif is_critical:
-        urgency_msg = "CRITICAL: FORCED COVERING IMMINENT"
-    elif is_urgent:
-        urgency_msg = "URGENT: MS RUNNING OUT OF TIME"
-    elif countdown['days'] < 14:
-        urgency_msg = "WATCH FOR EARLY COVERING ACTIVITY"
-    else:
-        urgency_msg = "MONITORING SEC COMPLIANCE DEADLINE"
+    # Calculate Lloyd's countdown
+    lloyds_countdown = calculate_lloyds_countdown()
+    silver_price = prices.get('silver', {}).get('price', 80)
+    citi_exposure = calculate_citi_exposure(silver_price)
 
     # =========================================================================
-    # HERO: COUNTDOWN (full width, centered)
+    # HERO: DUAL COUNTDOWN TIMERS
     # =========================================================================
+    st.markdown('<div class="text-label" style="text-align:center;margin-bottom:15px;">⚠️ TWO CRITICAL DEADLINES</div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+
+    # Lloyd's Deadline (FIRST - Jan 31)
+    with col1:
+        lloyds_urgent = lloyds_countdown['days'] < 7 and not lloyds_countdown['expired']
+        lloyds_critical = lloyds_countdown['days'] < 3 and not lloyds_countdown['expired']
+
+        if lloyds_countdown['expired']:
+            lloyds_msg = "INSURANCE CANCELLED"
+        elif lloyds_critical:
+            lloyds_msg = "CITI UNINSURED IN DAYS"
+        elif lloyds_urgent:
+            lloyds_msg = "LLOYD'S DEADLINE IMMINENT"
+        else:
+            lloyds_msg = "CITI MUST CLOSE SHORTS"
+
+        st.markdown(f"""
+        <div class="countdown-box" style="border-color:#ff8c42;{'animation: alert-pulse 1s ease-in-out infinite;' if lloyds_urgent else ''}">
+            <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#ff8c42;color:#000;padding:5px 15px;font-weight:900;font-size:11px;letter-spacing:2px;">LLOYD'S</div>
+            <div class="countdown-number" style="font-size:56px;text-shadow:0 0 30px rgba(255,140,66,0.8);">{lloyds_countdown['days']}</div>
+            <div class="countdown-label">DAYS</div>
+            <div style="font-size:20px;color:#ffffff;font-weight:700;margin:10px 0;">
+                {lloyds_countdown['hours']:02d}:{lloyds_countdown['minutes']:02d}:00
+            </div>
+            <div style="color:#ff8c42;font-size:12px;text-transform:uppercase;letter-spacing:1px;">
+                January 31, 2026
+            </div>
+            <div class="countdown-urgent" style="color:#ff8c42;">{lloyds_msg}</div>
+            <div style="color:#888;font-size:11px;margin-top:8px;">
+                Lloyd's stops insuring Citigroup
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # SEC Deadline (Feb 15)
+    with col2:
+        sec_urgent = countdown['days'] < 7 and not countdown['expired']
+        sec_critical = countdown['days'] < 3 and not countdown['expired']
+
+        if countdown['expired']:
+            sec_msg = "DEADLINE PASSED"
+        elif sec_critical:
+            sec_msg = "FORCED COVERING IMMINENT"
+        elif sec_urgent:
+            sec_msg = "SEC DEADLINE IMMINENT"
+        else:
+            sec_msg = "MS MUST CLOSE SHORTS"
+
+        st.markdown(f"""
+        <div class="countdown-box" {'style="animation: alert-pulse 1s ease-in-out infinite;"' if sec_urgent else ''}>
+            <div class="countdown-number" style="font-size:56px;">{countdown['days']}</div>
+            <div class="countdown-label">DAYS</div>
+            <div style="font-size:20px;color:#ffffff;font-weight:700;margin:10px 0;">
+                {countdown['hours']:02d}:{countdown['minutes']:02d}:00
+            </div>
+            <div style="color:#e31837;font-size:12px;text-transform:uppercase;letter-spacing:1px;">
+                February 15, 2026
+            </div>
+            <div class="countdown-urgent">{sec_msg}</div>
+            <div style="color:#888;font-size:11px;margin-top:8px;">
+                SEC disclosure deadline for MS
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # =========================================================================
+    # BANK SHORT POSITIONS TABLE
+    # =========================================================================
+    st.markdown("---")
+    st.markdown('<div class="text-label" style="text-align:center;margin:20px 0 15px 0;">BANK SILVER POSITIONS</div>', unsafe_allow_html=True)
+
+    # Table header
+    st.markdown("""
+    <div style="display:grid;grid-template-columns:2fr 1fr 1.5fr 1.5fr 1fr;gap:10px;padding:12px;background:#1a1a1a;border:1px solid #2a2a2a;font-weight:700;">
+        <div class="text-label">BANK</div>
+        <div class="text-label" style="text-align:center;">POSITION</div>
+        <div class="text-label" style="text-align:right;">OUNCES</div>
+        <div class="text-label" style="text-align:right;">EXPOSURE @ $80</div>
+        <div class="text-label" style="text-align:center;">STATUS</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Citigroup Row (LARGEST)
+    citi_loss_80 = CITI_SHORT_POSITION_OZ * (80 - 30) / 1e9
     st.markdown(f"""
-    <div class="countdown-box" {'style="animation: alert-pulse 1s ease-in-out infinite;"' if is_urgent else ''}>
-        <div class="countdown-number">{countdown['days']}</div>
-        <div class="countdown-label">DAYS REMAINING</div>
-        <div style="font-size:28px;color:#ffffff;font-weight:700;margin:15px 0;letter-spacing:2px;">
-            {countdown['hours']:02d}<span style="color:#e31837;">:</span>{countdown['minutes']:02d}<span style="color:#e31837;">:</span>00
-        </div>
-        <div style="color:#b0b0b0;font-size:13px;text-transform:uppercase;letter-spacing:1px;">
-            February 15, 2026 • SEC Deadline
-        </div>
-        <div class="countdown-urgent">{urgency_msg}</div>
-        <div style="color:#888;font-size:12px;margin-top:10px;">
-            MS must close 5.9 billion oz silver short position
-        </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1.5fr 1.5fr 1fr;gap:10px;padding:15px 12px;background:#141414;border:1px solid #2a2a2a;border-left:4px solid #ff3b5c;">
+        <div style="color:#ffffff;font-weight:600;">🏦 Citigroup</div>
+        <div style="text-align:center;"><span style="background:#ff3b5c;color:#fff;padding:2px 8px;font-size:11px;font-weight:700;">SHORT</span></div>
+        <div style="text-align:right;color:#ff3b5c;font-weight:700;">6.34B oz</div>
+        <div style="text-align:right;color:#ff3b5c;font-weight:700;">${citi_loss_80:.0f}B loss</div>
+        <div style="text-align:center;color:#ff3b5c;font-weight:700;">1.8x INSOLVENT</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Morgan Stanley Row
+    ms_loss_80 = MS_SHORT_POSITION_OZ * (80 - 30) / 1e9
+    st.markdown(f"""
+    <div style="display:grid;grid-template-columns:2fr 1fr 1.5fr 1.5fr 1fr;gap:10px;padding:15px 12px;background:#141414;border:1px solid #2a2a2a;border-left:4px solid #ff3b5c;">
+        <div style="color:#ffffff;font-weight:600;">🎯 Morgan Stanley</div>
+        <div style="text-align:center;"><span style="background:#ff3b5c;color:#fff;padding:2px 8px;font-size:11px;font-weight:700;">SHORT</span></div>
+        <div style="text-align:right;color:#ff3b5c;font-weight:700;">5.9B oz</div>
+        <div style="text-align:right;color:#ff3b5c;font-weight:700;">${ms_loss_80:.0f}B loss</div>
+        <div style="text-align:center;color:#ff3b5c;font-weight:700;">2.9x INSOLVENT</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # JPMorgan Row (LONG - PROFITS)
+    jpm_gain_80 = JPM_LONG_POSITION_OZ * (80 - 30) / 1e9
+    st.markdown(f"""
+    <div style="display:grid;grid-template-columns:2fr 1fr 1.5fr 1.5fr 1fr;gap:10px;padding:15px 12px;background:#141414;border:1px solid #2a2a2a;border-left:4px solid #4ade80;">
+        <div style="color:#ffffff;font-weight:600;">🏛️ JPMorgan</div>
+        <div style="text-align:center;"><span style="background:#4ade80;color:#000;padding:2px 8px;font-size:11px;font-weight:700;">LONG</span></div>
+        <div style="text-align:right;color:#4ade80;font-weight:700;">750M oz</div>
+        <div style="text-align:right;color:#4ade80;font-weight:700;">+${jpm_gain_80:.0f}B gain</div>
+        <div style="text-align:center;color:#4ade80;font-weight:700;">PROFITS ✓</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # JPM flip note
+    st.markdown("""
+    <div class="alert-info" style="margin-top:15px;">
+        <strong>🔄 JPM FLIPPED POSITION</strong><br>
+        JPMorgan went from 200M oz SHORT to 750M oz LONG between June-October 2025.<br>
+        <em style="color:#aaa;">First time in history JPM is long both physical AND paper silver. They will PROFIT from the squeeze.</em>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1086,7 +1282,7 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
     st.markdown(f'''
     <div class="stress-meter" style="margin-top:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span class="text-label">MS STRESS LEVEL</span>
+            <span class="text-label">BANK STRESS LEVEL</span>
             <span style="color:{stress_color};font-size:28px;font-weight:900;">{stress_level}<span style="font-size:14px;color:#888;">/100</span></span>
         </div>
         <div style="background:#1a1a1a;height:12px;overflow:hidden;border:1px solid #2a2a2a;">
@@ -1097,11 +1293,21 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
     ''', unsafe_allow_html=True)
 
     # =========================================================================
-    # KEY METRICS: MS Stock + Paper Loss (compact row)
+    # KEY METRICS: Stock Prices (compact row)
     # =========================================================================
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
+        citi = prices.get('citibank', {})
+        citi_change = citi.get('change_pct', 0)
+        citi_color = '#ff3b5c' if citi_change < -5 else '#ff8c42' if citi_change < -2 else '#4ade80' if citi_change > 0 else '#ffffff'
+        st.markdown(f'''
+        <div class="metric-card" style="text-align:center;">
+            <div class="text-label">CITI STOCK</div>
+            <div class="text-headline" style="color:{citi_color};">${citi.get('price', 0):.2f}</div>
+            <div class="text-caption">{citi_change:+.2f}%</div>
+        </div>''', unsafe_allow_html=True)
+    with c2:
         ms = prices.get('morgan_stanley', {})
         ms_change = ms.get('change_pct', 0)
         ms_color = '#ff3b5c' if ms_change < -5 else '#ff8c42' if ms_change < -2 else '#4ade80' if ms_change > 0 else '#ffffff'
@@ -1111,21 +1317,15 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
             <div class="text-headline" style="color:{ms_color};">${ms.get('price', 0):.2f}</div>
             <div class="text-caption">{ms_change:+.2f}%</div>
         </div>''', unsafe_allow_html=True)
-    with c2:
-        loss_color = '#ff3b5c' if ms_exposure['paper_loss'] > 100e9 else '#ff8c42'
-        st.markdown(f'''
-        <div class="metric-card" style="text-align:center;">
-            <div class="text-label">PAPER LOSS</div>
-            <div class="text-headline" style="color:{loss_color};">${ms_exposure['paper_loss']/1e9:.0f}B</div>
-            <div class="text-caption">theoretical</div>
-        </div>''', unsafe_allow_html=True)
     with c3:
-        eq_color = '#ff3b5c' if ms_exposure['loss_vs_equity'] > 1 else '#ff8c42'
+        jpm = prices.get('jpmorgan', {})
+        jpm_change = jpm.get('change_pct', 0)
+        jpm_color = '#4ade80' if jpm_change > 0 else '#ff8c42' if jpm_change > -2 else '#ff3b5c'
         st.markdown(f'''
         <div class="metric-card" style="text-align:center;">
-            <div class="text-label">VS EQUITY</div>
-            <div class="text-headline" style="color:{eq_color};">{ms_exposure['loss_vs_equity']:.1f}x</div>
-            <div class="text-caption">{'INSOLVENT' if ms_exposure['insolvent'] else 'exposure'}</div>
+            <div class="text-label">JPM STOCK</div>
+            <div class="text-headline" style="color:{jpm_color};">${jpm.get('price', 0):.2f}</div>
+            <div class="text-caption">{jpm_change:+.2f}%</div>
         </div>''', unsafe_allow_html=True)
     with c4:
         silver = prices.get('silver', {})
@@ -1137,39 +1337,30 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
         </div>''', unsafe_allow_html=True)
 
     # =========================================================================
-    # EXPANDABLE: Bank Stocks & Calculations
+    # EXPANDABLE: Detailed Calculations
     # =========================================================================
-    with st.expander("🏦 Bank Stock Monitor", expanded=False):
-        banks = [
-            ('morgan_stanley', 'Morgan Stanley', '🎯'),
-            ('jpmorgan', 'JPMorgan', ''),
-            ('citibank', 'Citigroup', ''),
-            ('bank_of_america', 'Bank of America', ''),
-            ('goldman', 'Goldman Sachs', '')
-        ]
-        for key, name, icon in banks:
-            b = prices.get(key, {})
-            change = b.get('change_pct', 0)
-            color = '#ff3b5c' if change < -3 else '#ff8c42' if change < 0 else '#4ade80'
-            st.markdown(f'''
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2a2a;">
-                <span style="color:#e0e0e0;">{icon} {name}</span>
-                <span><span style="color:#ffffff;font-weight:600;">${b.get('price', 0):.2f}</span> <span style="color:{color};">{change:+.2f}%</span></span>
-            </div>''', unsafe_allow_html=True)
-
-    with st.expander("📊 Detailed Calculations", expanded=False):
-        st.markdown(f"""
-        **Short Position Details:**
-        - Position Size: {ms_exposure['position_oz']/1e9:.1f} billion oz
-        - Current Value: ${ms_exposure['current_value']/1e12:.2f}T
-        - Entry Value (est. $30): ${ms_exposure['position_oz'] * 30 / 1e9:.0f}B
-
-        **Insolvency Analysis:**
-        - MS Equity: $100B
-        - Paper Loss: ${ms_exposure['paper_loss']/1e9:.0f}B
-        - Loss/Equity Ratio: {ms_exposure['loss_vs_equity']:.2f}x
-        - Status: {'🔴 THEORETICALLY INSOLVENT' if ms_exposure['insolvent'] else '🟡 At Risk'}
-        """)
+    with st.expander("📊 Detailed Exposure Calculations", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"""
+            **Citigroup Short Position:**
+            - Position Size: {citi_exposure['position_oz']/1e9:.2f} billion oz
+            - Current Value: ${citi_exposure['current_value']/1e12:.2f}T
+            - Paper Loss: ${citi_exposure['paper_loss']/1e9:.0f}B
+            - Citi Equity: $175B
+            - Loss/Equity: {citi_exposure['loss_vs_equity']:.2f}x
+            - Status: {'🔴 INSOLVENT' if citi_exposure['insolvent'] else '🟡 At Risk'}
+            """)
+        with col2:
+            st.markdown(f"""
+            **Morgan Stanley Short Position:**
+            - Position Size: {ms_exposure['position_oz']/1e9:.1f} billion oz
+            - Current Value: ${ms_exposure['current_value']/1e12:.2f}T
+            - Paper Loss: ${ms_exposure['paper_loss']/1e9:.0f}B
+            - MS Equity: $100B
+            - Loss/Equity: {ms_exposure['loss_vs_equity']:.2f}x
+            - Status: {'🔴 INSOLVENT' if ms_exposure['insolvent'] else '🟡 At Risk'}
+            """)
 
 def render_bank_exposure_tab(prices, bank_risk_scores):
     """Render Bank Exposure tab with visual hierarchy"""
@@ -1275,31 +1466,31 @@ def render_bank_exposure_tab(prices, bank_risk_scores):
 
 def render_fed_response_tab(prices, silver_price):
     """Render Fed Response Tracker tab"""
-    
+
     st.markdown("### 🏛️ Federal Reserve Response Tracker")
     st.markdown("*Monitoring Fed emergency lending and bailout capacity*")
-    
+
     fed = calculate_fed_response_adequacy(silver_price)
-    
+
     st.markdown("---")
-    
-    # Big numbers
+
+    # Big numbers - UPDATED
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Known Fed Repo", f"${fed['current_repo']:.1f}B", "Dec 27-30 combined")
+        st.metric("Known Fed Repo", f"${fed['current_repo']:.1f}B", "Dec 26-28 total")
     with col2:
         coverage_color = "inverse" if fed['coverage_pct'] < 20 else "normal"
-        st.metric("Coverage", f"{fed['coverage_pct']:.1f}%", "of potential losses", delta_color=coverage_color)
+        st.metric("Coverage", f"{fed['coverage_pct']:.1f}%", "of short losses", delta_color=coverage_color)
     with col3:
         st.metric("Gap Needed", f"${fed['gap']:.0f}B", "to cover losses")
     with col4:
         st.metric("Adequate?", "NO ❌" if not fed['adequate'] else "YES ✅", "")
-    
+
     st.markdown("---")
-    
-    # Visual comparison
-    st.markdown("### 📊 Fed Response vs Potential Losses")
-    
+
+    # Visual comparison - UPDATED FOR CITI + MS SHORTS
+    st.markdown("### 📊 Fed Response vs Bank Short Losses")
+
     st.markdown(f"""
     <div class="fed-card">
         <div style="margin-bottom:15px;">
@@ -1311,43 +1502,51 @@ def render_fed_response_tab(prices, silver_price):
                 <div style="background:#3b82f6;width:{min(fed['current_repo']/500*100, 100):.1f}%;height:100%;border-radius:12px;"></div>
             </div>
         </div>
-        
+
         <div style="margin-bottom:15px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-                <span style="color:#e8e8f0;">MS Potential Loss</span>
-                <span style="color:#ff3b5c;font-weight:bold;">${fed['ms_need']:.0f}B</span>
+                <span style="color:#e8e8f0;">⚠️ Citigroup Short Loss (6.34B oz)</span>
+                <span style="color:#ff3b5c;font-weight:bold;">${fed['citi_need']:.0f}B</span>
             </div>
             <div class="bailout-bar">
-                <div style="background:#ff3b5c;width:{min(fed['ms_need']/500*100, 100):.1f}%;height:100%;border-radius:12px;"></div>
+                <div style="background:#ff3b5c;width:{min(fed['citi_need']/500*100, 100):.1f}%;height:100%;border-radius:12px;"></div>
             </div>
         </div>
-        
+
         <div style="margin-bottom:15px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-                <span style="color:#e8e8f0;">JPM Potential Loss (25%)</span>
-                <span style="color:#ff8c42;font-weight:bold;">${fed['jpm_need']:.0f}B</span>
+                <span style="color:#e8e8f0;">⚠️ Morgan Stanley Short Loss (5.9B oz)</span>
+                <span style="color:#ff8c42;font-weight:bold;">${fed['ms_need']:.0f}B</span>
             </div>
             <div class="bailout-bar">
-                <div style="background:#ff8c42;width:{min(fed['jpm_need']/500*100, 100):.1f}%;height:100%;border-radius:12px;"></div>
+                <div style="background:#ff8c42;width:{min(fed['ms_need']/500*100, 100):.1f}%;height:100%;border-radius:12px;"></div>
             </div>
         </div>
-        
+
         <div style="margin-bottom:15px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-                <span style="color:#e8e8f0;">Citi Potential Loss (25%)</span>
-                <span style="color:#fbbf24;font-weight:bold;">${fed['citi_need']:.0f}B</span>
+                <span style="color:#e8e8f0;">✅ JPMorgan GAIN (750M oz LONG)</span>
+                <span style="color:#4ade80;font-weight:bold;">+${fed['jpm_gain']:.0f}B</span>
             </div>
             <div class="bailout-bar">
-                <div style="background:#fbbf24;width:{min(fed['citi_need']/500*100, 100):.1f}%;height:100%;border-radius:12px;"></div>
+                <div style="background:#4ade80;width:{min(fed['jpm_gain']/100*100, 100):.1f}%;height:100%;border-radius:12px;"></div>
             </div>
         </div>
-        
+
         <div style="border-top:1px solid #444;padding-top:15px;margin-top:15px;">
             <div style="display:flex;justify-content:space-between;">
-                <span style="color:#e8e8f0;font-weight:bold;">TOTAL POTENTIAL LOSSES</span>
+                <span style="color:#e8e8f0;font-weight:bold;">TOTAL SHORT LOSSES (CITI + MS)</span>
                 <span style="color:#ff3b5c;font-weight:bold;font-size:20px;">${fed['total_need']:.0f}B</span>
             </div>
         </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # JPM Profits Note
+    st.markdown("""
+    <div class="alert-info" style="margin-top:15px;">
+        <strong>📈 JPMorgan Profits From Crisis</strong><br>
+        JPM flipped from 200M oz SHORT to 750M oz LONG (Jun-Oct 2025). They will PROFIT while Citi and MS face insolvency.
     </div>
     """, unsafe_allow_html=True)
     
@@ -1410,8 +1609,9 @@ def render_fed_response_tab(prices, silver_price):
     <div class="alert-critical">
         <strong>🔑 KEY INSIGHT</strong><br>
         The Fed can provide LIQUIDITY (cash loans), but it cannot provide SOLVENCY (capital to cover losses).<br><br>
-        If Morgan Stanley owes 5.9 billion oz of silver and silver is at $300, they owe $1.77 TRILLION. 
-        The Fed cannot print silver. The Fed cannot make that debt disappear. The Fed can only delay the inevitable.
+        <strong>COMBINED SHORT EXPOSURE:</strong> Citigroup (6.34B oz) + Morgan Stanley (5.9B oz) = <strong>12.24 BILLION OUNCES</strong><br><br>
+        At $300 silver, they owe $3.67 TRILLION combined. The Fed cannot print silver. The Fed cannot make that debt disappear.<br><br>
+        <em>Meanwhile, JPMorgan flipped LONG (750M oz) and will PROFIT from the squeeze.</em>
     </div>
     """, unsafe_allow_html=True)
     
