@@ -100,6 +100,45 @@ st.markdown("""
     [data-testid="stMetricValue"] { color: #ffffff !important; font-weight: 700 !important; }
 
     /* ===========================================
+       TYPOGRAPHY HIERARCHY
+       =========================================== */
+    .text-hero {
+        font-size: 72px;
+        font-weight: 900;
+        color: #ffffff;
+        line-height: 1;
+    }
+    .text-headline {
+        font-size: 32px;
+        font-weight: 700;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .text-subhead {
+        font-size: 20px;
+        font-weight: 600;
+        color: #e0e0e0;
+    }
+    .text-body {
+        font-size: 16px;
+        font-weight: 400;
+        color: #cccccc;
+    }
+    .text-caption {
+        font-size: 12px;
+        font-weight: 400;
+        color: #888888;
+    }
+    .text-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #666666;
+    }
+
+    /* ===========================================
        BREAKING NEWS BANNER
        =========================================== */
     .breaking-banner {
