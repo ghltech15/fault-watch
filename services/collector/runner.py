@@ -270,8 +270,16 @@ async def setup_default_collectors():
     # Import regulatory collectors (Tier 1 - Official)
     from .jobs.regulatory import REGULATORY_COLLECTORS
 
+    # Import liquidity collectors (Tier 1 - Official)
+    from .jobs.liquidity import LIQUIDITY_COLLECTORS
+
     # Register all regulatory collectors
     for collector_class, frequency in REGULATORY_COLLECTORS:
         r.register_collector(collector_class, frequency_minutes=frequency)
 
-    logger.info(f"Registered {len(REGULATORY_COLLECTORS)} regulatory collectors")
+    # Register liquidity collectors
+    for collector_class, frequency in LIQUIDITY_COLLECTORS:
+        r.register_collector(collector_class, frequency_minutes=frequency)
+
+    total = len(REGULATORY_COLLECTORS) + len(LIQUIDITY_COLLECTORS)
+    logger.info(f"Registered {total} collectors ({len(REGULATORY_COLLECTORS)} regulatory, {len(LIQUIDITY_COLLECTORS)} liquidity)")
