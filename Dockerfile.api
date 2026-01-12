@@ -22,6 +22,11 @@ COPY fault_watch.py .
 COPY content_generator.py .
 COPY content_triggers.py .
 
+# Copy data pipeline modules
+COPY data/ ./data/
+COPY scrapers/ ./scrapers/
+COPY config/ ./config/
+
 # Create output directories
 RUN mkdir -p content-output/images content-output/videos assets/audio
 

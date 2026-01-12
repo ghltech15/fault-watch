@@ -2151,6 +2151,196 @@ async def download_content(filename: str):
 
 
 # =============================================================================
+# DATA PIPELINE ENDPOINTS
+# =============================================================================
+
+# Initialize data pipeline (lazy loading to avoid import errors if deps missing)
+_data_aggregator = None
+
+
+def get_aggregator():
+    """Lazy load the data aggregator"""
+    global _data_aggregator
+    if _data_aggregator is None:
+        try:
+            from data.aggregator import DataAggregator
+            _data_aggregator = DataAggregator()
+        except ImportError as e:
+            print(f"Data pipeline not fully available: {e}")
+            return None
+    return _data_aggregator
+
+
+@app.get("/api/pipeline/status")
+async def get_pipeline_status():
+    """Get data pipeline status and availability"""
+    aggregator = get_aggregator()
+    if not aggregator:
+        return {
+            "status": "unavailable",
+            "message": "Data pipeline modules not installed",
+            "modules": {}
+        }
+
+    modules = {
+        "prices": aggregator.price_monitor is not None,
+        "fed": aggregator.fed_monitor is not None,
+        "comex": aggregator.comex_monitor is not None,
+        "sec": aggregator.sec_monitor is not None,
+        "reddit": aggregator.reddit_scraper is not None,
+        "news": aggregator.news_scraper is not None,
+        "dealers": aggregator.dealer_scraper is not None,
+        "regulatory": aggregator.regulatory_scraper is not None,
+    }
+
+    return {
+        "status": "online",
+        "modules": modules,
+        "last_refresh": aggregator.last_full_refresh.isoformat() if aggregator.last_full_refresh else None,
+    }
+
+
+@app.get("/api/pipeline/data")
+async def get_pipeline_data():
+    """Get full data from all pipeline sources"""
+    aggregator = get_aggregator()
+    if not aggregator:
+        raise HTTPException(status_code=503, detail="Data pipeline not available")
+
+    return aggregator.get_full_data()
+
+
+@app.post("/api/pipeline/refresh")
+async def refresh_pipeline():
+    """Force refresh all pipeline data sources"""
+    aggregator = get_aggregator()
+    if not aggregator:
+        raise HTTPException(status_code=503, detail="Data pipeline not available")
+
+    return aggregator.refresh_all()
+
+
+@app.get("/api/pipeline/stress")
+async def get_stress_indicators():
+    """Get aggregated stress indicators from pipeline"""
+    aggregator = get_aggregator()
+    if not aggregator:
+        raise HTTPException(status_code=503, detail="Data pipeline not available")
+
+    return aggregator.get_stress_indicators()
+
+
+@app.get("/api/pipeline/sec")
+async def get_sec_filings():
+    """Get SEC filing data from pipeline"""
+    aggregator = get_aggregator()
+    if not aggregator or not aggregator.sec_monitor:
+        raise HTTPException(status_code=503, detail="SEC monitor not available")
+
+    return aggregator.get_sec_data()
+
+
+@app.get("/api/pipeline/sec/critical")
+async def get_critical_sec_filings():
+    """Get critical SEC filings (Wells notices, enforcement)"""
+    aggregator = get_aggregator()
+    if not aggregator or not aggregator.sec_monitor:
+        raise HTTPException(status_code=503, detail="SEC monitor not available")
+
+    filings = aggregator.sec_monitor.get_critical_filings(days=30)
+    return [f.to_dict() for f in filings]
+
+
+@app.get("/api/pipeline/social")
+async def get_social_data():
+    """Get social media data from pipeline"""
+    aggregator = get_aggregator()
+    if not aggregator or not aggregator.reddit_scraper:
+        raise HTTPException(status_code=503, detail="Social scraper not available")
+
+    return aggregator.get_social_data()
+
+
+@app.get("/api/pipeline/news")
+async def get_news_data():
+    """Get news data from pipeline"""
+    aggregator = get_aggregator()
+    if not aggregator or not aggregator.news_scraper:
+        raise HTTPException(status_code=503, detail="News scraper not available")
+
+    return aggregator.get_news_data()
+
+
+@app.get("/api/pipeline/news/breaking")
+async def get_breaking_news():
+    """Get breaking news from last 6 hours"""
+    aggregator = get_aggregator()
+    if not aggregator or not aggregator.news_scraper:
+        raise HTTPException(status_code=503, detail="News scraper not available")
+
+    articles = aggregator.news_scraper.get_breaking_news(hours=6)
+    return [a.to_dict() for a in articles]
+
+
+@app.get("/api/pipeline/dealers")
+async def get_dealer_data():
+    """Get dealer premium and availability data"""
+    aggregator = get_aggregator()
+    if not aggregator or not aggregator.dealer_scraper:
+        raise HTTPException(status_code=503, detail="Dealer scraper not available")
+
+    return aggregator.get_dealer_data()
+
+
+@app.get("/api/pipeline/regulatory")
+async def get_regulatory_data():
+    """Get regulatory releases from CFTC, Fed, FDIC"""
+    aggregator = get_aggregator()
+    if not aggregator or not aggregator.regulatory_scraper:
+        raise HTTPException(status_code=503, detail="Regulatory scraper not available")
+
+    return aggregator.get_regulatory_data()
+
+
+@app.get("/api/pipeline/alerts")
+async def get_pipeline_alerts():
+    """Get all alerts from pipeline"""
+    aggregator = get_aggregator()
+    if not aggregator:
+        raise HTTPException(status_code=503, detail="Data pipeline not available")
+
+    return {
+        "alerts": aggregator.get_alerts(limit=50),
+        "critical": aggregator.get_critical_alerts(),
+        "summary": aggregator.alert_manager.get_summary(),
+    }
+
+
+@app.post("/api/pipeline/alerts/check")
+async def check_all_alerts():
+    """Trigger alert check across all data sources"""
+    aggregator = get_aggregator()
+    if not aggregator:
+        raise HTTPException(status_code=503, detail="Data pipeline not available")
+
+    new_alerts = aggregator.check_all_alerts()
+    return {
+        "new_alerts": len(new_alerts),
+        "alerts": new_alerts,
+    }
+
+
+@app.get("/api/pipeline/banks")
+async def get_bank_exposure_pipeline():
+    """Get bank exposure summary from pipeline"""
+    aggregator = get_aggregator()
+    if not aggregator:
+        raise HTTPException(status_code=503, detail="Data pipeline not available")
+
+    return aggregator.get_bank_exposure_summary()
+
+
+# =============================================================================
 # RUN SERVER
 # =============================================================================
 

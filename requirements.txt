@@ -35,3 +35,13 @@ pydantic>=2.5.0
 Pillow>=10.0.0
 moviepy>=1.0.3
 kaleido>=0.2.1
+
+# Data Pipeline - Web Scraping
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# Data Pipeline - Reddit (optional)
+# praw>=7.7.0  # Uncomment if using Reddit API
+
+# Data Pipeline - Database
+aiohttp>=3.9.0
