@@ -1,0 +1,120 @@
+# fault.watch Local Development Stack
+# Run: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # Event Store Database (new dedicated Postgres)
+  postgres:
+    image: postgres:16-alpine
+    container_name: faultwatch-postgres
+    environment:
+      POSTGRES_USER: faultwatch
+      POSTGRES_PASSWORD: faultwatch_dev
+      POSTGRES_DB: faultwatch_events
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faultwatch -d faultwatch_events"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and job queue (optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: faultwatch-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin for database management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: faultwatch-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@fault.watch
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    profiles:
+      - tools
+
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: faultwatch-api
+    environment:
+      - DATABASE_URL=postgresql://faultwatch:faultwatch_dev@postgres:5432/faultwatch_events
+      - REDIS_URL=redis://redis:6379/0
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - FRED_API_KEY=${FRED_API_KEY:-}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY:-}
+    ports:
+      - "8000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Mount source for hot reload in development
+      - ./api.py:/app/api.py:ro
+      - ./fault_watch.py:/app/fault_watch.py:ro
+      - ./data:/app/data:ro
+      - ./scrapers:/app/scrapers:ro
+      - ./config:/app/config:ro
+      - ./packages:/app/packages:ro
+      - ./services:/app/services:ro
+      - ./db:/app/db:ro
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+
+  # Collector Worker (runs scheduled jobs)
+  collector:
+    build:
+      context: .
+      dockerfile: Dockerfile.collector
+    container_name: faultwatch-collector
+    environment:
+      - DATABASE_URL=postgresql://faultwatch:faultwatch_dev@postgres:5432/faultwatch_events
+      - REDIS_URL=redis://redis:6379/0
+      - FRED_API_KEY=${FRED_API_KEY:-}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY:-}
+      - SEC_USER_AGENT=FaultWatch/2.0 (contact@fault.watch)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services:/app/services:ro
+      - ./packages:/app/packages:ro
+      - ./db:/app/db:ro
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+
+networks:
+  default:
+    name: faultwatch-network

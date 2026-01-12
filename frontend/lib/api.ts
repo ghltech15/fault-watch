@@ -207,6 +207,201 @@ async function fetchAPI<T>(endpoint: string): Promise<T> {
   return res.json()
 }
 
+// Pipeline Types
+export interface PipelineStatus {
+  status: string
+  modules: Record<string, boolean>
+  last_refresh: string | null
+}
+
+export interface StressIndicators {
+  stress_score: number
+  status: string
+  indicators: string[]
+  fed_stress: {
+    ted_spread: number | null
+    high_yield_spread: number | null
+    reverse_repo: number | null
+    fed_funds_rate: number | null
+    timestamp: string
+  }
+  comex_status: string
+  timestamp: string
+}
+
+export interface SECFiling {
+  company: string
+  cik: string
+  form_type: string
+  filed_date: string
+  accession_number: string
+  filing_url: string
+  description: string
+  keywords_found: string[]
+  is_critical: boolean
+}
+
+export interface SECData {
+  total_filings_7d: number
+  critical_filings: number
+  monitored_companies: number
+  recent_critical: SECFiling[]
+  last_updated: string
+}
+
+export interface PipelineAlert {
+  id: string
+  severity: string
+  severity_level: number
+  type: string
+  title: string
+  description: string
+  source: string
+  source_url: string | null
+  related_entity: string | null
+  data: Record<string, unknown>
+  timestamp: string
+  acknowledged: boolean
+  notified: boolean
+}
+
+export interface AlertSummary {
+  total_alerts: number
+  last_24h: number
+  critical: number
+  high: number
+  unacknowledged: number
+  by_type: Record<string, number>
+}
+
+export interface PipelineAlerts {
+  alerts: PipelineAlert[]
+  critical: PipelineAlert[]
+  summary: AlertSummary
+}
+
+export interface SocialData {
+  total_posts_fetched: number
+  trending_posts: number
+  sentiment: {
+    bullish_pct: number
+    bearish_pct: number
+    neutral_pct: number
+    total_posts: number
+    avg_score: number
+  }
+  top_posts: Array<{
+    id: string
+    title: string
+    subreddit: string
+    score: number
+    num_comments: number
+    url: string
+    permalink: string
+  }>
+  subreddits_monitored: number
+  last_updated: string
+}
+
+export interface NewsArticle {
+  title: string
+  description: string
+  url: string
+  source: string
+  author: string | null
+  published_date: string
+  categories: string[]
+  content: string
+}
+
+export interface NewsData {
+  total_relevant: number
+  precious_metals_news: number
+  bank_news: number
+  crisis_indicators: number
+  breaking_news: number
+  top_stories: NewsArticle[]
+  coverage_analysis: {
+    total_articles: number
+    relevant_articles: number
+    by_source: Record<string, number>
+    keyword_frequency: Record<string, number>
+  }
+  last_updated: string
+}
+
+export interface DealerData {
+  silver: {
+    spot_price: number | null
+    avg_premium_pct: number
+    min_premium_pct: number
+    max_premium_pct: number
+    products_in_stock: number
+    products_out_of_stock: number
+    out_of_stock_rate: number
+  }
+  gold: {
+    spot_price: number | null
+    avg_premium_pct: number
+    min_premium_pct: number
+    max_premium_pct: number
+    products_in_stock: number
+    products_out_of_stock: number
+    out_of_stock_rate: number
+  }
+  availability: {
+    silver: { in_stock: number; out_of_stock: number; availability_rate: number }
+    gold: { in_stock: number; out_of_stock: number; availability_rate: number }
+    timestamp: string
+  }
+  best_silver_deals: Array<{
+    dealer: string
+    product_name: string
+    price: number
+    premium_pct: number
+  }>
+  dealers_monitored: number
+  last_updated: string
+}
+
+export interface RegulatoryRelease {
+  source: string
+  title: string
+  release_type: string
+  date: string
+  url: string
+  description: string
+  keywords_found: string[]
+  is_critical: boolean
+}
+
+export interface RegulatoryData {
+  total_releases_7d: number
+  critical_releases: number
+  recent_critical: RegulatoryRelease[]
+  cot_silver: {
+    report_date: string
+    metal: string
+    commercial_net: number
+    non_commercial_net: number
+    total_open_interest: number
+  } | null
+  sources_monitored: number
+  last_updated: string
+}
+
+export interface BankExposureSummary {
+  bank_count: number
+  banks_dropping: number
+  troubled_banks: Array<{
+    bank: string
+    ticker: string
+    price: number
+    change_pct: number
+  }>
+  timestamp: string
+}
+
 export const api = {
   getDashboard: () => fetchAPI<DashboardData>('/api/dashboard'),
   getPrices: () => fetchAPI<Record<string, PriceData>>('/api/prices'),
@@ -228,4 +423,20 @@ export const api = {
   getCascade: () => fetchAPI<CascadeData>('/api/cascade'),
   getMiners: () => fetchAPI<JuniorMiner[]>('/api/miners'),
   getOpportunities: () => fetchAPI<OpportunitiesData>('/api/opportunities'),
+
+  // Pipeline endpoints (new data pipeline)
+  getPipelineStatus: () => fetchAPI<PipelineStatus>('/api/pipeline/status'),
+  getPipelineData: () => fetchAPI<Record<string, unknown>>('/api/pipeline/data'),
+  refreshPipeline: () => fetch(`${API_BASE}/api/pipeline/refresh`, { method: 'POST' }).then(r => r.json()),
+  getStressIndicators: () => fetchAPI<StressIndicators>('/api/pipeline/stress'),
+  getSECFilings: () => fetchAPI<SECData>('/api/pipeline/sec'),
+  getCriticalSECFilings: () => fetchAPI<SECFiling[]>('/api/pipeline/sec/critical'),
+  getPipelineAlerts: () => fetchAPI<PipelineAlerts>('/api/pipeline/alerts'),
+  checkAlerts: () => fetch(`${API_BASE}/api/pipeline/alerts/check`, { method: 'POST' }).then(r => r.json()),
+  getSocialData: () => fetchAPI<SocialData>('/api/pipeline/social'),
+  getNewsData: () => fetchAPI<NewsData>('/api/pipeline/news'),
+  getBreakingNews: () => fetchAPI<NewsArticle[]>('/api/pipeline/news/breaking'),
+  getDealerData: () => fetchAPI<DealerData>('/api/pipeline/dealers'),
+  getRegulatoryData: () => fetchAPI<RegulatoryData>('/api/pipeline/regulatory'),
+  getBankExposureSummary: () => fetchAPI<BankExposureSummary>('/api/pipeline/banks'),
 }

@@ -45,3 +45,7 @@ lxml>=5.0.0
 
 # Data Pipeline - Database
 aiohttp>=3.9.0
+
+# Event Store Architecture
+asyncpg>=0.29.0      # PostgreSQL async driver
+apscheduler>=3.10.0  # Job scheduling for collectors
