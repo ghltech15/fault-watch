@@ -1127,33 +1127,86 @@ def calculate_stress_level(prices: Dict[str, PriceData]) -> float:
 
 
 def calculate_risk_index(prices: Dict[str, PriceData], stress_level: float) -> float:
-    """Calculate overall risk index 0-10"""
+    """
+    Calculate forward-looking risk index 0-10
+
+    Unlike backward-looking indicators that only trigger during crisis,
+    this shows proximity to crisis thresholds:
+    - How close silver is to bank insolvency levels ($50-80)
+    - Contagion indicators (credit stress, liquidity)
+    - Market fear (VIX)
+    - Countdown urgency
+    """
     risk = 0
 
-    # Silver contribution (0-3)
+    # Silver proximity to crisis (0-3.5)
+    # $30 = baseline, $50 = MS pain, $80 = insolvency
     silver = prices.get('silver')
     if silver:
-        if silver.price > 100: risk += 3
-        elif silver.price > 90: risk += 2
-        elif silver.price > 80: risk += 1
+        if silver.price >= 100:
+            risk += 3.5  # Full crisis
+        elif silver.price >= 80:
+            risk += 3.0  # Bank insolvency territory
+        elif silver.price >= 50:
+            # Linear scale from 50-80: 1.5 to 3.0
+            risk += 1.5 + ((silver.price - 50) / 30) * 1.5
+        elif silver.price >= 30:
+            # Early warning: 30-50 silver = 0.5 to 1.5
+            risk += 0.5 + ((silver.price - 30) / 20) * 1.0
+        else:
+            # Below $30 = minimal crisis risk from silver
+            risk += (silver.price / 30) * 0.5
 
-    # MS stress contribution (0-3)
-    risk += (stress_level / 100) * 3
+    # Weekly momentum matters (0-1)
+    # Rising silver = increasing pressure
+    if silver and hasattr(silver, 'week_change'):
+        if silver.week_change > 10:
+            risk += 1.0
+        elif silver.week_change > 5:
+            risk += 0.5
+        elif silver.week_change > 2:
+            risk += 0.25
 
-    # VIX contribution (0-2)
+    # Bank stock stress (0-2)
+    # Falling bank stocks = market sensing trouble
+    ms = prices.get('morgan_stanley')
+    citi = prices.get('citigroup')
+    if ms and ms.change_pct < -5:
+        risk += 1.0
+    elif ms and ms.change_pct < -2:
+        risk += 0.5
+    if citi and citi.change_pct < -5:
+        risk += 0.5
+    elif citi and citi.change_pct < -2:
+        risk += 0.25
+
+    # VIX fear gauge (0-1.5)
     vix = prices.get('vix')
     if vix:
-        if vix.price > 35: risk += 2
-        elif vix.price > 25: risk += 1
+        if vix.price > 40:
+            risk += 1.5  # Panic
+        elif vix.price > 30:
+            risk += 1.0  # High fear
+        elif vix.price > 25:
+            risk += 0.75  # Elevated
+        elif vix.price > 20:
+            risk += 0.5  # Above normal
+        elif vix.price > 15:
+            risk += 0.25  # Slightly elevated
 
-    # Countdown urgency (0-2)
+    # Countdown pressure (0-2)
     sec_countdown = calculate_countdown(SEC_DEADLINE, "SEC")
     lloyds_countdown = calculate_countdown(LLOYDS_DEADLINE, "Lloyd's")
 
-    if sec_countdown.days < 7 or lloyds_countdown.days < 7:
-        risk += 2
-    elif sec_countdown.days < 14 or lloyds_countdown.days < 14:
-        risk += 1
+    min_days = min(sec_countdown.days, lloyds_countdown.days)
+    if min_days < 7:
+        risk += 2.0
+    elif min_days < 14:
+        risk += 1.5
+    elif min_days < 30:
+        risk += 1.0
+    elif min_days < 60:
+        risk += 0.5
 
     return min(risk, 10)
 
@@ -1411,10 +1464,17 @@ async def get_dashboard():
     risk_index = calculate_risk_index(prices, stress_level)
 
     # Determine risk label and color
-    if risk_index >= 7:
-        risk_label, risk_color = 'CRITICAL', '#ff3b5c'
-    elif risk_index >= 5:
-        risk_label, risk_color = 'ELEVATED', '#ff8c42'
+    # Forward-looking scale: 0=calm, 3=watch, 5=warning, 7=danger, 9=crisis
+    if risk_index >= 8:
+        risk_label, risk_color = 'CRISIS', '#ff3b5c'
+    elif risk_index >= 6:
+        risk_label, risk_color = 'DANGER', '#ef4444'
+    elif risk_index >= 4:
+        risk_label, risk_color = 'WARNING', '#ff8c42'
+    elif risk_index >= 2.5:
+        risk_label, risk_color = 'WATCH', '#fbbf24'
+    elif risk_index >= 1.5:
+        risk_label, risk_color = 'MONITOR', '#84cc16'
     else:
         risk_label, risk_color = 'STABLE', '#4ade80'
 
