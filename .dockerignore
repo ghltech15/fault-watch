@@ -1,0 +1,53 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*.so
+.Python
+venv
+.venv
+*.egg-info
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit (not needed for API)
+.streamlit
+
+# Logs
+*.log
+logs
+
+# Testing
+.pytest_cache
+.coverage
+
+# Fly
+.fly
+
+# Frontend (separate build)
+frontend
+node_modules
+
+# Planning docs
+.planning
+.claude
+
+# Production archive
+fault-watch-production
+fault-watch-production.zip
+
+# Content output (generated at runtime)
+content-output

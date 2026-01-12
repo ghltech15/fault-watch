@@ -1,0 +1,32 @@
+# ============================================
+# fault.watch - Fly.io Configuration
+# ============================================
+
+app = "fault-watch"
+primary_region = "sjc"  # San Jose - closest to you
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8501
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+[env]
+  STREAMLIT_SERVER_HEADLESS = "true"
+  STREAMLIT_BROWSER_GATHER_USAGE_STATS = "false"
+  STREAMLIT_THEME_BASE = "dark"
+  STREAMLIT_THEME_PRIMARY_COLOR = "#ff3b5c"

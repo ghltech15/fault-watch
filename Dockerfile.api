@@ -1,0 +1,32 @@
+# fault.watch API - FastAPI Backend
+FROM python:3.11-slim
+
+# Install system dependencies for Pillow and MoviePy
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    libfontconfig1 \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY api.py .
+COPY fault_watch.py .
+COPY content_generator.py .
+COPY content_triggers.py .
+
+# Create output directories
+RUN mkdir -p content-output/images content-output/videos assets/audio
+
+# Expose port
+EXPOSE 8080
+
+# Run with uvicorn
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]

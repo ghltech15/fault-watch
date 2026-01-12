@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0d0d0d;
+  --surface: #141414;
+  --border: #2a2a2a;
+  --danger: #e31837;
+  --warning: #ffc300;
+  --success: #4ade80;
+  --info: #0066cc;
+}
+
+body {
+  background-color: var(--background);
+  color: #e0e0e0;
+  font-feature-settings: 'tnum' on, 'lnum' on;
+}
+
+/* Hero number glow effects */
+.glow-danger {
+  text-shadow: 0 0 30px rgba(227, 24, 55, 0.8);
+}
+
+.glow-warning {
+  text-shadow: 0 0 30px rgba(255, 195, 0, 0.8);
+}
+
+.glow-success {
+  text-shadow: 0 0 30px rgba(74, 222, 128, 0.8);
+}
+
+/* Card styles */
+.card {
+  @apply bg-surface border border-border rounded-lg p-5 transition-all duration-200;
+}
+
+.card:hover {
+  @apply border-danger/50 shadow-lg;
+  transform: translateY(-2px);
+}
+
+/* Badge styles */
+.badge {
+  @apply px-2 py-1 rounded-full text-xs font-semibold uppercase tracking-wider;
+}
+
+.badge-danger {
+  @apply bg-danger/20 text-danger;
+}
+
+.badge-warning {
+  @apply bg-warning/20 text-warning;
+}
+
+.badge-success {
+  @apply bg-success/20 text-success;
+}
+
+/* Countdown timer */
+.countdown {
+  @apply font-mono text-sm tracking-wide;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
