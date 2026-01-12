@@ -267,17 +267,11 @@ async def setup_default_collectors():
     """Register all default collectors with the runner"""
     r = get_runner()
 
-    # Import collectors (will be implemented in later phases)
-    # from .jobs.regulatory.sec_enforcement import SECEnforcementCollector
-    # from .jobs.regulatory.cftc import CFTCCollector
-    # from .jobs.regulatory.occ import OCCCollector
-    # from .jobs.regulatory.fdic import FDICCollector
-    # from .jobs.regulatory.fed import FedCollector
+    # Import regulatory collectors (Tier 1 - Official)
+    from .jobs.regulatory import REGULATORY_COLLECTORS
 
-    # r.register_collector(SECEnforcementCollector, frequency_minutes=60)
-    # r.register_collector(CFTCCollector, frequency_minutes=120)
-    # r.register_collector(OCCCollector, frequency_minutes=120)
-    # r.register_collector(FDICCollector, frequency_minutes=240)
-    # r.register_collector(FedCollector, frequency_minutes=60)
+    # Register all regulatory collectors
+    for collector_class, frequency in REGULATORY_COLLECTORS:
+        r.register_collector(collector_class, frequency_minutes=frequency)
 
-    logger.info("Default collectors registered (placeholder - implement in Phase 2)")
+    logger.info(f"Registered {len(REGULATORY_COLLECTORS)} regulatory collectors")
