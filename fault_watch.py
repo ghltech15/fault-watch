@@ -218,38 +218,49 @@ st.markdown("""
        ALERT CLASSES - DRAMATIC STYLING
        =========================================== */
     .alert-critical {
-        background: linear-gradient(135deg, rgba(227,24,55,0.25) 0%, rgba(183,28,28,0.15) 100%);
-        border: 2px solid #e31837;
-        border-left: 6px solid #e31837;
+        background: rgba(227,24,55,0.08);
+        border: 1px solid rgba(227,24,55,0.4);
+        border-left: 5px solid #e31837;
         padding: 18px 20px;
         margin: 15px 0;
-        animation: alert-pulse 1.5s ease-in-out infinite;
-        box-shadow: 0 0 20px rgba(227,24,55,0.3);
+        color: #e0e0e0;
     }
     .alert-critical strong {
-        color: #ff4d6a;
-        font-size: 16px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    .alert-warning {
-        background: linear-gradient(135deg, rgba(255,195,0,0.2) 0%, rgba(255,140,0,0.1) 100%);
-        border: 2px solid #ffc300;
-        border-left: 6px solid #ffc300;
-        padding: 18px 20px;
-        margin: 15px 0;
-    }
-    .alert-warning strong {
-        color: #ffc300;
+        color: #ff7a8a;
         font-size: 15px;
         text-transform: uppercase;
+        letter-spacing: 1px;
+        display: block;
+        margin-bottom: 6px;
     }
-    .alert-info {
-        background: linear-gradient(135deg, rgba(0,102,204,0.2) 0%, rgba(0,71,171,0.1) 100%);
-        border: 2px solid #0066cc;
-        border-left: 6px solid #0066cc;
+    .alert-warning {
+        background: rgba(255,195,0,0.08);
+        border: 1px solid rgba(255,195,0,0.4);
+        border-left: 5px solid #ffc300;
         padding: 18px 20px;
         margin: 15px 0;
+        color: #e0e0e0;
+    }
+    .alert-warning strong {
+        color: #ffe082;
+        font-size: 15px;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 6px;
+    }
+    .alert-info {
+        background: rgba(0,102,204,0.08);
+        border: 1px solid rgba(0,102,204,0.4);
+        border-left: 5px solid #0066cc;
+        padding: 18px 20px;
+        margin: 15px 0;
+        color: #e0e0e0;
+    }
+    .alert-info strong {
+        color: #82b1ff;
+        font-size: 15px;
+        display: block;
+        margin-bottom: 6px;
     }
     @keyframes alert-pulse {
         0%, 100% { box-shadow: 0 0 20px rgba(227,24,55,0.3); }
