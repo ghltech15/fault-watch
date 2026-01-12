@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData } from '@/lib/api'
+import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData, NakedShortAnalysis } from '@/lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight } from 'lucide-react'
+import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale } from 'lucide-react'
 
-type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | null
+type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | null
 
 function formatNumber(num: number, decimals = 2): string {
   if (Math.abs(num) >= 1e9) return `$${(num / 1e9).toFixed(1)}B`
@@ -650,6 +650,131 @@ function OpportunitiesDetailView() {
   )
 }
 
+function NakedShortsDetailView() {
+  const { data: nakedShorts } = useQuery({ queryKey: ['naked-shorts'], queryFn: api.getNakedShorts })
+
+  if (!nakedShorts) return <div className="text-gray-400">Loading...</div>
+
+  const positionColors: Record<string, string> = {
+    SHORT: '#ef4444',
+    LONG: '#4ade80',
+    NATIONALIZED: '#8b5cf6'
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="p-4 bg-danger/10 border border-danger/30 rounded-lg text-center">
+        <div className="text-2xl font-bold text-danger mb-2">{nakedShorts.verdict}</div>
+        <p className="text-gray-400">Banks have sold 30x more silver than physically exists. When delivery is demanded, there is no silver to deliver.</p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="p-4 bg-gray-800/50 rounded-lg text-center">
+          <div className="text-xs text-gray-500 mb-1">Total Short Position</div>
+          <div className="text-3xl font-bold text-danger">{(nakedShorts.total_short_oz / 1e9).toFixed(2)}B oz</div>
+        </div>
+        <div className="p-4 bg-gray-800/50 rounded-lg text-center">
+          <div className="text-xs text-gray-500 mb-1">Physical Available</div>
+          <div className="text-3xl font-bold text-warning">{(nakedShorts.available_physical_oz / 1e9).toFixed(0)}B oz</div>
+        </div>
+        <div className="p-4 bg-gray-800/50 rounded-lg text-center">
+          <div className="text-xs text-gray-500 mb-1">Paper to Physical</div>
+          <div className="text-3xl font-bold text-danger">{nakedShorts.paper_to_physical_ratio}:1</div>
+        </div>
+        <div className="p-4 bg-gray-800/50 rounded-lg text-center">
+          <div className="text-xs text-gray-500 mb-1">Years of Production</div>
+          <div className="text-3xl font-bold text-warning">{nakedShorts.years_of_production} years</div>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="font-semibold text-lg mb-3">Bank Short Positions</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-2 text-gray-400">Bank</th>
+                <th className="text-center py-3 px-2 text-gray-400">Position</th>
+                <th className="text-right py-3 px-2 text-gray-400">Ounces</th>
+                <th className="text-right py-3 px-2 text-gray-400">Equity</th>
+                <th className="text-center py-3 px-2 text-gray-400">Deadline</th>
+                <th className="text-center py-3 px-2 text-gray-400">Regulator</th>
+                <th className="text-right py-3 px-2 text-gray-400">@$80 Risk</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nakedShorts.bank_positions.map((bank) => (
+                <tr key={bank.ticker} className="border-b border-gray-800">
+                  <td className="py-3 px-2">
+                    <div className="font-bold text-white">{bank.name}</div>
+                    <div className="text-xs text-gray-500">{bank.ticker}</div>
+                  </td>
+                  <td className="py-3 px-2 text-center">
+                    <span
+                      className="badge text-xs"
+                      style={{ backgroundColor: `${positionColors[bank.position]}20`, color: positionColors[bank.position] }}
+                    >
+                      {bank.position}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 text-right font-semibold">{(bank.ounces / 1e9).toFixed(2)}B</td>
+                  <td className="py-3 px-2 text-right">${(bank.equity / 1e9).toFixed(0)}B</td>
+                  <td className="py-3 px-2 text-center text-gray-400">{bank.deadline || '-'}</td>
+                  <td className="py-3 px-2 text-center text-gray-400">{bank.regulator || '-'}</td>
+                  <td className="py-3 px-2 text-right">
+                    {bank.position === 'LONG' ? (
+                      <span className="text-success font-bold">PROFIT</span>
+                    ) : bank.position === 'NATIONALIZED' ? (
+                      <span className="text-purple-400 font-bold">N/A</span>
+                    ) : bank.loss_ratio_at_80 ? (
+                      <span className={bank.loss_ratio_at_80 > 1 ? 'text-danger font-bold' : 'text-warning'}>
+                        {bank.loss_ratio_at_80.toFixed(1)}x equity
+                      </span>
+                    ) : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 bg-danger/10 rounded-lg">
+          <h5 className="font-semibold text-danger mb-2">Banks Insolvent at $80 Silver</h5>
+          <ul className="text-sm space-y-1">
+            {nakedShorts.banks_insolvent_at_80.map((bank) => (
+              <li key={bank}>• {bank}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="p-4 bg-purple-500/10 rounded-lg">
+          <h5 className="font-semibold text-purple-400 mb-2">Already Nationalized</h5>
+          <div className="text-sm">
+            <p>• UBS Group (Switzerland)</p>
+            <p className="text-gray-400">Date: {nakedShorts.ubs_nationalization_date}</p>
+            <p className="text-gray-400">Position: 5.2B oz short</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <h5 className="font-semibold mb-2">Key Deadlines</h5>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-400">Lloyd&apos;s/HSBC:</span>
+            <span className="ml-2 font-semibold">{nakedShorts.lloyds_deadline}</span>
+          </div>
+          <div>
+            <span className="text-gray-400">SEC/MS:</span>
+            <span className="ml-2 font-semibold">{nakedShorts.sec_deadline}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function RiskGauge({ value, label, color }: { value: number; label: string; color: string }) {
   const glowClass = value >= 7 ? 'glow-danger' : value >= 4 ? 'glow-warning' : 'glow-success'
 
@@ -1172,6 +1297,92 @@ function OpportunitiesCard() {
   )
 }
 
+function NakedShortsCard() {
+  const { data: nakedShorts } = useQuery({ queryKey: ['naked-shorts'], queryFn: api.getNakedShorts, refetchInterval: 60000 })
+
+  if (!nakedShorts) return null
+
+  const positionColors: Record<string, string> = {
+    SHORT: '#ef4444',
+    LONG: '#4ade80',
+    NATIONALIZED: '#8b5cf6'
+  }
+
+  return (
+    <motion.div
+      className="card cursor-pointer lg:col-span-2"
+      whileHover={{ scale: 1.01 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.95 }}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <Skull className="w-5 h-5 text-danger" />
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Naked Short Analysis</h3>
+        <span className="badge badge-danger ml-auto text-xs">30:1 RATIO</span>
+      </div>
+
+      <div className="grid grid-cols-4 gap-4 mb-4 text-center">
+        <div>
+          <div className="text-xs text-gray-500">Total Shorts</div>
+          <div className="text-2xl font-bold text-danger">{(nakedShorts.total_short_oz / 1e9).toFixed(1)}B oz</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500">Physical Available</div>
+          <div className="text-2xl font-bold text-warning">{(nakedShorts.available_physical_oz / 1e9).toFixed(0)}B oz</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500">Paper:Physical</div>
+          <div className="text-2xl font-bold text-danger">{nakedShorts.paper_to_physical_ratio}:1</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500">Years Production</div>
+          <div className="text-2xl font-bold text-warning">{nakedShorts.years_of_production} yrs</div>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-gray-800">
+              <th className="text-left py-2 text-gray-500">Bank</th>
+              <th className="text-right py-2 text-gray-500">Position</th>
+              <th className="text-right py-2 text-gray-500">Ounces</th>
+              <th className="text-right py-2 text-gray-500">Deadline</th>
+              <th className="text-right py-2 text-gray-500">@$80 Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            {nakedShorts.bank_positions.slice(0, 6).map((bank) => (
+              <tr key={bank.ticker} className="border-b border-gray-800/50">
+                <td className="py-2 font-medium">{bank.name}</td>
+                <td className="py-2 text-right">
+                  <span style={{ color: positionColors[bank.position] }}>{bank.position}</span>
+                </td>
+                <td className="py-2 text-right">{(bank.ounces / 1e9).toFixed(2)}B</td>
+                <td className="py-2 text-right text-gray-400">{bank.deadline || 'N/A'}</td>
+                <td className="py-2 text-right">
+                  {bank.loss_ratio_at_80 ? (
+                    <span className={bank.loss_ratio_at_80 > 1 ? 'text-danger font-bold' : 'text-success'}>
+                      {bank.loss_ratio_at_80.toFixed(1)}x equity
+                    </span>
+                  ) : (
+                    <span className="text-success">PROFIT</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-3 p-2 bg-danger/10 rounded text-xs text-center text-danger">
+        {nakedShorts.verdict}
+      </div>
+    </motion.div>
+  )
+}
+
 function MinersCard() {
   const { data: miners } = useQuery({ queryKey: ['miners'], queryFn: api.getMiners, refetchInterval: 60000 })
 
@@ -1351,6 +1562,7 @@ export default function Dashboard() {
           <div onClick={() => setExpandedCard('scenarios')}><ScenarioCard /></div>
           <div onClick={() => setExpandedCard('sectors')}><SectorsCard /></div>
           <div onClick={() => setExpandedCard('miners')}><MinersCard /></div>
+          <div onClick={() => setExpandedCard('naked-shorts')} className="lg:col-span-2"><NakedShortsCard /></div>
           <div onClick={() => setExpandedCard('opportunities')} className="lg:col-span-2"><OpportunitiesCard /></div>
         </div>
       </main>
@@ -1394,6 +1606,10 @@ export default function Dashboard() {
 
       <Modal isOpen={expandedCard === 'miners'} onClose={() => setExpandedCard(null)} title="Junior Silver Miners">
         <MinersDetailView />
+      </Modal>
+
+      <Modal isOpen={expandedCard === 'naked-shorts'} onClose={() => setExpandedCard(null)} title="Naked Short Analysis - 30:1 Paper to Physical">
+        <NakedShortsDetailView />
       </Modal>
 
       <Modal isOpen={expandedCard === 'opportunities'} onClose={() => setExpandedCard(null)} title="Investment Opportunities">

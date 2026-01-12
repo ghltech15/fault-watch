@@ -166,6 +166,39 @@ export interface OpportunitiesData {
   disclaimer: string
 }
 
+// Naked Short Analysis Types
+export interface BankShortPosition {
+  name: string
+  ticker: string
+  position: 'SHORT' | 'LONG' | 'NATIONALIZED'
+  ounces: number
+  equity: number
+  insolvency_price: number | null
+  deadline: string | null
+  regulator: string | null
+  loss_ratio_at_80: number | null
+  note: string | null
+  nationalization_date: string | null
+}
+
+export interface NakedShortAnalysis {
+  total_short_oz: number
+  available_physical_oz: number
+  paper_to_physical_ratio: number
+  years_of_production: number
+  verdict: string
+  bank_positions: BankShortPosition[]
+  total_short_value_at_current: number
+  total_short_value_at_80: number
+  total_short_value_at_100: number
+  banks_insolvent_at_80: string[]
+  banks_insolvent_at_100: string[]
+  ubs_nationalized: boolean
+  ubs_nationalization_date: string
+  lloyds_deadline: string
+  sec_deadline: string
+}
+
 async function fetchAPI<T>(endpoint: string): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`)
   if (!res.ok) {
@@ -183,6 +216,8 @@ export const api = {
   getDominoes: () => fetchAPI<DominoStatus[]>('/api/dominoes'),
   getScenario: (price: number) => fetchAPI<ScenarioData>(`/api/scenarios/${price}`),
   getScenarios: () => fetchAPI<Record<string, ScenarioData>>('/api/scenarios'),
+  // Naked short analysis
+  getNakedShorts: () => fetchAPI<NakedShortAnalysis>('/api/naked-shorts'),
   // Contagion endpoints
   getContagion: () => fetchAPI<ContagionRiskData>('/api/contagion'),
   getCreditStress: () => fetchAPI<CreditStressData>('/api/contagion/credit'),

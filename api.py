@@ -57,52 +57,116 @@ app.add_middleware(
 
 SEC_DEADLINE = datetime(2026, 2, 15, 16, 0, 0)
 LLOYDS_DEADLINE = datetime(2026, 1, 31, 23, 59, 59)
+UBS_NATIONALIZATION_DATE = datetime(2026, 1, 11)
 
-# Bank Short Positions (in ounces)
-MS_SHORT_POSITION_OZ = 5_900_000_000
-CITI_SHORT_POSITION_OZ = 6_340_000_000
-JPM_LONG_POSITION_OZ = 750_000_000
+# =============================================================================
+# BANK POSITIONS - Complete Silver Exposure Data
+# =============================================================================
+# Total naked shorts: 29.84B oz (36 years of global production)
+# Available physical silver: ~1B oz
+# Ratio: 30:1 (sold 30x more silver than exists)
+# =============================================================================
+
+TOTAL_NAKED_SHORT_OZ = 29_840_000_000  # 29.84 billion ounces
+AVAILABLE_PHYSICAL_OZ = 1_000_000_000   # ~1 billion ounces deliverable
+NAKED_SHORT_RATIO = 30                   # 30:1 paper to physical
+YEARS_PRODUCTION = 36                    # Represents 36 years of global silver production
 
 BANK_SHORT_POSITIONS = {
+    'HSBC': {
+        'name': 'HSBC Holdings',
+        'ticker': 'HSBC',
+        'position': 'SHORT',
+        'ounces': 7_300_000_000,  # 7.3B oz - LARGEST
+        'equity': 190_000_000_000,
+        'insolvency_price': 56,  # $56 silver = insolvency (1.9x equity)
+        'deadline': 'Jan 31, 2026',
+        'regulator': 'BoE/Board',
+        'loss_ratio_at_80': 1.9,  # 190% of equity wiped at $80
+        'note': 'LARGEST short position - BoE oversight'
+    },
     'C': {
         'name': 'Citigroup',
         'ticker': 'C',
         'position': 'SHORT',
-        'ounces': 6_340_000_000,
+        'ounces': 6_340_000_000,  # 6.34B oz
         'equity': 175_000_000_000,
-        'insolvency_price': 80,
-        'note': "LARGEST short - Lloyd's insurance deadline Jan 31"
+        'insolvency_price': 57,  # ~$57 silver = insolvency (1.8x equity)
+        'deadline': 'Jan 31, 2026',
+        'regulator': "Lloyd's/Fed",
+        'loss_ratio_at_80': 1.8,  # 180% of equity wiped at $80
+        'note': "Lloyd's insurance deadline Jan 31 - loses coverage"
+    },
+    'UBS': {
+        'name': 'UBS Group',
+        'ticker': 'UBS',
+        'position': 'NATIONALIZED',
+        'ounces': 5_200_000_000,  # 5.2B oz
+        'equity': 100_000_000_000,
+        'insolvency_price': 49,
+        'deadline': 'NATIONALIZED',
+        'regulator': 'SNB (Swiss National Bank)',
+        'nationalization_date': '2026-01-11',
+        'loss_ratio_at_80': 2.6,  # Would have been 260% of equity
+        'note': 'NATIONALIZED Jan 11, 2026 - Swiss govt takeover'
     },
     'MS': {
         'name': 'Morgan Stanley',
         'ticker': 'MS',
         'position': 'SHORT',
-        'ounces': 5_900_000_000,
+        'ounces': 5_900_000_000,  # 5.9B oz
         'equity': 100_000_000_000,
         'insolvency_price': 47,
-        'note': 'SEC deadline Feb 15'
+        'deadline': 'Feb 15, 2026',
+        'regulator': 'SEC',
+        'loss_ratio_at_80': 3.0,  # 300% of equity wiped at $80
+        'note': 'SEC enforcement deadline Feb 15'
+    },
+    'BNS': {
+        'name': 'Scotiabank',
+        'ticker': 'BNS',
+        'position': 'SHORT',
+        'ounces': 4_100_000_000,  # 4.1B oz
+        'equity': 40_000_000_000,
+        'insolvency_price': 40,
+        'deadline': 'Unknown',
+        'regulator': 'OSFI',
+        'loss_ratio_at_80': 5.1,  # 510% of equity wiped at $80 - WORST RATIO
+        'note': 'WORST equity ratio - $127M PM manipulation fine 2020'
+    },
+    'BAC': {
+        'name': 'Bank of America',
+        'ticker': 'BAC',
+        'position': 'SHORT',
+        'ounces': 1_000_000_000,  # ~1B oz (smaller position)
+        'equity': 280_000_000_000,
+        'insolvency_price': None,  # Won't go insolvent from silver alone
+        'deadline': 'Unknown',
+        'regulator': 'Fed/OCC',
+        'loss_ratio_at_80': 0.18,  # Only 18% of equity at risk
+        'note': 'Smallest short exposure relative to equity'
     },
     'JPM': {
-        'name': 'JPMorgan',
+        'name': 'JPMorgan Chase',
         'ticker': 'JPM',
-        'position': 'LONG',
-        'ounces': 750_000_000,
+        'position': 'LONG',  # FLIPPED TO LONG
+        'ounces': 750_000_000,  # 750M oz LONG
         'equity': 330_000_000_000,
         'note': 'FLIPPED from 200M short to 750M LONG (Jun-Oct 2025)'
     },
 }
 
 BANK_PM_EXPOSURE = {
-    'JPM': {'name': 'JPMorgan Chase', 'ticker': 'JPM', 'pm_derivatives': 437.4e9, 'equity': 330e9, 'pct_total': 62.1},
-    'C': {'name': 'Citigroup', 'ticker': 'C', 'pm_derivatives': 204.3e9, 'equity': 175e9, 'pct_total': 29.0},
-    'BAC': {'name': 'Bank of America', 'ticker': 'BAC', 'pm_derivatives': 47.9e9, 'equity': 280e9, 'pct_total': 6.8},
+    'HSBC': {'name': 'HSBC Holdings', 'ticker': 'HSBC', 'pm_derivatives': None, 'equity': 190e9, 'pct_total': None, 'note': '7.3B oz SHORT - LARGEST position'},
+    'C': {'name': 'Citigroup', 'ticker': 'C', 'pm_derivatives': 204.3e9, 'equity': 175e9, 'pct_total': 29.0, 'note': "6.34B oz SHORT - Lloyd's deadline Jan 31"},
+    'UBS': {'name': 'UBS Group', 'ticker': 'UBS', 'pm_derivatives': None, 'equity': 100e9, 'pct_total': None, 'note': 'NATIONALIZED Jan 11, 2026 - 5.2B oz short'},
+    'MS': {'name': 'Morgan Stanley', 'ticker': 'MS', 'pm_derivatives': None, 'equity': 100e9, 'pct_total': None, 'note': '5.9B oz SHORT - SEC deadline Feb 15'},
+    'BNS': {'name': 'Scotiabank', 'ticker': 'BNS', 'pm_derivatives': None, 'equity': 40e9, 'pct_total': None, 'note': '4.1B oz SHORT - WORST equity ratio (5.1x at $80)'},
+    'BAC': {'name': 'Bank of America', 'ticker': 'BAC', 'pm_derivatives': 47.9e9, 'equity': 280e9, 'pct_total': 6.8, 'note': '~1B oz SHORT - smallest relative exposure'},
+    'JPM': {'name': 'JPMorgan Chase', 'ticker': 'JPM', 'pm_derivatives': 437.4e9, 'equity': 330e9, 'pct_total': 62.1, 'note': '750M oz LONG - PROFITING from silver rise'},
     'GS': {'name': 'Goldman Sachs', 'ticker': 'GS', 'pm_derivatives': 0.614e9, 'equity': 120e9, 'pct_total': 0.1},
-    'MS': {'name': 'Morgan Stanley', 'ticker': 'MS', 'pm_derivatives': None, 'equity': 100e9, 'pct_total': None, 'note': 'Not in OCC Top 4 - Hidden exposure'},
-    'HSBC': {'name': 'HSBC Holdings', 'ticker': 'HSBC', 'pm_derivatives': None, 'equity': 190e9, 'pct_total': None, 'note': 'LBMA Market Maker - London exposure'},
     'DB': {'name': 'Deutsche Bank', 'ticker': 'DB', 'pm_derivatives': None, 'equity': 55e9, 'pct_total': None, 'note': 'Settled PM manipulation 2016'},
-    'UBS': {'name': 'UBS Group', 'ticker': 'UBS', 'pm_derivatives': None, 'equity': 100e9, 'pct_total': None, 'note': '$15M CFTC fine 2018'},
     'BCS': {'name': 'Barclays', 'ticker': 'BCS', 'pm_derivatives': None, 'equity': 50e9, 'pct_total': None, 'note': 'LBMA Market Maker'},
-    'BNS': {'name': 'Scotiabank', 'ticker': 'BNS', 'pm_derivatives': None, 'equity': 65e9, 'pct_total': None, 'note': '$127M fine 2020 PM manipulation'},
 }
 
 FED_REPO_TOTAL = 51.25  # billions
@@ -281,6 +345,39 @@ class DashboardData(BaseModel):
     dominoes: List[DominoStatus]
     stress_level: float
     last_updated: str
+
+
+class BankShortPosition(BaseModel):
+    name: str
+    ticker: str
+    position: str  # 'SHORT', 'LONG', 'NATIONALIZED'
+    ounces: int
+    equity: float
+    insolvency_price: Optional[float] = None
+    deadline: Optional[str] = None
+    regulator: Optional[str] = None
+    loss_ratio_at_80: Optional[float] = None
+    note: Optional[str] = None
+    nationalization_date: Optional[str] = None
+
+
+class NakedShortAnalysis(BaseModel):
+    """Analysis of the naked short position in silver"""
+    total_short_oz: int
+    available_physical_oz: int
+    paper_to_physical_ratio: float
+    years_of_production: int
+    verdict: str
+    bank_positions: List[BankShortPosition]
+    total_short_value_at_current: float
+    total_short_value_at_80: float
+    total_short_value_at_100: float
+    banks_insolvent_at_80: List[str]
+    banks_insolvent_at_100: List[str]
+    ubs_nationalized: bool
+    ubs_nationalization_date: str
+    lloyds_deadline: str
+    sec_deadline: str
 
 
 class ContentRequest(BaseModel):
@@ -1218,6 +1315,32 @@ def generate_alerts(prices: Dict[str, PriceData], stress_level: float) -> List[A
     sec_countdown = calculate_countdown(SEC_DEADLINE, "SEC")
     lloyds_countdown = calculate_countdown(LLOYDS_DEADLINE, "Lloyd's")
 
+    # UBS NATIONALIZATION - CRITICAL ALERT (always show)
+    alerts.append(AlertData(
+        level='critical',
+        title='UBS NATIONALIZED',
+        detail='Swiss govt takeover Jan 11, 2026 - 5.2B oz short',
+        action='First major bank to fall - contagion spreading'
+    ))
+
+    # HSBC alerts - LARGEST short position (7.3B oz)
+    hsbc = prices.get('hsbc')
+    if hsbc:
+        if hsbc.change_pct < -7:
+            alerts.append(AlertData(
+                level='critical',
+                title='HSBC STOCK CRASHING - LARGEST SHORT',
+                detail=f'Down {abs(hsbc.change_pct):.1f}% today - 7.3B oz exposed',
+                action='BIGGEST short position at risk'
+            ))
+        elif hsbc.change_pct < -3:
+            alerts.append(AlertData(
+                level='warning',
+                title='HSBC UNDER PRESSURE',
+                detail=f'Down {abs(hsbc.change_pct):.1f}% today - 7.3B oz short',
+                action='Watch for BoE intervention'
+            ))
+
     # Citigroup alerts
     citi = prices.get('citigroup')
     if citi:
@@ -1225,7 +1348,7 @@ def generate_alerts(prices: Dict[str, PriceData], stress_level: float) -> List[A
             alerts.append(AlertData(
                 level='critical',
                 title='CITI STOCK CRASHING',
-                detail=f'Down {abs(citi.change_pct):.1f}% today',
+                detail=f'Down {abs(citi.change_pct):.1f}% today - 6.34B oz short',
                 action='Monitor for contagion to other banks'
             ))
         elif citi.change_pct < -3:
@@ -1236,20 +1359,20 @@ def generate_alerts(prices: Dict[str, PriceData], stress_level: float) -> List[A
                 action='Watch for acceleration'
             ))
 
-    # Lloyd's deadline
+    # Lloyd's deadline - affects HSBC and Citi
     if lloyds_countdown.days < 3 and not lloyds_countdown.expired:
         alerts.append(AlertData(
             level='critical',
             title="LLOYD'S DEADLINE IMMINENT",
             detail=f'{lloyds_countdown.days}d {lloyds_countdown.hours}h remaining',
-            action='Citi loses insurance coverage Jan 31'
+            action='HSBC (7.3B oz) & Citi (6.34B oz) lose insurance Jan 31'
         ))
     elif lloyds_countdown.days < 14 and not lloyds_countdown.expired:
         alerts.append(AlertData(
             level='warning',
             title="LLOYD'S DEADLINE APPROACHING",
             detail=f'{lloyds_countdown.days} days remaining',
-            action='Monitor Citi positioning'
+            action='13.64B oz combined exposure at risk'
         ))
 
     # Morgan Stanley alerts
@@ -1278,21 +1401,32 @@ def generate_alerts(prices: Dict[str, PriceData], stress_level: float) -> List[A
                 action='Approaching insolvency price'
             ))
 
-    # SEC Countdown
+    # SEC Countdown - MS deadline
     if sec_countdown.days < 7 and not sec_countdown.expired:
         alerts.append(AlertData(
             level='critical',
             title='SEC DEADLINE IMMINENT',
             detail=f'{sec_countdown.days}d {sec_countdown.hours}h remaining',
-            action='12.24B oz shorts must close'
+            action='MS 5.9B oz must close - total shorts 29.84B oz'
         ))
     elif sec_countdown.days < 14 and not sec_countdown.expired:
         alerts.append(AlertData(
             level='warning',
             title='SEC DEADLINE APPROACHING',
             detail=f'{sec_countdown.days} days remaining',
-            action='Monitor short covering activity'
+            action='MS enforcement action pending'
         ))
+
+    # Scotiabank - WORST equity ratio
+    bns = prices.get('scotiabank')
+    if bns:
+        if bns.change_pct < -5:
+            alerts.append(AlertData(
+                level='critical',
+                title='SCOTIABANK CRASHING - WORST RATIO',
+                detail=f'Down {abs(bns.change_pct):.1f}% - 4.1B oz vs $40B equity (5.1x)',
+                action='Most vulnerable to silver spike'
+            ))
 
     # Silver alerts
     silver = prices.get('silver')
@@ -1615,6 +1749,76 @@ async def get_dominoes():
     """Get domino cascade status"""
     prices = fetch_all_prices()
     return calculate_domino_status(prices)
+
+
+@app.get("/api/naked-shorts", response_model=NakedShortAnalysis)
+async def get_naked_short_analysis():
+    """
+    Get comprehensive naked short analysis
+
+    Total shorts: 29.84B oz (36 years of global production)
+    Available physical: ~1B oz
+    Ratio: 30:1 (sold 30x more than exists)
+    Verdict: Largest naked short in history
+    """
+    prices = fetch_all_prices()
+    silver_price = prices.get('silver', PriceData(price=30)).price
+
+    # Build bank positions list
+    bank_positions = []
+    banks_insolvent_80 = []
+    banks_insolvent_100 = []
+
+    for ticker, data in BANK_SHORT_POSITIONS.items():
+        position = BankShortPosition(
+            name=data['name'],
+            ticker=data['ticker'],
+            position=data['position'],
+            ounces=data['ounces'],
+            equity=data['equity'],
+            insolvency_price=data.get('insolvency_price'),
+            deadline=data.get('deadline'),
+            regulator=data.get('regulator'),
+            loss_ratio_at_80=data.get('loss_ratio_at_80'),
+            note=data.get('note'),
+            nationalization_date=data.get('nationalization_date'),
+        )
+        bank_positions.append(position)
+
+        # Check insolvency at price levels (for shorts only)
+        if data['position'] == 'SHORT':
+            insolvency_price = data.get('insolvency_price')
+            if insolvency_price and insolvency_price <= 80:
+                banks_insolvent_80.append(data['name'])
+            if insolvency_price and insolvency_price <= 100:
+                banks_insolvent_100.append(data['name'])
+
+    # Sort by position size (largest shorts first)
+    bank_positions.sort(key=lambda x: x.ounces if x.position == 'SHORT' else 0, reverse=True)
+
+    # Calculate total short values
+    total_short_oz = sum(
+        data['ounces'] for data in BANK_SHORT_POSITIONS.values()
+        if data['position'] == 'SHORT'
+    )
+
+    return NakedShortAnalysis(
+        total_short_oz=TOTAL_NAKED_SHORT_OZ,
+        available_physical_oz=AVAILABLE_PHYSICAL_OZ,
+        paper_to_physical_ratio=NAKED_SHORT_RATIO,
+        years_of_production=YEARS_PRODUCTION,
+        verdict="LARGEST NAKED SHORT IN HISTORY - 30x more silver sold than exists",
+        bank_positions=bank_positions,
+        total_short_value_at_current=total_short_oz * silver_price / 1e9,  # billions
+        total_short_value_at_80=total_short_oz * 80 / 1e9,
+        total_short_value_at_100=total_short_oz * 100 / 1e9,
+        banks_insolvent_at_80=banks_insolvent_80,
+        banks_insolvent_at_100=banks_insolvent_100,
+        ubs_nationalized=True,
+        ubs_nationalization_date="2026-01-11",
+        lloyds_deadline=LLOYDS_DEADLINE.strftime("%Y-%m-%d"),
+        sec_deadline=SEC_DEADLINE.strftime("%Y-%m-%d"),
+    )
 
 
 # =============================================================================
