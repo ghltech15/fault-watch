@@ -134,8 +134,11 @@ st.markdown("""
     /* Base Theme - Deep Black with High Contrast */
     .stApp { background-color: #0d0d0d; }
     h1, h2, h3, h4 { color: #ffffff !important; font-weight: 700 !important; }
-    [data-testid="stMetricLabel"] { color: #b0b0b0 !important; text-transform: uppercase; letter-spacing: 1px; font-size: 11px !important; }
+    p, span, div, li { color: #e0e0e0; }
+    [data-testid="stMetricLabel"] { color: #c0c0c0 !important; text-transform: uppercase; letter-spacing: 1px; font-size: 12px !important; }
     [data-testid="stMetricValue"] { color: #ffffff !important; font-weight: 700 !important; }
+    [data-testid="stMarkdownContainer"] p { color: #d0d0d0 !important; }
+    .stMarkdown { color: #d0d0d0 !important; }
 
     /* ===========================================
        TYPOGRAPHY HIERARCHY
@@ -156,24 +159,24 @@ st.markdown("""
     .text-subhead {
         font-size: 20px;
         font-weight: 600;
-        color: #e0e0e0;
+        color: #e8e8e8;
     }
     .text-body {
         font-size: 16px;
         font-weight: 400;
-        color: #cccccc;
+        color: #d0d0d0;
     }
     .text-caption {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 400;
-        color: #888888;
+        color: #b0b0b0;
     }
     .text-label {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 2px;
-        color: #666666;
+        color: #a0a0a0;
     }
 
     /* ===========================================
@@ -268,7 +271,7 @@ st.markdown("""
     .headline-secondary {
         font-size: 24px;
         font-weight: 700;
-        color: #e0e0e0;
+        color: #f0f0f0;
         letter-spacing: 0.5px;
     }
     .headline-ticker {
@@ -315,8 +318,8 @@ st.markdown("""
         animation: countdown-glow 2s ease-in-out infinite;
     }
     .countdown-label {
-        color: #b0b0b0;
-        font-size: 12px;
+        color: #c0c0c0;
+        font-size: 13px;
         text-transform: uppercase;
         letter-spacing: 3px;
         margin-top: 5px;
@@ -344,7 +347,7 @@ st.markdown("""
        =========================================== */
     .metric-card {
         background: #141414;
-        border: 1px solid #2a2a2a;
+        border: 1px solid #3a3a3a;
         border-left: 4px solid #e31837;
         padding: 18px;
         margin: 8px 0;
@@ -354,7 +357,7 @@ st.markdown("""
         text-align: center;
         padding: 18px;
         background: #141414;
-        border: 1px solid #2a2a2a;
+        border: 1px solid #3a3a3a;
         margin: 8px;
         transition: all 0.3s ease;
     }
@@ -366,7 +369,7 @@ st.markdown("""
         background: #141414;
         padding: 18px;
         margin: 12px 0;
-        border: 1px solid #2a2a2a;
+        border: 1px solid #3a3a3a;
         border-left: 5px solid #e31837;
         box-shadow: 0 2px 15px rgba(0,0,0,0.3);
     }
@@ -381,7 +384,7 @@ st.markdown("""
         background: #141414;
         padding: 15px;
         margin: 8px 0;
-        border: 1px solid #2a2a2a;
+        border: 1px solid #3a3a3a;
         border-left: 5px solid #0066cc;
     }
 
@@ -390,7 +393,7 @@ st.markdown("""
        =========================================== */
     .stress-meter {
         background: #141414;
-        border: 1px solid #2a2a2a;
+        border: 1px solid #3a3a3a;
         padding: 20px;
         margin: 15px 0;
     }
@@ -403,7 +406,7 @@ st.markdown("""
         height: 28px;
         margin: 8px 0;
         overflow: hidden;
-        border: 1px solid #2a2a2a;
+        border: 1px solid #3a3a3a;
     }
 
     /* ===========================================
@@ -413,6 +416,44 @@ st.markdown("""
         0%, 100% { opacity: 1; transform: scale(1); }
         50% { opacity: 0.8; transform: scale(1.02); }
     }
+
+    /* ===========================================
+       STREAMLIT COMPONENT OVERRIDES - HIGH CONTRAST
+       =========================================== */
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] button { color: #c0c0c0 !important; font-weight: 500; }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] { color: #ffffff !important; font-weight: 700; }
+
+    /* Expander */
+    .streamlit-expanderHeader { color: #e0e0e0 !important; font-weight: 600 !important; }
+    .streamlit-expanderContent { color: #d0d0d0 !important; }
+
+    /* Sidebar */
+    [data-testid="stSidebar"] { background-color: #0a0a0a; }
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #d0d0d0 !important; }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #ffffff !important; }
+    [data-testid="stSidebar"] .stCaption { color: #b0b0b0 !important; }
+
+    /* Captions */
+    .stCaption, [data-testid="stCaption"] { color: #a0a0a0 !important; font-size: 13px !important; }
+
+    /* Info/Warning boxes */
+    .stAlert { color: #e0e0e0 !important; }
+
+    /* Tables */
+    .stTable, .stDataFrame { color: #d0d0d0 !important; }
+
+    /* Text inputs and other form elements */
+    .stTextInput input, .stSelectbox select { color: #e0e0e0 !important; background-color: #1a1a1a !important; }
+
+    /* Toggle/Checkbox labels */
+    .stCheckbox label, .stToggle label { color: #d0d0d0 !important; }
+
+    /* Button text */
+    .stButton button { color: #ffffff !important; }
+
+    /* Toast messages */
+    [data-testid="stToast"] { color: #e0e0e0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1179,7 +1220,7 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
                 January 31, 2026
             </div>
             <div class="countdown-urgent" style="color:#ff8c42;">{lloyds_msg}</div>
-            <div style="color:#888;font-size:11px;margin-top:8px;">
+            <div style="color:#b0b0b0;font-size:11px;margin-top:8px;">
                 Lloyd's stops insuring Citigroup
             </div>
         </div>
@@ -1210,7 +1251,7 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
                 February 15, 2026
             </div>
             <div class="countdown-urgent">{sec_msg}</div>
-            <div style="color:#888;font-size:11px;margin-top:8px;">
+            <div style="color:#b0b0b0;font-size:11px;margin-top:8px;">
                 SEC disclosure deadline for MS
             </div>
         </div>
@@ -1288,7 +1329,7 @@ def render_ms_collapse_tab(prices, countdown, stress_level, ms_exposure):
     <div class="stress-meter" style="margin-top:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <span class="text-label">BANK STRESS LEVEL</span>
-            <span style="color:{stress_color};font-size:28px;font-weight:900;">{stress_level}<span style="font-size:14px;color:#888;">/100</span></span>
+            <span style="color:{stress_color};font-size:28px;font-weight:900;">{stress_level}<span style="font-size:14px;color:#b0b0b0;">/100</span></span>
         </div>
         <div style="background:#1a1a1a;height:12px;overflow:hidden;border:1px solid #2a2a2a;">
             <div style="background:linear-gradient(90deg, {stress_color}, {stress_color});width:{stress_level}%;height:100%;"></div>
@@ -1570,7 +1611,7 @@ def render_fed_response_tab(prices, silver_price):
         <div style="margin:10px 0;">
             <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
                 <span style="color:#e8e8f0;font-size:13px;">{bailout['event']}</span>
-                <span style="color:#888;font-size:12px;">${bailout['amount']}B ({pct_of_current:.0f}% of current need)</span>
+                <span style="color:#b0b0b0;font-size:12px;">${bailout['amount']}B ({pct_of_current:.0f}% of current need)</span>
             </div>
             <div class="bailout-bar">
                 <div style="background:linear-gradient(90deg, #3b82f6, #8b5cf6);width:{bar_width}%;height:100%;border-radius:12px;"></div>
@@ -1658,7 +1699,7 @@ def render_domino_tab(prices, dominoes):
                 </div>
                 <div style="text-align:right;">
                     <span style="color:{d['color']};font-size:18px;font-weight:bold;">{d['status']}</span>
-                    <span style="color:#888;font-size:12px;margin-left:10px;">{d['detail']}</span>
+                    <span style="color:#b0b0b0;font-size:12px;margin-left:10px;">{d['detail']}</span>
                 </div>
             </div>
         </div>
@@ -1989,7 +2030,7 @@ def main():
     st.markdown("""
     <div style="text-align:center;padding:10px 0;">
         <h1 style="font-size:42px;margin:0;">⚠️ FAULT.WATCH</h1>
-        <p style="color:#888;font-size:14px;">Complete Crisis Monitor • Fed Response Tracker • Bank Exposure</p>
+        <p style="color:#b0b0b0;font-size:14px;">Complete Crisis Monitor • Fed Response Tracker • Bank Exposure</p>
     </div>
     """, unsafe_allow_html=True)
     
