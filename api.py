@@ -2418,7 +2418,6 @@ async def get_all_scores():
         hy_spread=credit_stress.high_yield_spread or 0,
         ig_spread=credit_stress.credit_spread or 0,
         ted_spread=credit_stress.ted_spread or 0,
-        sofr_rate=credit_stress.sofr_rate,
         reverse_repo=liquidity.reverse_repo,
         deposit_change_pct=liquidity.deposit_change_pct,
     )
@@ -2613,12 +2612,6 @@ async def get_claims(
     }
 
 
-@app.get("/api/claims/{claim_id}")
-async def get_claim(claim_id: str):
-    """Get detailed claim data including corroboration status"""
-    raise HTTPException(status_code=503, detail="Claims database not connected")
-
-
 @app.get("/api/claims/types")
 async def get_claim_types():
     """Get supported claim types and their descriptions"""
@@ -2661,6 +2654,12 @@ async def get_claim_types():
             },
         },
     }
+
+
+@app.get("/api/claims/{claim_id}")
+async def get_claim(claim_id: str):
+    """Get detailed claim data including corroboration status"""
+    raise HTTPException(status_code=503, detail="Claims database not connected")
 
 
 @app.get("/api/claims/stats")
