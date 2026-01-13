@@ -2341,6 +2341,478 @@ async def get_bank_exposure_pipeline():
 
 
 # =============================================================================
+# SCORING ENGINE ENDPOINTS (Phase H - Unified Cascade Engine)
+# =============================================================================
+
+# Lazy load scoring engines
+_scoring_available = False
+
+def _check_scoring_available():
+    """Check if scoring modules are available"""
+    global _scoring_available
+    try:
+        from packages.core.scoring import (
+            calculate_funding_stress,
+            calculate_enforcement_heat,
+            calculate_deliverability_stress,
+            calculate_composite_risk,
+            get_risk_level,
+            get_risk_color,
+        )
+        _scoring_available = True
+        return True
+    except ImportError:
+        _scoring_available = False
+        return False
+
+
+@app.get("/api/scores")
+async def get_all_scores():
+    """
+    Get all three component scores and composite risk.
+
+    Returns:
+    - funding_stress: 0-100 (credit spreads, rate dislocations, facility usage)
+    - enforcement_heat: 0-100 (regulatory actions, multi-agency coordination)
+    - deliverability_stress: 0-100 (COMEX metrics, dealer tightness)
+    - composite_risk: 0-10 (unified cascade score)
+    """
+    if not _check_scoring_available():
+        # Fallback to existing stress calculation
+        prices = fetch_all_prices()
+        stress_level = calculate_stress_level(prices)
+        risk_index = calculate_risk_index(prices, stress_level)
+
+        return {
+            'funding_stress': None,
+            'enforcement_heat': None,
+            'deliverability_stress': None,
+            'composite_risk': risk_index,
+            'composite_level': 'WARNING' if risk_index >= 4 else 'WATCH' if risk_index >= 2.5 else 'STABLE',
+            'cascade_triggered': False,
+            'scoring_engine': 'legacy',
+            'message': 'New scoring engine not available, using legacy calculation',
+        }
+
+    from packages.core.scoring import (
+        calculate_composite_risk,
+        get_risk_level,
+        quick_composite_assessment,
+    )
+    from packages.core.scoring.funding import FundingIndicators, calculate_funding_stress
+    from packages.core.scoring.enforcement import calculate_enforcement_heat
+    from packages.core.scoring.deliverability import (
+        DeliverabilityIndicators,
+        ComexIndicators,
+        DealerIndicators,
+        calculate_deliverability_stress,
+    )
+
+    # Get credit stress data
+    credit_stress = fetch_credit_stress()
+    liquidity = fetch_liquidity_data()
+    comex = fetch_comex_data()
+
+    # Calculate funding stress
+    funding_indicators = FundingIndicators(
+        hy_spread=credit_stress.high_yield_spread or 0,
+        ig_spread=credit_stress.credit_spread or 0,
+        ted_spread=credit_stress.ted_spread or 0,
+        sofr_rate=credit_stress.sofr_rate,
+        reverse_repo=liquidity.reverse_repo,
+        deposit_change_pct=liquidity.deposit_change_pct,
+    )
+    funding_score = calculate_funding_stress(funding_indicators)
+
+    # Calculate enforcement heat (placeholder - would need recent events)
+    enforcement_score = calculate_enforcement_heat(entity_id=None, events=[])
+
+    # Calculate deliverability stress
+    deliv_indicators = DeliverabilityIndicators(
+        comex=ComexIndicators(
+            coverage_ratio=comex.coverage_ratio,
+            days_of_supply=comex.days_of_supply,
+            registered_oz=comex.registered_oz,
+        ),
+        dealers=DealerIndicators(),  # Would need dealer data
+    )
+    deliverability_score = calculate_deliverability_stress(deliv_indicators)
+
+    # Calculate composite
+    composite = calculate_composite_risk(
+        funding_score,
+        enforcement_score,
+        deliverability_score,
+    )
+
+    return {
+        'funding_stress': funding_score.to_dict() if hasattr(funding_score, 'to_dict') else {'score': funding_score.score},
+        'enforcement_heat': {'score': enforcement_score.score, 'drivers': enforcement_score.drivers},
+        'deliverability_stress': deliverability_score.to_dict() if hasattr(deliverability_score, 'to_dict') else {'score': deliverability_score.score},
+        'composite_risk': composite.to_dict(),
+        'scoring_engine': 'cascade_v2',
+    }
+
+
+@app.get("/api/scores/funding")
+async def get_funding_stress():
+    """
+    Get funding stress score (0-100).
+
+    Components:
+    - Credit spreads (HY, IG)
+    - TED spread
+    - Rate dislocations (SOFR-EFFR, SOFR-IORB)
+    - Fed facility usage
+    - Deposit trends
+    """
+    credit_stress = fetch_credit_stress()
+    liquidity = fetch_liquidity_data()
+
+    return {
+        'score': credit_stress.stress_score,
+        'level': credit_stress.stress_level,
+        'components': {
+            'ted_spread': credit_stress.ted_spread,
+            'high_yield_spread': credit_stress.high_yield_spread,
+            'credit_spread': credit_stress.credit_spread,
+            'sofr_rate': credit_stress.sofr_rate,
+            'reverse_repo': liquidity.reverse_repo,
+        },
+        'drivers': [],
+    }
+
+
+@app.get("/api/scores/enforcement")
+async def get_enforcement_heat():
+    """
+    Get enforcement heat score (0-100).
+
+    Components:
+    - Recent regulatory actions
+    - Multi-agency coordination
+    - Action severity (wells notice, settlement, cease-desist, etc.)
+    - 90-day tempo acceleration
+    """
+    # In production, this would query the events table
+    return {
+        'score': 0,
+        'level': 'low',
+        'drivers': [],
+        'recent_actions': [],
+        'message': 'Enforcement data requires event store connection',
+    }
+
+
+@app.get("/api/scores/deliverability")
+async def get_deliverability_stress():
+    """
+    Get deliverability stress score (0-100).
+
+    Components:
+    - COMEX coverage ratio
+    - Days of supply
+    - Delivery notices acceleration
+    - Dealer premiums
+    - Out-of-stock rate
+    - Inventory velocity
+    """
+    comex = fetch_comex_data()
+
+    return {
+        'score': 0,  # Would calculate from deliverability engine
+        'level': comex.status,
+        'comex': {
+            'coverage_ratio': comex.coverage_ratio,
+            'days_of_supply': comex.days_of_supply,
+            'registered_oz': comex.registered_oz,
+            'eligible_oz': comex.eligible_oz,
+            'open_interest_oz': comex.open_interest_oz,
+        },
+        'dealers': {
+            'avg_premium_pct': None,
+            'out_of_stock_rate': None,
+        },
+        'drivers': [],
+    }
+
+
+@app.get("/api/scores/composite")
+async def get_composite_risk():
+    """
+    Get composite risk score (0-10).
+
+    Algorithm:
+    1. Weighted sum of three component scores
+    2. Cascade amplification when 2+ components elevated
+    3. Risk level: STABLE → MONITOR → WATCH → WARNING → DANGER → CRISIS
+    """
+    prices = fetch_all_prices()
+    stress_level = calculate_stress_level(prices)
+    risk_index = calculate_risk_index(prices, stress_level)
+
+    # Determine risk label and color
+    if risk_index >= 8:
+        risk_label, risk_color = 'CRISIS', '#ff3b5c'
+    elif risk_index >= 6:
+        risk_label, risk_color = 'DANGER', '#ef4444'
+    elif risk_index >= 4:
+        risk_label, risk_color = 'WARNING', '#ff8c42'
+    elif risk_index >= 2.5:
+        risk_label, risk_color = 'WATCH', '#fbbf24'
+    elif risk_index >= 1.5:
+        risk_label, risk_color = 'MONITOR', '#84cc16'
+    else:
+        risk_label, risk_color = 'STABLE', '#4ade80'
+
+    return {
+        'score': round(risk_index, 2),
+        'level': risk_label,
+        'color': risk_color,
+        'cascade_triggered': risk_index >= 4,
+        'components': {
+            'funding': None,
+            'enforcement': None,
+            'deliverability': None,
+        },
+        'weights': {
+            'funding': 0.35,
+            'enforcement': 0.30,
+            'deliverability': 0.35,
+        },
+    }
+
+
+# =============================================================================
+# CLAIMS ENGINE ENDPOINTS (Phase G - Social Intel)
+# =============================================================================
+
+@app.get("/api/claims")
+async def get_claims(
+    status: Optional[str] = None,
+    claim_type: Optional[str] = None,
+    limit: int = 50,
+):
+    """
+    Get claims from social sources.
+
+    Params:
+    - status: new, triage, corroborating, confirmed, debunked, stale
+    - claim_type: nationalization, investigation, liquidity, delivery, fraud
+    - limit: max claims to return
+    """
+    # In production, this would query the claims table
+    return {
+        'claims': [],
+        'total': 0,
+        'filters': {
+            'status': status,
+            'claim_type': claim_type,
+        },
+        'message': 'Claims data requires database connection',
+    }
+
+
+@app.get("/api/claims/{claim_id}")
+async def get_claim(claim_id: str):
+    """Get detailed claim data including corroboration status"""
+    raise HTTPException(status_code=503, detail="Claims database not connected")
+
+
+@app.get("/api/claims/types")
+async def get_claim_types():
+    """Get supported claim types and their descriptions"""
+    return {
+        'types': {
+            'nationalization': {
+                'description': 'Government takeover or bailout claims',
+                'severity': 'critical',
+                'corroboration_events': ['bank_failure', 'regulator_action', 'fed_facility_usage'],
+            },
+            'investigation': {
+                'description': 'Regulatory investigation claims',
+                'severity': 'high',
+                'corroboration_events': ['regulator_action', 'wells_notice', 'sec_filing'],
+            },
+            'liquidity': {
+                'description': 'Bank run or liquidity crisis claims',
+                'severity': 'critical',
+                'corroboration_events': ['bank_failure', 'fed_facility_usage', 'deposit_stress'],
+            },
+            'delivery': {
+                'description': 'Physical delivery failure claims',
+                'severity': 'high',
+                'corroboration_events': ['comex_stress', 'comex_outflow', 'comex_delivery_spike'],
+            },
+            'fraud': {
+                'description': 'Market manipulation or fraud claims',
+                'severity': 'medium',
+                'corroboration_events': ['regulator_action', 'penalty', 'settlement'],
+            },
+            'insider': {
+                'description': 'Insider information claims',
+                'severity': 'medium',
+                'corroboration_events': ['sec_filing', 'regulator_action', 'covered_action'],
+            },
+            'price_target': {
+                'description': 'Price prediction claims',
+                'severity': 'low',
+                'corroboration_events': [],
+            },
+        },
+    }
+
+
+@app.get("/api/claims/stats")
+async def get_claims_stats():
+    """Get claims statistics by status and type"""
+    return {
+        'by_status': {
+            'new': 0,
+            'triage': 0,
+            'corroborating': 0,
+            'confirmed': 0,
+            'debunked': 0,
+            'stale': 0,
+        },
+        'by_type': {
+            'nationalization': 0,
+            'investigation': 0,
+            'liquidity': 0,
+            'delivery': 0,
+            'fraud': 0,
+            'insider': 0,
+            'price_target': 0,
+        },
+        'confirmation_rate': 0,
+        'message': 'Claims statistics require database connection',
+    }
+
+
+# =============================================================================
+# EVENTS EXPLORER ENDPOINTS
+# =============================================================================
+
+@app.get("/api/events")
+async def get_events(
+    event_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    tier: Optional[int] = None,
+    days: int = 30,
+    limit: int = 100,
+):
+    """
+    Get events from the event store.
+
+    Params:
+    - event_type: regulator_action, bank_failure, fed_facility_usage, etc.
+    - entity_id: UUID of specific entity
+    - tier: 1 (official), 2 (credible), 3 (social)
+    - days: lookback period
+    - limit: max events to return
+    """
+    return {
+        'events': [],
+        'total': 0,
+        'filters': {
+            'event_type': event_type,
+            'entity_id': entity_id,
+            'tier': tier,
+            'days': days,
+        },
+        'message': 'Events data requires event store connection',
+    }
+
+
+@app.get("/api/events/types")
+async def get_event_types():
+    """Get supported event types by trust tier"""
+    return {
+        'tier_1_official': [
+            'regulator_action',
+            'bank_failure',
+            'fed_facility_usage',
+            'sec_filing',
+            'wells_notice',
+            'consent_order',
+            'cease_desist',
+            'penalty',
+            'settlement',
+        ],
+        'tier_2_credible': [
+            'news_article',
+            'analyst_report',
+            'earnings_call',
+        ],
+        'tier_3_social': [
+            'reddit_post',
+            'twitter_post',
+            'blog_post',
+        ],
+    }
+
+
+@app.get("/api/events/recent")
+async def get_recent_events(hours: int = 24):
+    """Get events from the last N hours"""
+    return {
+        'events': [],
+        'count': 0,
+        'hours': hours,
+        'message': 'Events data requires event store connection',
+    }
+
+
+@app.get("/api/entities")
+async def get_entities(entity_type: Optional[str] = None):
+    """
+    Get tracked entities.
+
+    Types: bank, regulator, metal, ticker, person
+    """
+    # Return hardcoded entities based on BANK_SHORT_POSITIONS
+    entities = []
+    for ticker, data in BANK_SHORT_POSITIONS.items():
+        entities.append({
+            'ticker': ticker,
+            'name': data['name'],
+            'entity_type': 'bank',
+            'position': data['position'],
+            'ounces': data['ounces'],
+        })
+
+    return {
+        'entities': entities,
+        'total': len(entities),
+    }
+
+
+@app.get("/api/entities/{entity_id}")
+async def get_entity(entity_id: str):
+    """Get detailed entity data including related events and claims"""
+    # Check if it's a known ticker
+    ticker = entity_id.upper()
+    if ticker in BANK_SHORT_POSITIONS:
+        data = BANK_SHORT_POSITIONS[ticker]
+        return {
+            'entity': {
+                'ticker': ticker,
+                'name': data['name'],
+                'entity_type': 'bank',
+                'position': data['position'],
+                'ounces': data['ounces'],
+                'equity': data['equity'],
+                'insolvency_price': data.get('insolvency_price'),
+            },
+            'events': [],
+            'claims': [],
+            'scores': {},
+        }
+
+    raise HTTPException(status_code=404, detail=f"Entity '{entity_id}' not found")
+
+
+# =============================================================================
 # RUN SERVER
 # =============================================================================
 
