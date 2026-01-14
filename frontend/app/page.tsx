@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData, NakedShortAnalysis } from '@/lib/api'
+import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData, NakedShortAnalysis, AlertData, TheoryData } from '@/lib/api'
+import { VerificationBadge } from '@/components/VerificationBadge'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale } from 'lucide-react'
 
-type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | null
+type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | null
 
 function formatNumber(num: number, decimals = 2): string {
   if (Math.abs(num) >= 1e9) return `$${(num / 1e9).toFixed(1)}B`
@@ -348,20 +349,27 @@ function BanksDetailView() {
   )
 }
 
-function AlertsDetailView({ alerts }: { alerts: any[] }) {
+function AlertsDetailView({ alerts }: { alerts: AlertData[] }) {
+  // Filter to verified alerts only
+  const verifiedAlerts = alerts.filter(a =>
+    a.verification_status === 'verified' && !a.is_hypothetical
+  )
+
   return (
     <div className="space-y-4">
-      <p className="text-gray-400">All active alerts and notifications from the system.</p>
+      <p className="text-gray-400">
+        Verified alerts based on real-time market data. Only alerts backed by official sources are shown here.
+      </p>
 
-      {alerts.length === 0 ? (
+      {verifiedAlerts.length === 0 ? (
         <div className="text-center py-12 text-success">
           <span className="text-6xl">✓</span>
-          <div className="text-xl mt-4">No Active Alerts</div>
-          <div className="text-gray-400 mt-2">System is operating normally</div>
+          <div className="text-xl mt-4">No Verified Alerts</div>
+          <div className="text-gray-400 mt-2">All monitored systems are operating normally</div>
         </div>
       ) : (
         <div className="space-y-3">
-          {alerts.map((alert, i) => (
+          {verifiedAlerts.map((alert, i) => (
             <div
               key={i}
               className={`p-4 rounded-lg border-l-4 ${
@@ -379,10 +387,20 @@ function AlertsDetailView({ alerts }: { alerts: any[] }) {
                   {alert.level.toUpperCase()}
                 </span>
                 <span className="font-bold text-white">{alert.title}</span>
+                <VerificationBadge
+                  status={alert.verification_status}
+                  sourceCount={alert.source_count}
+                  size="sm"
+                />
               </div>
               <div className="text-gray-400">{alert.detail}</div>
               {alert.action && (
-                <div className="mt-2 text-sm text-info">Action: {alert.action}</div>
+                <div className="mt-2 text-sm text-info">Source: {alert.action}</div>
+              )}
+              {alert.sources && alert.sources.length > 0 && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Sources: {alert.sources.map(s => s.name).join(', ')}
+                </div>
               )}
             </div>
           ))}
@@ -657,8 +675,7 @@ function NakedShortsDetailView() {
 
   const positionColors: Record<string, string> = {
     SHORT: '#ef4444',
-    LONG: '#4ade80',
-    NATIONALIZED: '#8b5cf6'
+    LONG: '#4ade80'
   }
 
   return (
@@ -724,8 +741,6 @@ function NakedShortsDetailView() {
                   <td className="py-3 px-2 text-right">
                     {bank.position === 'LONG' ? (
                       <span className="text-success font-bold">PROFIT</span>
-                    ) : bank.position === 'NATIONALIZED' ? (
-                      <span className="text-purple-400 font-bold">N/A</span>
                     ) : bank.loss_ratio_at_80 ? (
                       <span className={bank.loss_ratio_at_80 > 1 ? 'text-danger font-bold' : 'text-warning'}>
                         {bank.loss_ratio_at_80.toFixed(1)}x equity
@@ -748,13 +763,13 @@ function NakedShortsDetailView() {
             ))}
           </ul>
         </div>
-        <div className="p-4 bg-purple-500/10 rounded-lg">
-          <h5 className="font-semibold text-purple-400 mb-2">Already Nationalized</h5>
-          <div className="text-sm">
-            <p>• UBS Group (Switzerland)</p>
-            <p className="text-gray-400">Date: {nakedShorts.ubs_nationalization_date}</p>
-            <p className="text-gray-400">Position: 5.2B oz short</p>
-          </div>
+        <div className="p-4 bg-warning/10 rounded-lg">
+          <h5 className="font-semibold text-warning mb-2">Banks Insolvent at $100 Silver</h5>
+          <ul className="text-sm space-y-1">
+            {nakedShorts.banks_insolvent_at_100.map((bank) => (
+              <li key={bank}>• {bank}</li>
+            ))}
+          </ul>
         </div>
       </div>
 
@@ -932,8 +947,12 @@ function DominoCard({ dominoes }: { dominoes: any[] }) {
   )
 }
 
-function AlertsCard({ alerts }: { alerts: any[] }) {
-  const criticalCount = alerts.filter(a => a.level === 'critical').length
+function AlertsCard({ alerts }: { alerts: AlertData[] }) {
+  // Filter to only show VERIFIED alerts in the main alert card
+  const verifiedAlerts = alerts.filter(a =>
+    a.verification_status === 'verified' && !a.is_hypothetical
+  )
+  const criticalCount = verifiedAlerts.filter(a => a.level === 'critical').length
 
   return (
     <motion.div
@@ -945,20 +964,22 @@ function AlertsCard({ alerts }: { alerts: any[] }) {
     >
       <div className="flex items-center gap-2 mb-4">
         <AlertTriangle className="w-5 h-5 text-warning" />
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Alerts</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Verified Alerts</h3>
+        <VerificationBadge status="verified" size="sm" showLabel={false} />
         {criticalCount > 0 && (
           <span className="badge badge-danger ml-auto">{criticalCount}</span>
         )}
       </div>
 
       <div className="space-y-2 max-h-48 overflow-y-auto">
-        {alerts.length === 0 ? (
+        {verifiedAlerts.length === 0 ? (
           <div className="text-center py-4 text-success">
             <span className="text-2xl">✓</span>
-            <div className="text-sm mt-1">No active alerts</div>
+            <div className="text-sm mt-1">No verified alerts</div>
+            <div className="text-xs text-gray-500 mt-1">All systems nominal</div>
           </div>
         ) : (
-          alerts.slice(0, 5).map((alert, i) => (
+          verifiedAlerts.slice(0, 5).map((alert, i) => (
             <div
               key={i}
               className={`p-2 rounded text-sm ${
@@ -967,13 +988,145 @@ function AlertsCard({ alerts }: { alerts: any[] }) {
                 'bg-info/10 border-l-2 border-info'
               }`}
             >
-              <div className="font-semibold">{alert.title}</div>
+              <div className="flex items-center justify-between">
+                <div className="font-semibold">{alert.title}</div>
+                <VerificationBadge
+                  status={alert.verification_status}
+                  sourceCount={alert.source_count}
+                  size="sm"
+                />
+              </div>
               <div className="text-xs text-gray-400">{alert.detail}</div>
             </div>
           ))
         )}
       </div>
     </motion.div>
+  )
+}
+
+function WorkingTheoriesCard() {
+  const { data: theories } = useQuery({ queryKey: ['theories'], queryFn: api.getTheories })
+
+  return (
+    <motion.div
+      className="card cursor-pointer bg-orange-900/10 border-orange-500/30"
+      whileHover={{ scale: 1.02 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.45 }}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-orange-400 text-lg">?</span>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-orange-400">Working Theories</h3>
+        <VerificationBadge status="theory" size="sm" showLabel={false} />
+        <span className="text-xs text-orange-400/60 ml-auto">(Not Verified)</span>
+      </div>
+
+      <div className="space-y-2 max-h-48 overflow-y-auto">
+        {!theories || theories.length === 0 ? (
+          <div className="text-center py-4 text-gray-500">
+            <div className="text-sm">No active theories</div>
+          </div>
+        ) : (
+          theories.slice(0, 3).map((theory) => (
+            <div
+              key={theory.id}
+              className="p-2 rounded text-sm bg-gray-800/50 border border-orange-500/20"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-orange-300">{theory.title}</span>
+                <span className="text-xs text-orange-400">{theory.confidence}%</span>
+              </div>
+              <div className="text-xs text-gray-400 line-clamp-2">{theory.hypothesis}</div>
+            </div>
+          ))
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+function TheoriesDetailView() {
+  const { data: theories } = useQuery({ queryKey: ['theories'], queryFn: api.getTheories })
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-2 text-orange-400 font-semibold mb-2">
+          <span>?</span> Important Disclaimer
+        </div>
+        <p className="text-gray-400 text-sm">
+          These are <strong className="text-orange-300">working theories</strong> - hypotheses based on historical patterns,
+          industry analysis, and unconfirmed reports. They are <strong className="text-orange-300">NOT verified facts</strong>.
+          Always do your own research before making any decisions.
+        </p>
+      </div>
+
+      {!theories || theories.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <span className="text-6xl">?</span>
+          <div className="text-xl mt-4">No Working Theories</div>
+          <div className="text-gray-400 mt-2">Check back for developing hypotheses</div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {theories.map((theory) => (
+            <div
+              key={theory.id}
+              className="p-4 rounded-lg bg-orange-900/10 border border-orange-500/30"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-orange-300">{theory.title}</span>
+                  <VerificationBadge status={theory.status} size="sm" />
+                </div>
+                <div className="text-sm">
+                  <span className="text-gray-500">Confidence: </span>
+                  <span className={`font-semibold ${
+                    theory.confidence >= 70 ? 'text-green-400' :
+                    theory.confidence >= 50 ? 'text-yellow-400' :
+                    'text-orange-400'
+                  }`}>
+                    {theory.confidence}%
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-gray-300 mb-3">{theory.hypothesis}</p>
+
+              <div className="space-y-2">
+                <div>
+                  <span className="text-xs text-gray-500 uppercase tracking-wider">Basis:</span>
+                  <ul className="mt-1 text-sm text-gray-400 list-disc list-inside">
+                    {theory.basis.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                {theory.trigger_conditions.length > 0 && (
+                  <div>
+                    <span className="text-xs text-gray-500 uppercase tracking-wider">Trigger Conditions:</span>
+                    <ul className="mt-1 text-sm text-orange-300/80 list-disc list-inside">
+                      {theory.trigger_conditions.map((t, i) => (
+                        <li key={i}>{t}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {theory.sources.length > 0 && (
+                  <div className="text-xs text-gray-500 pt-2 border-t border-gray-700">
+                    Sources: {theory.sources.map(s => `${s.name} (Tier ${s.tier})`).join(', ')}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -1304,8 +1457,7 @@ function NakedShortsCard() {
 
   const positionColors: Record<string, string> = {
     SHORT: '#ef4444',
-    LONG: '#4ade80',
-    NATIONALIZED: '#8b5cf6'
+    LONG: '#4ade80'
   }
 
   return (
@@ -1559,6 +1711,7 @@ export default function Dashboard() {
           <div onClick={() => setExpandedCard('dominoes')}><DominoCard dominoes={dashboard.dominoes} /></div>
           <div onClick={() => setExpandedCard('comex')}><ContagionCard /></div>
           <div onClick={() => setExpandedCard('alerts')}><AlertsCard alerts={dashboard.alerts} /></div>
+          <div onClick={() => setExpandedCard('theories')}><WorkingTheoriesCard /></div>
           <div onClick={() => setExpandedCard('scenarios')}><ScenarioCard /></div>
           <div onClick={() => setExpandedCard('sectors')}><SectorsCard /></div>
           <div onClick={() => setExpandedCard('miners')}><MinersCard /></div>
@@ -1592,8 +1745,12 @@ export default function Dashboard() {
         <ContagionDetailView />
       </Modal>
 
-      <Modal isOpen={expandedCard === 'alerts'} onClose={() => setExpandedCard(null)} title="System Alerts">
+      <Modal isOpen={expandedCard === 'alerts'} onClose={() => setExpandedCard(null)} title="Verified Alerts">
         <AlertsDetailView alerts={dashboard.alerts} />
+      </Modal>
+
+      <Modal isOpen={expandedCard === 'theories'} onClose={() => setExpandedCard(null)} title="Working Theories">
+        <TheoriesDetailView />
       </Modal>
 
       <Modal isOpen={expandedCard === 'scenarios'} onClose={() => setExpandedCard(null)} title="Silver Price Scenarios">

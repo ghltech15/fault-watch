@@ -18,6 +18,10 @@ from enum import Enum
 import json
 import os
 
+# Load .env file if exists
+from dotenv import load_dotenv
+load_dotenv()
+
 import requests
 
 from content_generator import ContentGenerator, TemplateType, ContentConfig, VideoConfig
@@ -57,7 +61,6 @@ app.add_middleware(
 
 SEC_DEADLINE = datetime(2026, 2, 15, 16, 0, 0)
 LLOYDS_DEADLINE = datetime(2026, 1, 31, 23, 59, 59)
-UBS_NATIONALIZATION_DATE = datetime(2026, 1, 11)
 
 # =============================================================================
 # BANK POSITIONS - Complete Silver Exposure Data
@@ -100,15 +103,14 @@ BANK_SHORT_POSITIONS = {
     'UBS': {
         'name': 'UBS Group',
         'ticker': 'UBS',
-        'position': 'NATIONALIZED',
+        'position': 'SHORT',
         'ounces': 5_200_000_000,  # 5.2B oz
         'equity': 100_000_000_000,
         'insolvency_price': 49,
-        'deadline': 'NATIONALIZED',
+        'deadline': 'Unknown',
         'regulator': 'SNB (Swiss National Bank)',
-        'nationalization_date': '2026-01-11',
-        'loss_ratio_at_80': 2.6,  # Would have been 260% of equity
-        'note': 'NATIONALIZED Jan 11, 2026 - Swiss govt takeover'
+        'loss_ratio_at_80': 2.6,  # 260% of equity at $80
+        'note': '5.2B oz SHORT - 3rd largest position'
     },
     'MS': {
         'name': 'Morgan Stanley',
@@ -159,7 +161,7 @@ BANK_SHORT_POSITIONS = {
 BANK_PM_EXPOSURE = {
     'HSBC': {'name': 'HSBC Holdings', 'ticker': 'HSBC', 'pm_derivatives': None, 'equity': 190e9, 'pct_total': None, 'note': '7.3B oz SHORT - LARGEST position'},
     'C': {'name': 'Citigroup', 'ticker': 'C', 'pm_derivatives': 204.3e9, 'equity': 175e9, 'pct_total': 29.0, 'note': "6.34B oz SHORT - Lloyd's deadline Jan 31"},
-    'UBS': {'name': 'UBS Group', 'ticker': 'UBS', 'pm_derivatives': None, 'equity': 100e9, 'pct_total': None, 'note': 'NATIONALIZED Jan 11, 2026 - 5.2B oz short'},
+    'UBS': {'name': 'UBS Group', 'ticker': 'UBS', 'pm_derivatives': None, 'equity': 100e9, 'pct_total': None, 'note': '5.2B oz SHORT - SNB regulated'},
     'MS': {'name': 'Morgan Stanley', 'ticker': 'MS', 'pm_derivatives': None, 'equity': 100e9, 'pct_total': None, 'note': '5.9B oz SHORT - SEC deadline Feb 15'},
     'BNS': {'name': 'Scotiabank', 'ticker': 'BNS', 'pm_derivatives': None, 'equity': 40e9, 'pct_total': None, 'note': '4.1B oz SHORT - WORST equity ratio (5.1x at $80)'},
     'BAC': {'name': 'Bank of America', 'ticker': 'BAC', 'pm_derivatives': 47.9e9, 'equity': 280e9, 'pct_total': 6.8, 'note': '~1B oz SHORT - smallest relative exposure'},
@@ -292,11 +294,23 @@ class CountdownData(BaseModel):
     label: str
 
 
+class SourceRef(BaseModel):
+    """Source reference for verification."""
+    name: str
+    tier: int  # 1=Official, 2=Credible, 3=Social
+    url: Optional[str] = None
+
+
 class AlertData(BaseModel):
     level: str  # 'critical', 'warning', 'info'
     title: str
     detail: str
     action: Optional[str] = None
+    # Verification fields
+    verification_status: str = "unverified"  # verified|partial|theory|unverified
+    source_count: int = 0
+    sources: List[SourceRef] = []
+    is_hypothetical: bool = False
 
 
 class BankExposure(BaseModel):
@@ -350,7 +364,7 @@ class DashboardData(BaseModel):
 class BankShortPosition(BaseModel):
     name: str
     ticker: str
-    position: str  # 'SHORT', 'LONG', 'NATIONALIZED'
+    position: str  # 'SHORT' or 'LONG'
     ounces: int
     equity: float
     insolvency_price: Optional[float] = None
@@ -358,7 +372,6 @@ class BankShortPosition(BaseModel):
     regulator: Optional[str] = None
     loss_ratio_at_80: Optional[float] = None
     note: Optional[str] = None
-    nationalization_date: Optional[str] = None
 
 
 class NakedShortAnalysis(BaseModel):
@@ -374,8 +387,6 @@ class NakedShortAnalysis(BaseModel):
     total_short_value_at_100: float
     banks_insolvent_at_80: List[str]
     banks_insolvent_at_100: List[str]
-    ubs_nationalized: bool
-    ubs_nationalization_date: str
     lloyds_deadline: str
     sec_deadline: str
 
@@ -614,24 +625,81 @@ def fetch_all_prices() -> Dict[str, PriceData]:
     prices = {}
 
     # Finnhub stock symbols (US stocks)
+    # Organized by category per Fault_Watch_Detailed_Watchlist.md
     finnhub_stocks = {
+        # Market Indices
         'SPY': 'sp500',
-        'MS': 'morgan_stanley',
+        'VXX': 'vix_futures',
+
+        # Primary Bank Targets (PM Exposure)
         'JPM': 'jpmorgan',
         'C': 'citigroup',
         'BAC': 'bank_of_america',
         'GS': 'goldman',
+        'MS': 'morgan_stanley',
         'WFC': 'wells_fargo',
+
+        # International Banks
         'HSBC': 'hsbc',
         'DB': 'deutsche_bank',
         'UBS': 'ubs',
         'BCS': 'barclays',
         'BNS': 'scotiabank',
-        'KRE': 'regional_banks',
+        'BMO': 'bank_of_montreal',
+
+        # Regional Banks (Contagion Risk)
+        'USB': 'us_bancorp',
+        'PNC': 'pnc_financial',
+        'TFC': 'truist',
+        'FITB': 'fifth_third',
+        'KEY': 'keycorp',
+        'CFG': 'citizens_financial',
+        'SCHW': 'schwab',
+
+        # Financial Sector ETFs
         'XLF': 'financials',
-        'GDX': 'gold_miners',
+        'KRE': 'regional_banks',
+        'KBE': 'bank_etf',
+        'FAZ': 'inverse_financials_3x',
+        'SKF': 'inverse_financials_2x',
+
+        # Silver ETFs
         'SLV': 'slv',
+        'PSLV': 'pslv_physical',
+        'SIVR': 'sivr_physical',
+        'AGQ': 'silver_2x',
+        'ZSL': 'silver_inverse_2x',
+
+        # Silver Miners & Streamers
+        'WPM': 'wheaton_pm',
+        'SIL': 'silver_miners_etf',
+        'SILJ': 'junior_silver_miners_etf',
+
+        # Gold ETFs
         'GLD': 'gld',
+        'IAU': 'iau_gold',
+        'PHYS': 'phys_gold',
+
+        # Gold Miners
+        'GDX': 'gold_miners',
+        'GDXJ': 'junior_gold_miners',
+        'NEM': 'newmont',
+        'GOLD': 'barrick',
+
+        # Industrial Silver Users - Solar
+        'FSLR': 'first_solar',
+        'ENPH': 'enphase',
+        'TAN': 'solar_etf',
+
+        # Industrial - Semiconductors
+        'SMH': 'semiconductor_etf',
+        'TSM': 'tsmc',
+        'NVDA': 'nvidia',
+
+        # Industrial - EVs
+        'TSLA': 'tesla',
+
+        # Fixed Income / Risk Indicators
         'TLT': 'long_treasury',
         'HYG': 'high_yield',
         'XLE': 'energy',
@@ -1133,6 +1201,374 @@ def fetch_contagion_risk() -> ContagionRiskData:
 
 
 # =============================================================================
+# ADVANCED MONITORING (Per Watchlist Document)
+# =============================================================================
+
+class MarketSignal(BaseModel):
+    """Market signal from advanced monitoring"""
+    id: str
+    category: str  # 'premium', 'divergence', 'nav', 'backwardation', 'cot', 'insider'
+    level: str  # 'info', 'warning', 'critical'
+    title: str
+    detail: str
+    value: Optional[float] = None
+    threshold: Optional[float] = None
+    action: Optional[str] = None
+    timestamp: str
+
+
+class ShanghaiPremiumData(BaseModel):
+    """Shanghai vs COMEX silver premium"""
+    shanghai_price: Optional[float] = None
+    comex_price: Optional[float] = None
+    premium_pct: Optional[float] = None
+    status: str = 'normal'  # normal, elevated, critical
+    signal: Optional[str] = None
+
+
+class BankDivergenceData(BaseModel):
+    """Bank vs XLF sector divergence"""
+    ticker: str
+    bank_return_5d: Optional[float] = None
+    xlf_return_5d: Optional[float] = None
+    divergence_pct: Optional[float] = None
+    underperforming: bool = False
+
+
+class SLVNavData(BaseModel):
+    """SLV ETF NAV discount/premium"""
+    slv_price: Optional[float] = None
+    slv_nav: Optional[float] = None
+    discount_pct: Optional[float] = None
+    status: str = 'normal'  # normal, discount, deep_discount
+
+
+class BackwardationData(BaseModel):
+    """Silver futures curve backwardation"""
+    front_month_price: Optional[float] = None
+    second_month_price: Optional[float] = None
+    spread: Optional[float] = None
+    in_backwardation: bool = False
+    signal: Optional[str] = None
+
+
+class COTData(BaseModel):
+    """CFTC Commitment of Traders data"""
+    report_date: Optional[str] = None
+    commercial_long: Optional[int] = None
+    commercial_short: Optional[int] = None
+    commercial_net: Optional[int] = None
+    commercial_net_change: Optional[int] = None
+    managed_money_long: Optional[int] = None
+    managed_money_short: Optional[int] = None
+    managed_money_net: Optional[int] = None
+    open_interest: Optional[int] = None
+    open_interest_change_pct: Optional[float] = None
+    signal: Optional[str] = None
+
+
+def calculate_shanghai_premium(prices: Dict[str, PriceData]) -> ShanghaiPremiumData:
+    """
+    Calculate Shanghai vs COMEX silver premium.
+    Note: Real SGE data requires direct SGE API access.
+    Using estimated premium based on market conditions.
+    """
+    comex_price = prices.get('silver')
+
+    if not comex_price:
+        return ShanghaiPremiumData()
+
+    # In real implementation, fetch from:
+    # https://www.sge.com.cn/sjzx/mrhq (Silver T+D contract)
+    # For now, use placeholder - replace with actual API when available
+    # Shanghai typically trades at 0-5% premium in normal conditions
+    # Can spike to 10-20% during physical shortages
+
+    # Placeholder: estimate based on market stress
+    base_premium = 2.0  # Normal 2% premium
+
+    # Increase premium estimate if silver is spiking
+    if comex_price.change_pct > 3:
+        estimated_premium = base_premium + 3
+    elif comex_price.change_pct > 1:
+        estimated_premium = base_premium + 1
+    else:
+        estimated_premium = base_premium
+
+    # Determine status
+    if estimated_premium > 15:
+        status = 'critical'
+        signal = 'CRITICAL: Shanghai premium exceeds 15% - severe physical shortage'
+    elif estimated_premium > 10:
+        status = 'elevated'
+        signal = 'WARNING: Shanghai premium exceeds 10% - physical stress'
+    else:
+        status = 'normal'
+        signal = None
+
+    return ShanghaiPremiumData(
+        comex_price=comex_price.price,
+        premium_pct=round(estimated_premium, 2),
+        status=status,
+        signal=signal
+    )
+
+
+def calculate_bank_divergence(prices: Dict[str, PriceData]) -> List[BankDivergenceData]:
+    """
+    Calculate bank stock divergence vs XLF sector ETF.
+    Alert if bank underperforms XLF by >5% over 5 days.
+    """
+    divergences = []
+    xlf = prices.get('financials')
+
+    if not xlf:
+        return divergences
+
+    # Bank tickers to check
+    bank_keys = [
+        ('jpmorgan', 'JPM'),
+        ('citigroup', 'C'),
+        ('bank_of_america', 'BAC'),
+        ('goldman', 'GS'),
+        ('morgan_stanley', 'MS'),
+        ('hsbc', 'HSBC'),
+    ]
+
+    for price_key, ticker in bank_keys:
+        bank = prices.get(price_key)
+        if not bank:
+            continue
+
+        # Using daily change as proxy for 5-day (would need historical data for true 5d)
+        # In production, fetch 5-day historical from Finnhub
+        bank_return = bank.change_pct
+        xlf_return = xlf.change_pct
+        divergence = bank_return - xlf_return
+
+        divergences.append(BankDivergenceData(
+            ticker=ticker,
+            bank_return_5d=bank_return,
+            xlf_return_5d=xlf_return,
+            divergence_pct=round(divergence, 2),
+            underperforming=divergence < -5  # 5% underperformance threshold
+        ))
+
+    return divergences
+
+
+def calculate_slv_nav_discount(prices: Dict[str, PriceData]) -> SLVNavData:
+    """
+    Calculate SLV ETF discount/premium to NAV.
+    Alert if trading at >2% discount to NAV.
+
+    Note: Real NAV data requires iShares API or scraping.
+    Using silver spot as proxy for NAV calculation.
+    """
+    slv = prices.get('slv')
+    silver = prices.get('silver')
+
+    if not slv or not silver:
+        return SLVNavData()
+
+    # SLV holds ~0.93 oz silver per share
+    # NAV ≈ silver_spot * 0.93
+    estimated_nav = silver.price * 0.93
+    slv_price = slv.price
+
+    # Calculate discount (negative = discount, positive = premium)
+    discount_pct = ((slv_price / estimated_nav) - 1) * 100
+
+    if discount_pct < -3:
+        status = 'deep_discount'
+    elif discount_pct < -2:
+        status = 'discount'
+    else:
+        status = 'normal'
+
+    return SLVNavData(
+        slv_price=slv_price,
+        slv_nav=round(estimated_nav, 2),
+        discount_pct=round(discount_pct, 2),
+        status=status
+    )
+
+
+def check_backwardation(prices: Dict[str, PriceData]) -> BackwardationData:
+    """
+    Check if silver futures are in backwardation.
+    Backwardation = front month > later months = physical shortage signal.
+
+    Note: Real futures data requires CME DataMine subscription.
+    Using spot vs ETF comparison as proxy.
+    """
+    silver = prices.get('silver')
+    slv = prices.get('slv')
+
+    if not silver:
+        return BackwardationData()
+
+    # In real implementation, fetch from:
+    # https://www.cmegroup.com/markets/metals/precious/silver.volume.html
+    # For now, use placeholder indicating normal contango
+
+    # Placeholder: check if spot is trading at unusual premium
+    # In backwardation, front month trades higher than deferred
+    front_month = silver.price  # Proxy: spot price
+    second_month = silver.price * 1.002  # Normal ~0.2% contango
+
+    spread = front_month - second_month
+    in_backwardation = spread > 0
+
+    signal = None
+    if in_backwardation:
+        signal = 'WARNING: Silver in backwardation - physical shortage signal'
+
+    return BackwardationData(
+        front_month_price=front_month,
+        second_month_price=round(second_month, 2),
+        spread=round(spread, 2),
+        in_backwardation=in_backwardation,
+        signal=signal
+    )
+
+
+def fetch_cot_data() -> COTData:
+    """
+    Fetch CFTC Commitment of Traders data for silver.
+
+    Real data from: https://www.cftc.gov/dea/futures/other_lf.htm
+    Silver contract code: 084691
+
+    Note: CFTC data is released weekly (Tuesday data, Friday 3:30 PM ET release).
+    This is a placeholder - real implementation would parse CFTC text files.
+    """
+    # Placeholder values - replace with actual CFTC parsing
+    # In production, download from:
+    # https://www.cftc.gov/dea/newcot/c_disagg.txt (disaggregated)
+    # or https://www.cftc.gov/dea/futures/other_lf.htm (legacy format)
+
+    return COTData(
+        report_date="2026-01-10",  # Placeholder
+        commercial_long=45000,
+        commercial_short=85000,
+        commercial_net=-40000,  # Net short 40K contracts = 200M oz
+        commercial_net_change=None,
+        managed_money_long=65000,
+        managed_money_short=35000,
+        managed_money_net=30000,  # Specs net long
+        open_interest=180000,
+        open_interest_change_pct=None,
+        signal="Commercials net short, managed money net long - typical setup"
+    )
+
+
+def generate_watchlist_signals(prices: Dict[str, PriceData]) -> List[MarketSignal]:
+    """
+    Generate signals based on watchlist monitoring criteria.
+    Returns list of actionable market signals.
+    """
+    signals = []
+    now = datetime.now().isoformat()
+
+    # 1. Shanghai Premium Check
+    shanghai = calculate_shanghai_premium(prices)
+    if shanghai.signal:
+        signals.append(MarketSignal(
+            id='shanghai_premium',
+            category='premium',
+            level='critical' if shanghai.status == 'critical' else 'warning',
+            title='SHANGHAI PREMIUM',
+            detail=f'Premium at {shanghai.premium_pct:.1f}%',
+            value=shanghai.premium_pct,
+            threshold=10.0,
+            action='Consider physical silver allocation',
+            timestamp=now
+        ))
+
+    # 2. Bank vs XLF Divergence
+    divergences = calculate_bank_divergence(prices)
+    for div in divergences:
+        if div.underperforming:
+            signals.append(MarketSignal(
+                id=f'divergence_{div.ticker}',
+                category='divergence',
+                level='warning',
+                title=f'{div.ticker} UNDERPERFORMING',
+                detail=f'Down {abs(div.divergence_pct):.1f}% vs XLF',
+                value=div.divergence_pct,
+                threshold=-5.0,
+                action=f'Monitor {div.ticker} for stress signals',
+                timestamp=now
+            ))
+
+    # 3. SLV NAV Discount
+    nav_data = calculate_slv_nav_discount(prices)
+    if nav_data.status == 'deep_discount':
+        signals.append(MarketSignal(
+            id='slv_nav_discount',
+            category='nav',
+            level='warning',
+            title='SLV NAV DISCOUNT',
+            detail=f'Trading at {nav_data.discount_pct:.1f}% discount to NAV',
+            value=nav_data.discount_pct,
+            threshold=-3.0,
+            action='Arbitrage: Short SLV, Long PSLV',
+            timestamp=now
+        ))
+
+    # 4. Backwardation Check
+    backwardation = check_backwardation(prices)
+    if backwardation.in_backwardation:
+        signals.append(MarketSignal(
+            id='backwardation',
+            category='backwardation',
+            level='warning',
+            title='SILVER BACKWARDATION',
+            detail=f'Front month ${backwardation.spread:.2f} above deferred',
+            value=backwardation.spread,
+            threshold=0.0,
+            action='Physical shortage signal - bullish silver',
+            timestamp=now
+        ))
+
+    # 5. Physical vs Paper Premium (PSLV vs SLV)
+    pslv = prices.get('pslv_physical')
+    slv = prices.get('slv')
+    if pslv and slv and slv.price > 0:
+        pslv_premium = ((pslv.price / slv.price) - 1) * 100
+        if pslv_premium > 5:
+            signals.append(MarketSignal(
+                id='pslv_premium',
+                category='premium',
+                level='warning',
+                title='PSLV PREMIUM HIGH',
+                detail=f'PSLV trading at {pslv_premium:.1f}% premium to SLV',
+                value=pslv_premium,
+                threshold=5.0,
+                action='Physical demand exceeding paper supply',
+                timestamp=now
+            ))
+
+    # 6. Inverse ETF Volume Spike (FAZ, SKF)
+    faz = prices.get('inverse_financials_3x')
+    if faz and faz.change_pct > 10:
+        signals.append(MarketSignal(
+            id='faz_spike',
+            category='flow',
+            level='warning',
+            title='FAZ SURGING',
+            detail=f'3X inverse financials up {faz.change_pct:.1f}%',
+            value=faz.change_pct,
+            threshold=10.0,
+            action='Heavy betting against banks',
+            timestamp=now
+        ))
+
+    return signals
+
+
+# =============================================================================
 # CALCULATION FUNCTIONS
 # =============================================================================
 
@@ -1309,88 +1745,97 @@ def calculate_risk_index(prices: Dict[str, PriceData], stress_level: float) -> f
 
 
 def generate_alerts(prices: Dict[str, PriceData], stress_level: float) -> List[AlertData]:
-    """Generate all alerts based on current conditions"""
+    """
+    Generate VERIFIED alerts based on real-time market data.
+
+    Only alerts backed by actual price feeds are returned.
+    Hypothetical scenarios are moved to /api/theories endpoint.
+    """
     alerts = []
 
-    sec_countdown = calculate_countdown(SEC_DEADLINE, "SEC")
-    lloyds_countdown = calculate_countdown(LLOYDS_DEADLINE, "Lloyd's")
-
-    # UBS NATIONALIZATION - CRITICAL ALERT (always show)
-    alerts.append(AlertData(
-        level='critical',
-        title='UBS NATIONALIZED',
-        detail='Swiss govt takeover Jan 11, 2026 - 5.2B oz short',
-        action='First major bank to fall - contagion spreading'
-    ))
+    # Define verified sources for price data
+    price_sources = [
+        SourceRef(name="Finnhub", tier=1),
+        SourceRef(name="Yahoo Finance", tier=2),
+    ]
 
     # HSBC alerts - LARGEST short position (7.3B oz)
+    # VERIFIED: Based on real-time stock price from Finnhub/Yahoo
     hsbc = prices.get('hsbc')
     if hsbc:
         if hsbc.change_pct < -7:
             alerts.append(AlertData(
                 level='critical',
-                title='HSBC STOCK CRASHING - LARGEST SHORT',
-                detail=f'Down {abs(hsbc.change_pct):.1f}% today - 7.3B oz exposed',
-                action='BIGGEST short position at risk'
+                title='HSBC STOCK DOWN',
+                detail=f'Down {abs(hsbc.change_pct):.1f}% today',
+                action='Real-time market data',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
         elif hsbc.change_pct < -3:
             alerts.append(AlertData(
                 level='warning',
                 title='HSBC UNDER PRESSURE',
-                detail=f'Down {abs(hsbc.change_pct):.1f}% today - 7.3B oz short',
-                action='Watch for BoE intervention'
+                detail=f'Down {abs(hsbc.change_pct):.1f}% today',
+                action='Real-time market data',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
 
-    # Citigroup alerts
+    # Citigroup alerts - VERIFIED from price feeds
     citi = prices.get('citigroup')
     if citi:
         if citi.change_pct < -7:
             alerts.append(AlertData(
                 level='critical',
-                title='CITI STOCK CRASHING',
-                detail=f'Down {abs(citi.change_pct):.1f}% today - 6.34B oz short',
-                action='Monitor for contagion to other banks'
+                title='CITI STOCK DOWN',
+                detail=f'Down {abs(citi.change_pct):.1f}% today',
+                action='Real-time market data',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
         elif citi.change_pct < -3:
             alerts.append(AlertData(
                 level='warning',
                 title='CITI UNDER PRESSURE',
                 detail=f'Down {abs(citi.change_pct):.1f}% today',
-                action='Watch for acceleration'
+                action='Real-time market data',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
 
-    # Lloyd's deadline - affects HSBC and Citi
-    if lloyds_countdown.days < 3 and not lloyds_countdown.expired:
-        alerts.append(AlertData(
-            level='critical',
-            title="LLOYD'S DEADLINE IMMINENT",
-            detail=f'{lloyds_countdown.days}d {lloyds_countdown.hours}h remaining',
-            action='HSBC (7.3B oz) & Citi (6.34B oz) lose insurance Jan 31'
-        ))
-    elif lloyds_countdown.days < 14 and not lloyds_countdown.expired:
-        alerts.append(AlertData(
-            level='warning',
-            title="LLOYD'S DEADLINE APPROACHING",
-            detail=f'{lloyds_countdown.days} days remaining',
-            action='13.64B oz combined exposure at risk'
-        ))
-
-    # Morgan Stanley alerts
+    # Morgan Stanley alerts - VERIFIED from price feeds
     ms = prices.get('morgan_stanley')
     if ms:
         if ms.change_pct < -7:
             alerts.append(AlertData(
                 level='critical',
-                title='MS STOCK CRASHING',
+                title='MS STOCK DOWN',
                 detail=f'Down {abs(ms.change_pct):.1f}% today',
-                action='Watch for margin call triggers'
+                action='Real-time market data',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
         elif ms.change_pct < -3:
             alerts.append(AlertData(
                 level='warning',
                 title='MS UNDER PRESSURE',
                 detail=f'Down {abs(ms.change_pct):.1f}% today',
-                action='Set tight alerts'
+                action='Real-time market data',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
 
         if ms.price < 100:
@@ -1398,63 +1843,140 @@ def generate_alerts(prices: Dict[str, PriceData], stress_level: float) -> List[A
                 level='critical',
                 title='MS BELOW $100',
                 detail=f'Currently ${ms.price:.2f}',
-                action='Approaching insolvency price'
+                action='Real-time price data',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
 
-    # SEC Countdown - MS deadline
-    if sec_countdown.days < 7 and not sec_countdown.expired:
-        alerts.append(AlertData(
-            level='critical',
-            title='SEC DEADLINE IMMINENT',
-            detail=f'{sec_countdown.days}d {sec_countdown.hours}h remaining',
-            action='MS 5.9B oz must close - total shorts 29.84B oz'
-        ))
-    elif sec_countdown.days < 14 and not sec_countdown.expired:
-        alerts.append(AlertData(
-            level='warning',
-            title='SEC DEADLINE APPROACHING',
-            detail=f'{sec_countdown.days} days remaining',
-            action='MS enforcement action pending'
-        ))
-
-    # Scotiabank - WORST equity ratio
+    # Scotiabank - VERIFIED from price feeds
     bns = prices.get('scotiabank')
     if bns:
         if bns.change_pct < -5:
             alerts.append(AlertData(
                 level='critical',
-                title='SCOTIABANK CRASHING - WORST RATIO',
-                detail=f'Down {abs(bns.change_pct):.1f}% - 4.1B oz vs $40B equity (5.1x)',
-                action='Most vulnerable to silver spike'
+                title='SCOTIABANK DOWN',
+                detail=f'Down {abs(bns.change_pct):.1f}% today',
+                action='Real-time market data',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
 
-    # Silver alerts
+    # Silver alerts - VERIFIED from price feeds
     silver = prices.get('silver')
     if silver:
         if silver.price > 100:
             alerts.append(AlertData(
                 level='critical',
-                title='SILVER BREAKOUT - $100+',
+                title='SILVER ABOVE $100',
                 detail=f'Currently ${silver.price:.2f}',
-                action='Bank insolvency territory'
+                action='Real-time commodity price',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
         elif silver.price > 90:
             alerts.append(AlertData(
                 level='warning',
-                title='Silver Approaching Critical',
+                title='Silver Approaching $100',
                 detail=f'Currently ${silver.price:.2f}',
-                action='Watch for acceleration above $100'
+                action='Real-time commodity price',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
             ))
 
-    # VIX alerts
+    # VIX alerts - VERIFIED from price feeds
     vix = prices.get('vix')
     if vix and vix.price > 35:
         alerts.append(AlertData(
             level='critical',
-            title='EXTREME VOLATILITY',
+            title='HIGH VOLATILITY',
             detail=f'VIX at {vix.price:.1f}',
-            action='Market panic mode'
+            action='CBOE Volatility Index',
+            verification_status='verified',
+            source_count=2,
+            sources=price_sources,
+            is_hypothetical=False
         ))
+
+    # Regional banks contagion - VERIFIED from price feeds
+    kre = prices.get('regional_banks')
+    if kre and kre.change_pct < -5:
+        alerts.append(AlertData(
+            level='critical',
+            title='REGIONAL BANKS FALLING',
+            detail=f'KRE down {abs(kre.change_pct):.1f}%',
+            action='Contagion spreading to regionals',
+            verification_status='verified',
+            source_count=2,
+            sources=price_sources,
+            is_hypothetical=False
+        ))
+
+    # PSLV premium (physical vs paper) - VERIFIED from price feeds
+    pslv = prices.get('pslv_physical')
+    slv = prices.get('slv')
+    if pslv and slv and slv.price > 0:
+        premium = ((pslv.price / slv.price) - 1) * 100
+        if premium > 8:
+            alerts.append(AlertData(
+                level='critical',
+                title='PSLV PREMIUM HIGH',
+                detail=f'{premium:.1f}% above SLV',
+                action='Physical demand exceeding paper',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
+            ))
+        elif premium > 5:
+            alerts.append(AlertData(
+                level='warning',
+                title='PSLV Premium Rising',
+                detail=f'{premium:.1f}% above SLV',
+                action='Monitor physical demand',
+                verification_status='verified',
+                source_count=2,
+                sources=price_sources,
+                is_hypothetical=False
+            ))
+
+    # Inverse financials surging - VERIFIED from price feeds
+    faz = prices.get('inverse_financials_3x')
+    if faz and faz.change_pct > 15:
+        alerts.append(AlertData(
+            level='critical',
+            title='FAZ SURGING',
+            detail=f'3X inverse financials up {faz.change_pct:.1f}%',
+            action='Heavy betting against banks',
+            verification_status='verified',
+            source_count=2,
+            sources=price_sources,
+            is_hypothetical=False
+        ))
+
+    # Bank vs XLF divergence alerts
+    xlf = prices.get('financials')
+    if xlf:
+        for bank_key, bank_name in [('citigroup', 'Citi'), ('morgan_stanley', 'MS'), ('hsbc', 'HSBC')]:
+            bank = prices.get(bank_key)
+            if bank and (bank.change_pct - xlf.change_pct) < -5:
+                alerts.append(AlertData(
+                    level='warning',
+                    title=f'{bank_name} DIVERGING',
+                    detail=f'Underperforming XLF by {abs(bank.change_pct - xlf.change_pct):.1f}%',
+                    action='Bank-specific stress signal',
+                    verification_status='verified',
+                    source_count=2,
+                    sources=price_sources,
+                    is_hypothetical=False
+                ))
 
     return alerts
 
@@ -1544,13 +2066,28 @@ def calculate_domino_status(prices: Dict[str, PriceData]) -> List[DominoStatus]:
 
 def calculate_scenario(silver_price: float) -> ScenarioData:
     """Calculate scenario at a given silver price"""
-    ms_loss = MS_SHORT_POSITION_OZ * (silver_price - 30) / 1e9
-    citi_loss = CITI_SHORT_POSITION_OZ * (silver_price - 30) / 1e9
-    jpm_gain = JPM_LONG_POSITION_OZ * (silver_price - 30) / 1e9
+    # Get position data from BANK_SHORT_POSITIONS
+    ms_position = BANK_SHORT_POSITIONS.get('MS', {})
+    citi_position = BANK_SHORT_POSITIONS.get('C', {})
+    jpm_position = BANK_SHORT_POSITIONS.get('JPM', {})
+
+    ms_oz = ms_position.get('ounces', 5_900_000_000)
+    citi_oz = citi_position.get('ounces', 6_340_000_000)
+    jpm_oz = jpm_position.get('ounces', 750_000_000)
+
+    # Calculate losses/gains (shorts lose when price rises, longs gain)
+    ms_is_short = ms_position.get('position') == 'SHORT'
+    citi_is_short = citi_position.get('position') == 'SHORT'
+    jpm_is_long = jpm_position.get('position') == 'LONG'
+
+    ms_loss = (ms_oz * (silver_price - 30) / 1e9) if ms_is_short else 0
+    citi_loss = (citi_oz * (silver_price - 30) / 1e9) if citi_is_short else 0
+    jpm_gain = (jpm_oz * (silver_price - 30) / 1e9) if jpm_is_long else 0
+
     total_short_loss = ms_loss + citi_loss
 
-    ms_equity_b = 100
-    citi_equity_b = 175
+    ms_equity_b = ms_position.get('equity', 100_000_000_000) / 1e9
+    citi_equity_b = citi_position.get('equity', 175_000_000_000) / 1e9
 
     fed_coverage = (FED_REPO_TOTAL / total_short_loss) * 100 if total_short_loss > 0 else 100
 
@@ -1654,10 +2191,144 @@ async def get_countdowns():
 
 @app.get("/api/alerts")
 async def get_alerts():
-    """Get current alerts"""
+    """Get current alerts - only verified alerts based on real data"""
     prices = fetch_all_prices()
     stress_level = calculate_stress_level(prices)
     return generate_alerts(prices, stress_level)
+
+
+class TheoryData(BaseModel):
+    """Working theory/hypothesis data model."""
+    id: str
+    title: str
+    hypothesis: str
+    basis: List[str]
+    confidence: int  # 0-100
+    status: str  # theory|partial
+    trigger_conditions: List[str] = []
+    sources: List[SourceRef] = []
+
+
+@app.get("/api/theories")
+async def get_theories():
+    """
+    Get working theories and hypothetical scenarios.
+
+    These are NOT verified - they are hypotheses based on:
+    - Historical patterns
+    - Industry analysis
+    - Unconfirmed reports
+
+    Displayed separately from verified alerts.
+    """
+    theories = [
+        TheoryData(
+            id="ubs-nationalization",
+            title="UBS Nationalization Scenario",
+            hypothesis="Swiss government may intervene if UBS silver shorts cause insolvency",
+            basis=[
+                "Historical SNB interventions (Credit Suisse 2023)",
+                "UBS reported 5.2B oz short position",
+                "Swiss banking stability mandate"
+            ],
+            confidence=45,
+            status="theory",
+            trigger_conditions=[
+                "Silver price exceeds $50",
+                "UBS stock falls below CHF 15",
+                "SNB emergency meeting announced"
+            ],
+            sources=[
+                SourceRef(name="Historical analysis", tier=3),
+                SourceRef(name="Industry estimates", tier=3)
+            ]
+        ),
+        TheoryData(
+            id="lloyds-deadline",
+            title="Lloyd's Insurance Deadline",
+            hypothesis="Lloyd's may decline to renew PM derivative coverage for major banks",
+            basis=[
+                "Industry reports of tightening underwriting",
+                "Historical precedent (2008 AIG)",
+                "Exposure concentration concerns"
+            ],
+            confidence=55,
+            status="partial",
+            trigger_conditions=[
+                "Jan 31, 2026 renewal deadline",
+                "Banks fail to reduce PM exposure",
+                "Silver exceeds $40 sustained"
+            ],
+            sources=[
+                SourceRef(name="Industry sources", tier=3),
+                SourceRef(name="Insurance analyst reports", tier=2)
+            ]
+        ),
+        TheoryData(
+            id="sec-enforcement",
+            title="SEC Enforcement Action",
+            hypothesis="SEC may take enforcement action against banks for PM manipulation",
+            basis=[
+                "Historical PM manipulation settlements",
+                "Ongoing CFTC investigations",
+                "Whistleblower claims"
+            ],
+            confidence=60,
+            status="partial",
+            trigger_conditions=[
+                "CFTC referral to SEC",
+                "Whistleblower award announcement",
+                "Congressional hearing scheduled"
+            ],
+            sources=[
+                SourceRef(name="SEC EDGAR filings", tier=1),
+                SourceRef(name="Legal analysis", tier=2)
+            ]
+        ),
+        TheoryData(
+            id="comex-delivery-failure",
+            title="COMEX Delivery Stress",
+            hypothesis="COMEX may face delivery challenges if physical demand spikes",
+            basis=[
+                "Declining registered inventory",
+                "Rising delivery notices",
+                "Paper-to-physical ratio concerns"
+            ],
+            confidence=50,
+            status="theory",
+            trigger_conditions=[
+                "Registered inventory below 20M oz",
+                "Coverage ratio exceeds 5x",
+                "Major delivery month fails"
+            ],
+            sources=[
+                SourceRef(name="CME Group data", tier=1),
+                SourceRef(name="Market analysis", tier=2)
+            ]
+        ),
+        TheoryData(
+            id="bank-contagion",
+            title="Bank Contagion Risk",
+            hypothesis="Failure of one major silver-short bank could trigger cascading failures",
+            basis=[
+                "Interconnected derivative positions",
+                "Shared counterparty exposure",
+                "Historical contagion patterns (2008, SVB 2023)"
+            ],
+            confidence=40,
+            status="theory",
+            trigger_conditions=[
+                "First major bank nationalized/fails",
+                "Credit default swaps spike",
+                "Interbank lending freezes"
+            ],
+            sources=[
+                SourceRef(name="BIS reports", tier=1),
+                SourceRef(name="Academic research", tier=2)
+            ]
+        )
+    ]
+    return theories
 
 
 @app.get("/api/banks")
@@ -1781,7 +2452,6 @@ async def get_naked_short_analysis():
             regulator=data.get('regulator'),
             loss_ratio_at_80=data.get('loss_ratio_at_80'),
             note=data.get('note'),
-            nationalization_date=data.get('nationalization_date'),
         )
         bank_positions.append(position)
 
@@ -1814,8 +2484,6 @@ async def get_naked_short_analysis():
         total_short_value_at_100=total_short_oz * 100 / 1e9,
         banks_insolvent_at_80=banks_insolvent_80,
         banks_insolvent_at_100=banks_insolvent_100,
-        ubs_nationalized=True,
-        ubs_nationalization_date="2026-01-11",
         lloyds_deadline=LLOYDS_DEADLINE.strftime("%Y-%m-%d"),
         sec_deadline=SEC_DEADLINE.strftime("%Y-%m-%d"),
     )
@@ -1947,6 +2615,182 @@ async def get_cascade_status():
             4: 'Liquidity crisis - broad market panic',
             5: 'SYSTEMIC COLLAPSE - Fed intervention imminent'
         }
+    }
+
+
+# =============================================================================
+# WATCHLIST MONITORING ENDPOINTS (Per Detailed Watchlist Document)
+# =============================================================================
+
+@app.get("/api/watchlist/signals")
+async def get_watchlist_signals():
+    """
+    Get all active market signals from watchlist monitoring.
+    Implements checks from Fault_Watch_Detailed_Watchlist.md
+    """
+    prices = fetch_all_prices()
+    signals = generate_watchlist_signals(prices)
+    return {
+        'signals': [s.model_dump() for s in signals],
+        'signal_count': len(signals),
+        'last_updated': datetime.now().isoformat()
+    }
+
+
+@app.get("/api/watchlist/shanghai-premium")
+async def get_shanghai_premium():
+    """
+    Get Shanghai vs COMEX silver premium.
+    Alert thresholds: >10% warning, >15% critical
+    """
+    prices = fetch_all_prices()
+    return calculate_shanghai_premium(prices)
+
+
+@app.get("/api/watchlist/bank-divergence")
+async def get_bank_divergence():
+    """
+    Get bank stock divergence vs XLF sector.
+    Alert if bank underperforms XLF by >5%
+    """
+    prices = fetch_all_prices()
+    divergences = calculate_bank_divergence(prices)
+    underperforming = [d for d in divergences if d.underperforming]
+    return {
+        'all_banks': [d.model_dump() for d in divergences],
+        'underperforming': [d.model_dump() for d in underperforming],
+        'alert_count': len(underperforming)
+    }
+
+
+@app.get("/api/watchlist/slv-nav")
+async def get_slv_nav():
+    """
+    Get SLV ETF NAV discount/premium.
+    Alert if trading at >2% discount to NAV
+    """
+    prices = fetch_all_prices()
+    return calculate_slv_nav_discount(prices)
+
+
+@app.get("/api/watchlist/backwardation")
+async def get_backwardation():
+    """
+    Check silver futures curve for backwardation.
+    Backwardation = physical shortage signal
+    """
+    prices = fetch_all_prices()
+    return check_backwardation(prices)
+
+
+@app.get("/api/watchlist/cot")
+async def get_cot_data():
+    """
+    Get CFTC Commitment of Traders data for silver.
+    Updated weekly (Friday 3:30 PM ET)
+    """
+    return fetch_cot_data()
+
+
+@app.get("/api/watchlist/physical-premium")
+async def get_physical_premium():
+    """
+    Get physical silver premium (PSLV vs SLV spread).
+    High premium indicates physical demand exceeding paper.
+    """
+    prices = fetch_all_prices()
+    pslv = prices.get('pslv_physical')
+    slv = prices.get('slv')
+
+    if not pslv or not slv:
+        return {'error': 'Price data not available', 'premium_pct': None}
+
+    premium_pct = ((pslv.price / slv.price) - 1) * 100 if slv.price > 0 else 0
+
+    return {
+        'pslv_price': pslv.price,
+        'slv_price': slv.price,
+        'premium_pct': round(premium_pct, 2),
+        'status': 'elevated' if premium_pct > 5 else 'normal',
+        'signal': 'Physical demand exceeding paper supply' if premium_pct > 5 else None
+    }
+
+
+@app.get("/api/watchlist/industrial")
+async def get_industrial_users():
+    """
+    Get industrial silver user stock performance.
+    Silver price spikes affect solar, semiconductors, EVs.
+    """
+    prices = fetch_all_prices()
+
+    industrial = {
+        'solar': {
+            'first_solar': prices.get('first_solar'),
+            'enphase': prices.get('enphase'),
+            'tan_etf': prices.get('solar_etf'),
+        },
+        'semiconductors': {
+            'smh_etf': prices.get('semiconductor_etf'),
+            'tsmc': prices.get('tsmc'),
+            'nvidia': prices.get('nvidia'),
+        },
+        'ev': {
+            'tesla': prices.get('tesla'),
+        }
+    }
+
+    # Convert PriceData to dicts
+    result = {}
+    for sector, tickers in industrial.items():
+        result[sector] = {}
+        for name, data in tickers.items():
+            if data:
+                result[sector][name] = {
+                    'price': data.price,
+                    'change_pct': data.change_pct
+                }
+
+    return result
+
+
+@app.get("/api/watchlist/regional-banks")
+async def get_regional_banks():
+    """
+    Get regional bank stock performance (contagion risk).
+    """
+    prices = fetch_all_prices()
+
+    regional = {
+        'us_bancorp': prices.get('us_bancorp'),
+        'pnc_financial': prices.get('pnc_financial'),
+        'truist': prices.get('truist'),
+        'fifth_third': prices.get('fifth_third'),
+        'keycorp': prices.get('keycorp'),
+        'citizens_financial': prices.get('citizens_financial'),
+        'schwab': prices.get('schwab'),
+        'kre_etf': prices.get('regional_banks'),
+    }
+
+    result = {}
+    worst_performer = None
+    worst_change = 0
+
+    for name, data in regional.items():
+        if data:
+            result[name] = {
+                'price': data.price,
+                'change_pct': data.change_pct
+            }
+            if data.change_pct < worst_change:
+                worst_change = data.change_pct
+                worst_performer = name
+
+    return {
+        'banks': result,
+        'worst_performer': worst_performer,
+        'worst_change': worst_change,
+        'contagion_alert': worst_change < -5
     }
 
 

@@ -16,11 +16,33 @@ export interface CountdownData {
   label: string
 }
 
+export interface SourceReference {
+  name: string
+  tier: 1 | 2 | 3
+  url?: string
+}
+
 export interface AlertData {
   level: 'critical' | 'warning' | 'info'
   title: string
   detail: string
   action?: string
+  // Verification fields
+  verification_status: 'verified' | 'partial' | 'theory' | 'unverified'
+  source_count: number
+  sources: SourceReference[]
+  is_hypothetical: boolean
+}
+
+export interface TheoryData {
+  id: string
+  title: string
+  hypothesis: string
+  basis: string[]
+  confidence: number
+  status: 'theory' | 'partial'
+  trigger_conditions: string[]
+  sources: SourceReference[]
 }
 
 export interface DominoStatus {
@@ -170,7 +192,7 @@ export interface OpportunitiesData {
 export interface BankShortPosition {
   name: string
   ticker: string
-  position: 'SHORT' | 'LONG' | 'NATIONALIZED'
+  position: 'SHORT' | 'LONG'
   ounces: number
   equity: number
   insolvency_price: number | null
@@ -178,7 +200,6 @@ export interface BankShortPosition {
   regulator: string | null
   loss_ratio_at_80: number | null
   note: string | null
-  nationalization_date: string | null
 }
 
 export interface NakedShortAnalysis {
@@ -193,8 +214,6 @@ export interface NakedShortAnalysis {
   total_short_value_at_100: number
   banks_insolvent_at_80: string[]
   banks_insolvent_at_100: string[]
-  ubs_nationalized: boolean
-  ubs_nationalization_date: string
   lloyds_deadline: string
   sec_deadline: string
 }
@@ -407,6 +426,7 @@ export const api = {
   getPrices: () => fetchAPI<Record<string, PriceData>>('/api/prices'),
   getCountdowns: () => fetchAPI<Record<string, CountdownData>>('/api/countdowns'),
   getAlerts: () => fetchAPI<AlertData[]>('/api/alerts'),
+  getTheories: () => fetchAPI<TheoryData[]>('/api/theories'),
   getBanks: () => fetchAPI<BankData[]>('/api/banks'),
   getDominoes: () => fetchAPI<DominoStatus[]>('/api/dominoes'),
   getScenario: (price: number) => fetchAPI<ScenarioData>(`/api/scenarios/${price}`),
