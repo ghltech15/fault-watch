@@ -7,6 +7,7 @@ import { VerificationBadge, VerificationDot, CardHeader, VerificationLegend } fr
 import { CrisisGaugeCard, CrisisGaugeDetailView } from '@/components/CrisisGauge'
 import { ExecutiveSummary } from '@/components/ExecutiveSummary'
 import { CrisisScanner } from '@/components/CrisisScanner'
+import { UserRegistrationCard, AccessGate, useUserAccess } from '@/components/UserRegistration'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale, Radio, ChevronDown, ChevronUp } from 'lucide-react'
 
@@ -2088,6 +2089,7 @@ function SectorsCard() {
 
 export default function Dashboard() {
   const [expandedCard, setExpandedCard] = useState<CardType>(null)
+  const { userId, showRegistration, setShowRegistration, handleRegistered, requestAccess, hasAccess } = useUserAccess()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard'],
@@ -2214,6 +2216,50 @@ export default function Dashboard() {
           <div onClick={() => setExpandedCard('opportunities')} className="lg:col-span-2"><OpportunitiesCard /></div>
         </div>
 
+        {/* USER REGISTRATION / FEEDBACK */}
+        {!hasAccess && (
+          <>
+            <SectionHeader
+              title="JOIN THE COMMUNITY"
+              subtitle="Unlock full access and help us build a better app"
+              icon={Radio}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+              <UserRegistrationCard onRegistered={handleRegistered} userId={userId} />
+              <div className="card bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border-blue-500/30">
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <span className="text-2xl">📊</span> Why Register?
+                </h3>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400">✓</span>
+                    <span>Full access to detailed bank exposure analysis</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400">✓</span>
+                    <span>Real-time crisis gauge deep dives</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400">✓</span>
+                    <span>Scenario modeling and price projections</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400">✓</span>
+                    <span>Investment opportunity breakdowns</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400">✓</span>
+                    <span>Help shape the future of fault.watch</span>
+                  </li>
+                </ul>
+                <p className="mt-4 text-xs text-gray-500">
+                  Your feedback directly influences our roadmap!
+                </p>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Footer with Resources */}
         <div className="border-t border-border pt-8 mt-8 text-center">
           <p className="text-xs text-gray-600 mb-4">
@@ -2225,61 +2271,94 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Detail Modals */}
+      {/* Registration Modal */}
+      <Modal isOpen={showRegistration} onClose={() => setShowRegistration(false)} title="Unlock Deep Dive Access">
+        <UserRegistrationCard onRegistered={handleRegistered} userId={userId} />
+      </Modal>
+
+      {/* Detail Modals - Gated behind registration */}
       <Modal isOpen={expandedCard === 'prices'} onClose={() => setExpandedCard(null)} title="Live Prices">
-        <PricesDetailView prices={dashboard.prices} />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <PricesDetailView prices={dashboard.prices} />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'cascade'} onClose={() => setExpandedCard(null)} title="Cascade Stage">
-        <CascadeDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <CascadeDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'contagion'} onClose={() => setExpandedCard(null)} title="Contagion Risk Analysis">
-        <ContagionDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <ContagionDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'banks'} onClose={() => setExpandedCard(null)} title="Bank Exposure">
-        <BanksDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <BanksDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'dominoes'} onClose={() => setExpandedCard(null)} title="Domino Effect">
-        <AlertsDetailView alerts={dashboard.alerts} />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <AlertsDetailView alerts={dashboard.alerts} />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'comex'} onClose={() => setExpandedCard(null)} title="COMEX Silver Inventory">
-        <ContagionDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <ContagionDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'alerts'} onClose={() => setExpandedCard(null)} title="Verified Alerts">
-        <AlertsDetailView alerts={dashboard.alerts} />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <AlertsDetailView alerts={dashboard.alerts} />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'theories'} onClose={() => setExpandedCard(null)} title="Working Theories">
-        <TheoriesDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <TheoriesDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'scenarios'} onClose={() => setExpandedCard(null)} title="Silver Price Scenarios">
-        <ScenariosDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <ScenariosDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'sectors'} onClose={() => setExpandedCard(null)} title="Sector Contagion">
-        <SectorsDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <SectorsDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'miners'} onClose={() => setExpandedCard(null)} title="Junior Silver Miners">
-        <MinersDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <MinersDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'crisis-gauge'} onClose={() => setExpandedCard(null)} title="Crisis Gauge - System Crack Monitor">
-        <CrisisGaugeDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <CrisisGaugeDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'naked-shorts'} onClose={() => setExpandedCard(null)} title="Naked Short Analysis - 30:1 Paper to Physical">
-        <NakedShortsDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <NakedShortsDetailView />
+        </AccessGate>
       </Modal>
 
       <Modal isOpen={expandedCard === 'opportunities'} onClose={() => setExpandedCard(null)} title="Investment Opportunities">
-        <OpportunitiesDetailView />
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <OpportunitiesDetailView />
+        </AccessGate>
       </Modal>
     </div>
   )

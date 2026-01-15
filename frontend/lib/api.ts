@@ -702,3 +702,68 @@ export interface CrisisGaugeData {
   crisis_color: string
   resources: Array<{ name: string; tracks: string; url: string }>
 }
+
+// =============================================================================
+// USER REGISTRATION & FEEDBACK
+// =============================================================================
+
+export interface SocialMediaAccount {
+  platform: 'tiktok' | 'instagram' | 'facebook' | 'youtube' | 'twitter' | 'other'
+  username: string
+}
+
+export interface UserRegistration {
+  email?: string
+  social_accounts: SocialMediaAccount[]
+  primary_platform: string
+  comment?: string
+}
+
+export interface UserVerification {
+  valid: boolean
+  user_id?: string
+  access_granted: boolean
+  registered_at?: string
+}
+
+export interface UserComment {
+  user_id: string
+  comment: string
+  rating?: number
+}
+
+export async function registerUser(registration: UserRegistration): Promise<{
+  success: boolean
+  user_id: string
+  access_granted: boolean
+  message: string
+}> {
+  const res = await fetch(`${API_BASE}/api/users/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(registration),
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.detail || 'Registration failed')
+  }
+  return res.json()
+}
+
+export async function verifyUser(userId: string): Promise<UserVerification> {
+  const res = await fetch(`${API_BASE}/api/users/verify/${encodeURIComponent(userId)}`)
+  return res.json()
+}
+
+export async function submitComment(comment: UserComment): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/api/users/comment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(comment),
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.detail || 'Comment submission failed')
+  }
+  return res.json()
+}

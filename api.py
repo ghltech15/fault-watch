@@ -3547,6 +3547,144 @@ async def download_content(filename: str):
 
 
 # =============================================================================
+# USER REGISTRATION & FEEDBACK
+# =============================================================================
+
+# In-memory storage for user registrations (would use database in production)
+_user_registrations: Dict[str, Dict[str, Any]] = {}
+_user_comments: List[Dict[str, Any]] = []
+
+
+class SocialMediaAccount(BaseModel):
+    """Social media account info"""
+    platform: str  # tiktok, instagram, facebook, youtube, twitter, other
+    username: str
+
+
+class UserRegistration(BaseModel):
+    """User registration with social media accounts"""
+    email: Optional[str] = None
+    social_accounts: List[SocialMediaAccount]
+    primary_platform: str
+    comment: Optional[str] = None
+
+
+class UserComment(BaseModel):
+    """User feedback comment"""
+    user_id: str
+    comment: str
+    rating: Optional[int] = None  # 1-5 stars
+
+
+@app.post("/api/users/register")
+async def register_user(registration: UserRegistration):
+    """
+    Register a user with their social media accounts.
+    Returns a user_id that grants access to deep dive sections.
+    """
+    # Validate at least one social account
+    if not registration.social_accounts:
+        raise HTTPException(status_code=400, detail="At least one social media account is required")
+
+    # Generate user ID based on primary account
+    primary_account = next(
+        (acc for acc in registration.social_accounts if acc.platform == registration.primary_platform),
+        registration.social_accounts[0]
+    )
+    user_id = f"{primary_account.platform}:{primary_account.username}"
+
+    # Store registration
+    _user_registrations[user_id] = {
+        'user_id': user_id,
+        'email': registration.email,
+        'social_accounts': [acc.dict() for acc in registration.social_accounts],
+        'primary_platform': registration.primary_platform,
+        'registered_at': datetime.now().isoformat(),
+        'access_granted': True,
+    }
+
+    # Store initial comment if provided
+    if registration.comment:
+        _user_comments.append({
+            'user_id': user_id,
+            'comment': registration.comment,
+            'timestamp': datetime.now().isoformat(),
+        })
+
+    print(f"[USER] New registration: {user_id} with {len(registration.social_accounts)} accounts")
+
+    return {
+        'success': True,
+        'user_id': user_id,
+        'access_granted': True,
+        'message': 'Registration successful! You now have access to all deep dive sections.',
+    }
+
+
+@app.get("/api/users/verify/{user_id}")
+async def verify_user(user_id: str):
+    """
+    Verify if a user has access to deep dive sections.
+    """
+    user = _user_registrations.get(user_id)
+    if user:
+        return {
+            'valid': True,
+            'user_id': user_id,
+            'access_granted': user.get('access_granted', False),
+            'registered_at': user.get('registered_at'),
+        }
+    return {
+        'valid': False,
+        'access_granted': False,
+    }
+
+
+@app.post("/api/users/comment")
+async def add_comment(comment: UserComment):
+    """
+    Add a comment/feedback from a registered user.
+    """
+    # Verify user exists
+    if comment.user_id not in _user_registrations:
+        raise HTTPException(status_code=403, detail="User not registered. Please register first.")
+
+    _user_comments.append({
+        'user_id': comment.user_id,
+        'comment': comment.comment,
+        'rating': comment.rating,
+        'timestamp': datetime.now().isoformat(),
+    })
+
+    print(f"[USER] New comment from {comment.user_id}: {comment.comment[:50]}...")
+
+    return {
+        'success': True,
+        'message': 'Thank you for your feedback!',
+    }
+
+
+@app.get("/api/users/stats")
+async def get_user_stats():
+    """
+    Get registration and feedback statistics (admin endpoint).
+    """
+    # Count by platform
+    platform_counts = {}
+    for user in _user_registrations.values():
+        platform = user.get('primary_platform', 'unknown')
+        platform_counts[platform] = platform_counts.get(platform, 0) + 1
+
+    return {
+        'total_users': len(_user_registrations),
+        'total_comments': len(_user_comments),
+        'by_platform': platform_counts,
+        'recent_registrations': list(_user_registrations.values())[-10:],
+        'recent_comments': _user_comments[-10:],
+    }
+
+
+# =============================================================================
 # DATA PIPELINE ENDPOINTS
 # =============================================================================
 
