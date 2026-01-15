@@ -31,3 +31,29 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Temp files
+tmpclaude-*
+nul
+
+# Node
+node_modules/
+package-lock.json
+
+# Next.js
+frontend/.next/
+frontend/node_modules/
+frontend/package-lock.json
+
+# Content library (generated videos)
+content-library/
+
+# Build artifacts
+*.zip
+fault-watch-production/
+
+# Temp/test files
+test_image.png
+dashboard.json
+dashboard_check.json
+*.json.bak

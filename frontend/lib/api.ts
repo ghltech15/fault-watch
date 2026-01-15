@@ -459,4 +459,246 @@ export const api = {
   getDealerData: () => fetchAPI<DealerData>('/api/pipeline/dealers'),
   getRegulatoryData: () => fetchAPI<RegulatoryData>('/api/pipeline/regulatory'),
   getBankExposureSummary: () => fetchAPI<BankExposureSummary>('/api/pipeline/banks'),
+  getCrisisGauge: () => fetchAPI<CrisisGaugeData>('/api/crisis-gauge'),
+  // Crisis Scanner - 5 minute refresh
+  getCrisisScanner: () => fetchAPI<CrisisScannerData>('/api/crisis-scanner'),
+  // Global physical silver prices
+  getGlobalPhysical: () => fetchAPI<GlobalPhysicalData>('/api/watchlist/global-physical'),
+}
+
+// Global Physical Silver Prices
+export interface PhysicalPriceLocation {
+  price: number
+  premium_pct: number
+  premium_usd: number
+  label: string
+  status: 'normal' | 'elevated' | 'critical'
+  source: string
+}
+
+export interface GlobalPhysicalData {
+  comex_spot: {
+    price: number
+    label: string
+    source: string
+  }
+  shanghai: PhysicalPriceLocation
+  dubai: PhysicalPriceLocation
+  tokyo: PhysicalPriceLocation
+  london: PhysicalPriceLocation
+  us_retail: PhysicalPriceLocation
+  timestamp: string
+  note: string
+}
+
+// Crisis Scanner Types (matches backend response)
+export interface CrisisScannerData {
+  scan_metadata: {
+    scan_id: string
+    scan_date: string
+    scan_timestamp: string
+    analyst: string
+    version: string
+  }
+  system_status: {
+    alert_level: 'CRITICAL' | 'HIGH' | 'ELEVATED' | 'MODERATE' | 'LOW'
+    alert_level_code: number
+    primary_drivers: string[]
+    recommended_action: string
+  }
+  silver_market: {
+    price_data: {
+      spot_price: number
+      user_tracked_high: number
+      user_tracked_low: number
+      recovery_from_low_pct: number
+      user_thesis: string
+    }
+    market_structure: {
+      backwardation: boolean
+      backwardation_status: string
+      verification: string
+      source: string
+      significance: string
+    }
+    comex_inventory: {
+      registered_oz: number
+      registered_tons: number
+      trend: string
+      verification: string
+      source: string
+      as_of_date: string
+    }
+    delivery_activity: {
+      date: string
+      contracts_delivered: number
+      ounces_delivered: number
+      primary_issuer: string
+      issuer_percentage: number
+      verification: string
+      source: string
+      significance: string
+    }
+    supply_deficit: {
+      year: number
+      deficit_oz: number
+      consecutive_deficit_years: number
+      projected_2026_deficit_oz: number
+      verification: string
+      sources: string[]
+    }
+    china_export_curbs: {
+      effective_date: string
+      impact_description: string
+      verification: string
+      sources: string[]
+    }
+    physical_premium_reports: {
+      tokyo_premium_claimed: number
+      dubai_premium_claimed: string
+      verification: string
+      note: string
+    }
+  }
+  federal_reserve: {
+    standing_repo_facility: {
+      current_balance: number
+      daily_limit: string
+      limit_change_date: string
+      previous_limit: number
+      verification: string
+      source: string
+      significance: string
+    }
+    year_end_spike: {
+      date: string
+      amount: number
+      treasury_collateral: number
+      mbs_collateral: number
+      previous_record: number
+      status: string
+      resolution_date: string
+      verification: string
+      source: string
+      significance: string
+    }
+    reverse_repo: {
+      current_balance: number
+      year_end_spike: number
+      verification: string
+      source: string
+    }
+    quantitative_tightening: {
+      status: string
+      end_date: string
+      total_reduction: number
+      verification: string
+    }
+  }
+  banks: Record<string, {
+    ticker: string
+    current_price?: number
+    price_change_pct?: number
+    silver_exposure: {
+      risk_level: string
+      verification_status?: string
+      claimed_short_position_tons?: number
+      claimed_exposure_usd?: number
+      source?: string
+      source_author?: string
+      concerns?: string[]
+      action?: string
+    }
+    liquidity_risk?: {
+      risk_level: string
+      verification_status?: string
+      unrealized_bond_losses?: number
+    }
+    overall_crisis_risk: string
+    risk_note?: string
+  }>
+  unverified_claims_watchlist: Array<{
+    id: string
+    claim: string
+    exposure_claimed?: string
+    source: string
+    source_type: string
+    author?: string
+    date_reported?: string
+    verification_status: string
+    credibility_concerns?: string[]
+    debunked_by?: string[]
+    notes?: string
+    recommended_action: string
+    status?: string
+  }>
+  historical_context: {
+    bank_manipulation_settlements: {
+      total_fines: number
+      period_of_manipulation: string
+      prosecution_period: string
+      major_settlements: Array<{ bank: string; amount: number; year: number }>
+      criminal_convictions: Array<{ name: string; role: string; sentence: string; year: number }>
+      note: string
+    }
+  }
+  next_scan_priorities: string[]
+}
+
+// Crisis Gauge Types
+export interface CrackIndicator {
+  id: string
+  name: string
+  description: string
+  status: 'clear' | 'watching' | 'warning' | 'critical' | 'unknown'
+  value: string | null
+  threshold: string | null
+  source: string | null
+  source_url: string | null
+}
+
+export interface ExposureLoss {
+  entity: string
+  exposure_oz: number
+  exposure_label: string
+  loss_per_dollar: number
+  total_loss: number
+  loss_label: string
+  market_cap: number | null
+  loss_vs_cap_pct: number | null
+  is_verified: boolean
+}
+
+export interface PhaseIndicator {
+  id: string
+  description: string
+  status: boolean
+  source: string | null
+}
+
+export interface CrisisPhase {
+  phase: number
+  name: string
+  description: string
+  indicators: PhaseIndicator[]
+  progress_pct: number
+}
+
+export interface CrisisGaugeData {
+  silver_price: number
+  silver_base_price: number
+  silver_move: number
+  losses: ExposureLoss[]
+  total_aggregate_loss: number
+  tier1_cracks: CrackIndicator[]
+  tier2_cracks: CrackIndicator[]
+  tier3_cracks: CrackIndicator[]
+  phases: CrisisPhase[]
+  current_phase: number
+  cracks_showing_count: number
+  total_cracks: number
+  crisis_probability: number
+  crisis_level: string
+  crisis_color: string
+  resources: Array<{ name: string; tracks: string; url: string }>
 }

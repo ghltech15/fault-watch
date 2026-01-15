@@ -22,16 +22,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Expose Streamlit port
-EXPOSE 8501
+# Expose FastAPI port
+EXPOSE 8000
 
 # Health check
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:8000/health || exit 1
 
-# Run Streamlit
-CMD ["streamlit", "run", "fault_watch.py", \
-     "--server.port=8501", \
-     "--server.address=0.0.0.0", \
-     "--server.headless=true", \
-     "--browser.gatherUsageStats=false", \
-     "--server.fileWatcherType=none"]
+# Run FastAPI with uvicorn
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

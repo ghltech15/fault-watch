@@ -1,221 +1,211 @@
-# ⚠️ FAULT.WATCH
+# FAULT WATCH - Crisis Monitor Module
 
-**Adaptive Systemic Risk Intelligence Platform**
+Real-time banking system stress monitoring dashboard for tracking the silver short squeeze impact on major banks.
 
-Real-time monitoring of the Morgan Stanley silver short position crisis, bank exposure tracking, and Federal Reserve response analysis.
+![Crisis Level](https://img.shields.io/badge/Status-Active-red)
+![Version](https://img.shields.io/badge/Version-1.0.0-blue)
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.11-blue.svg)
-![Streamlit](https://img.shields.io/badge/streamlit-1.40-red.svg)
+## 🚨 Current Status
 
----
+**Crisis Level: SEVERE**
+- Silver at $94/oz (ATH)
+- Shanghai premium >12%
+- Multiple broker restrictions active
+- Bank layoffs clustering
 
-## 🚨 What This Tracks
+## 📊 What This Monitors
 
-- **Morgan Stanley** rumored 5.9 billion oz silver short position
-- **SEC Deadline** countdown (February 15, 2026)
-- **Bank PM Derivatives** exposure (JPM $437B, Citi $204B)
-- **Federal Reserve** emergency repo operations
-- **Domino Effect** cascade tracking
-- **Your Positions** P&L calculator
+### Tier 1: Immediate Warning Signs (Daily)
+| Indicator | Current | Status |
+|-----------|---------|--------|
+| Silver Spot Price | $94.00 | 🔴 SEVERE |
+| Silver 24h Change | +7.14% | 🔴 SEVERE |
+| Shanghai Premium | 12.0% | 🔴 SEVERE |
+| COMEX Registered | 85M oz | 🟡 WARNING |
+| Bank vs XLF | -4.2% | 🟡 ELEVATED |
+| OFR Stress Index | 0.3 | 🟡 ELEVATED |
+| SOFR Spread | 12 bps | 🟡 ELEVATED |
 
----
+### Tier 2: Confirming Signals (Weekly)
+- CDS spread changes
+- Insider selling (Form 4)
+- Put option volume
+- COMEX daily drain rate
+- Futures backwardation
+- CME margin hikes
+- Broker restrictions
+- Layoff clustering
 
-## 📊 Live Dashboard
+### Tier 3: Pre-Crisis Indicators
+- Fed Discount Window usage
+- Standing Repo Facility spikes
+- Credit rating watches
+- Dividend cuts
+- Credit facility drawdowns
+- Interbank lending freezes
 
-**Production:** [https://fault-watch.fly.dev](https://fault-watch.fly.dev)
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | Streamlit |
-| Backend | Python 3.11 |
-| Database | Supabase (PostgreSQL) |
-| Hosting | Fly.io |
-| CI/CD | GitHub Actions |
-| Data | Yahoo Finance, CoinGecko |
-
----
-
-## 🚀 Quick Start (Local Development)
+## 🛠️ Setup Instructions
 
 ### Prerequisites
-- Python 3.11+
-- Git
+- Node.js 18+ 
+- npm or yarn
 
-### Setup
+### Installation
 
 ```bash
-# Clone the repo
-git clone https://github.com/aitechconsultants/fault-watch.git
-cd fault-watch
-
-# Create virtual environment
-python -m venv venv
-
-# Activate (Windows)
-.\venv\Scripts\Activate
-
-# Activate (Mac/Linux)
-source venv/bin/activate
+# Clone or copy the project
+cd fault-watch-monitor
 
 # Install dependencies
-pip install -r requirements.txt
+npm install
 
-# Run locally
-streamlit run fault_watch.py
+# Start development server
+npm run dev
 ```
 
-Open [http://localhost:8501](http://localhost:8501)
+The app will open at `http://localhost:3000`
 
----
-
-## 🗄️ Database Setup (Supabase)
-
-1. Create account at [supabase.com](https://supabase.com)
-2. Create new project
-3. Go to SQL Editor
-4. Run `supabase_schema.sql`
-5. Copy your API keys to `.env`
+### Build for Production
 
 ```bash
-cp .env.example .env
-# Edit .env with your Supabase credentials
+npm run build
+npm run preview
 ```
-
----
-
-## 🚀 Deploy to Production (Fly.io)
-
-### First Time Setup
-
-```bash
-# Install Fly CLI (Windows PowerShell)
-irm https://fly.io/install.ps1 | iex
-
-# Login
-flyctl auth login
-
-# Launch app (first time)
-flyctl launch
-
-# Deploy
-flyctl deploy
-```
-
-### Automatic Deployments
-
-Push to `main` branch → GitHub Actions → Auto-deploy to Fly.io
-
-```bash
-git add .
-git commit -m "Update dashboard"
-git push origin main
-# 🚀 Automatically deploys!
-```
-
----
-
-## 🔑 Environment Variables
-
-Set these in Fly.io:
-
-```bash
-flyctl secrets set SUPABASE_URL=https://xxx.supabase.co
-flyctl secrets set SUPABASE_KEY=your-anon-key
-```
-
----
 
 ## 📁 Project Structure
 
 ```
-fault-watch/
-├── .github/
-│   └── workflows/
-│       └── deploy.yml      # CI/CD pipeline
-├── fault_watch.py          # Main Streamlit app
-├── requirements.txt        # Python dependencies
-├── Dockerfile             # Container config
-├── fly.toml               # Fly.io config
-├── supabase_schema.sql    # Database schema
-├── .env.example           # Environment template
-├── .gitignore
+fault-watch-monitor/
+├── src/
+│   ├── components/
+│   │   ├── Header.jsx           # Top navigation bar
+│   │   ├── CrisisGauge.jsx      # Main crisis level gauge
+│   │   ├── IndicatorCard.jsx    # Individual indicator display
+│   │   ├── TierPanel.jsx        # Grouped indicators by tier
+│   │   ├── BankExposurePanel.jsx # Bank loss calculations
+│   │   ├── CrisisTimeline.jsx   # Stage progression tracker
+│   │   └── DataSourcesPanel.jsx # Links to primary sources
+│   ├── data/
+│   │   └── indicators.js        # Indicator definitions & thresholds
+│   ├── hooks/
+│   │   └── useStore.js          # Zustand state management
+│   ├── App.jsx                  # Main application
+│   ├── main.jsx                 # React entry point
+│   └── index.css                # Tailwind styles
+├── public/
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
 └── README.md
 ```
 
----
+## 🎯 Crisis Level Calculation
 
-## 📈 Dashboard Tabs
+The overall crisis level is computed from weighted indicators:
 
-| Tab | Description |
-|-----|-------------|
-| 📊 Dashboard | Main overview, scenarios, real-time prices |
-| 🏦 MS Collapse | Countdown timer, stress meter, losses |
-| 💀 Bank Exposure | All at-risk banks, PM derivatives data |
-| 🏛️ Fed Response | Emergency lending tracker, bailout comparison |
-| 🎯 Dominoes | Cascade effect tracker (8 dominoes) |
-| 💰 Positions | Your trades P&L calculator |
-| 📈 Scenarios | Probability analysis |
+```
+Level 0: NORMAL    - Months away
+Level 1: ELEVATED  - Weeks to months
+Level 2: WARNING   - Days to weeks
+Level 3: SEVERE    - Hours to days
+Level 4: CRITICAL  - IMMINENT
+```
 
----
+**Weighting:**
+- Tier 1 indicators: 60% of score
+- Maximum severity across all: 40% of score
+
+## 📡 Data Sources
+
+### Real-time / Daily
+- [COMEX Silver Inventory](https://www.cmegroup.com/delivery_reports/Silver_stocks.xls)
+- [Shanghai Silver Benchmark](https://en.sge.com.cn/data_SilverBenchmarkPrice)
+- [NY Fed Repo Operations](https://www.newyorkfed.org/markets/desk-operations/repo)
+- [OFR Financial Stress Index](https://www.financialresearch.gov/financial-stress-index/)
+
+### Weekly
+- [CFTC COT Report](https://www.cftc.gov/dea/futures/other_lf.htm) (Fridays 3:30 PM ET)
+- [Fed H.4.1 Balance Sheet](https://www.federalreserve.gov/releases/h41/)
+
+### Monthly
+- [CFTC Bank Participation Report](https://www.cftc.gov/MarketReports/BankParticipationReports)
+- [OCC Quarterly Derivatives](https://www.occ.gov/publications-and-resources/publications/quarterly-report-on-bank-trading-and-derivatives-activities/)
+
+### Event-Driven
+- [SEC Form 4 (Insider Trading)](https://www.secform4.com/)
+- [SEC EDGAR 8-K Filings](https://www.sec.gov/cgi-bin/browse-edgar)
+
+## 🔧 Customization
+
+### Adding New Indicators
+
+Edit `src/data/indicators.js`:
+
+```javascript
+NEW_INDICATOR: {
+  id: 'new_indicator',
+  name: 'New Indicator Name',
+  category: 'Category',
+  tier: 1, // 1, 2, or 3
+  unit: '%',
+  description: 'What this measures',
+  source: 'Data source',
+  sourceUrl: 'https://...',
+  thresholds: {
+    normal: { max: 10, phase: 'NORMAL' },
+    elevated: { min: 10, max: 20, phase: 'ELEVATED' },
+    // ... etc
+  },
+  currentValue: 0,
+  evaluate: (value) => {
+    // Return CRISIS_PHASES.LEVEL based on value
+  },
+},
+```
+
+### Updating Values
+
+Use the Zustand store:
+
+```javascript
+import useStore from './hooks/useStore';
+
+const { updateIndicator } = useStore();
+
+// Update a single indicator
+updateIndicator('tier1', 'SILVER_SPOT_PRICE', 95.50);
+
+// Bulk update
+bulkUpdateIndicators([
+  { tier: 'tier1', id: 'SILVER_SPOT_PRICE', value: 95.50 },
+  { tier: 'tier1', id: 'SHANGHAI_PREMIUM', value: 13.5 },
+]);
+```
+
+## 🚀 Future Enhancements
+
+- [ ] API integration for live data feeds
+- [ ] Push notifications for threshold breaches
+- [ ] Historical charting with Recharts
+- [ ] Export functionality (CSV, PDF)
+- [ ] Mobile app version (React Native)
+- [ ] Discord/Telegram alert bot
 
 ## ⚠️ Disclaimer
 
-**This is NOT financial advice.**
+This dashboard is for **informational purposes only**. 
 
-- Based on UNVERIFIED whistleblower information
-- Speculative scenario analysis only
-- Risk of TOTAL LOSS on any trades
-- Do your own research
-- Consult a financial advisor
-
----
-
-## 📊 Data Sources
-
-| Data | Source | Update Frequency |
-|------|--------|------------------|
-| Stock Prices | Yahoo Finance | 60 seconds |
-| Crypto Prices | CoinGecko | 60 seconds |
-| PM Derivatives | OCC Quarterly Reports | Quarterly |
-| Fed Repo | NY Fed | Daily |
-
----
-
-## 🤝 Contributing
-
-1. Fork the repo
-2. Create feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing`)
-5. Open Pull Request
-
----
+- Bank-specific short positions are **unverified rumors** from social media
+- CFTC only provides **aggregate** data, not bank-specific positions
+- OTC derivatives exposure is **not publicly disclosed**
+- Always verify data from **primary sources**
+- This is **NOT financial advice**
 
 ## 📜 License
 
-MIT License - see [LICENSE](LICENSE)
+MIT License - Use at your own risk.
 
 ---
 
-## 👤 Author
-
-**AI Tech Consultants**
-- GitHub: [@aitechconsultants](https://github.com/aitechconsultants)
-
----
-
-## 🙏 Acknowledgments
-
-- Silver community for research
-- Streamlit for amazing framework
-- Fly.io for free hosting
-- Supabase for database
-
----
-
-*Built with ☕ and paranoia about systemic risk*
+**Built for the Fault Watch Project**
+Monitoring potential systemic risk from concentrated precious metals short positions.

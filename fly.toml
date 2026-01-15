@@ -9,7 +9,7 @@ primary_region = "sjc"  # San Jose - closest to you
   dockerfile = "Dockerfile"
 
 [http_service]
-  internal_port = 8501
+  internal_port = 8000
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
@@ -26,7 +26,4 @@ primary_region = "sjc"  # San Jose - closest to you
   memory_mb = 512
 
 [env]
-  STREAMLIT_SERVER_HEADLESS = "true"
-  STREAMLIT_BROWSER_GATHER_USAGE_STATS = "false"
-  STREAMLIT_THEME_BASE = "dark"
-  STREAMLIT_THEME_PRIMARY_COLOR = "#ff3b5c"
+  # FastAPI environment

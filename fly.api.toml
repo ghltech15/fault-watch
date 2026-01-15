@@ -1,6 +1,6 @@
 # fly.api.toml - fault.watch API deployment
 app = 'fault-watch-api'
-primary_region = 'ord'
+primary_region = 'iad'
 
 [build]
   dockerfile = "Dockerfile.api"

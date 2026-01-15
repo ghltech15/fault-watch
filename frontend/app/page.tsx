@@ -2,12 +2,15 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData, NakedShortAnalysis, AlertData, TheoryData } from '@/lib/api'
-import { VerificationBadge } from '@/components/VerificationBadge'
+import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData, NakedShortAnalysis, AlertData, TheoryData, CrisisGaugeData, CrisisScannerData } from '@/lib/api'
+import { VerificationBadge, VerificationDot, CardHeader, VerificationLegend } from '@/components/VerificationBadge'
+import { CrisisGaugeCard, CrisisGaugeDetailView } from '@/components/CrisisGauge'
+import { ExecutiveSummary } from '@/components/ExecutiveSummary'
+import { CrisisScanner } from '@/components/CrisisScanner'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale } from 'lucide-react'
+import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale, Radio, ChevronDown, ChevronUp } from 'lucide-react'
 
-type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | null
+type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | 'crisis-gauge' | null
 
 function formatNumber(num: number, decimals = 2): string {
   if (Math.abs(num) >= 1e9) return `$${(num / 1e9).toFixed(1)}B`
@@ -790,6 +793,315 @@ function NakedShortsDetailView() {
   )
 }
 
+// Crisis Command Center Hero
+function CrisisCommandCenter({ dashboard }: { dashboard: DashboardData }) {
+  const { data: crisisData } = useQuery({ queryKey: ['crisis-gauge'], queryFn: api.getCrisisGauge, refetchInterval: 30000 })
+  const { data: nakedShorts } = useQuery({ queryKey: ['naked-shorts'], queryFn: api.getNakedShorts, refetchInterval: 60000 })
+
+  const silver = dashboard.prices.silver || { price: 0, change_pct: 0 }
+  const silverMove = crisisData ? crisisData.silver_move : silver.price - 30
+  const totalLoss = crisisData ? crisisData.losses.reduce((sum, l) => sum + l.total_loss, 0) : 0
+  const cracksShowing = crisisData ? crisisData.cracks_showing_count : 0
+  const totalCracks = crisisData ? crisisData.total_cracks : 15
+  const currentPhase = crisisData ? crisisData.current_phase : 1
+  const crisisLevel = crisisData ? crisisData.crisis_level : 'Hidden Stress'
+  const crisisColor = crisisData ? crisisData.crisis_color : '#fbbf24'
+  const crisisProbability = crisisData ? crisisData.crisis_probability : 0
+
+  // Calculate days until deadlines
+  const lloydsUrgent = dashboard.countdowns.lloyds.days < 30
+  const secUrgent = dashboard.countdowns.sec.days < 30
+
+  return (
+    <div className="hero-gradient">
+      {/* Live Ticker Bar */}
+      <div className="ticker-bar py-2">
+        <div className="flex items-center justify-center gap-8 text-sm">
+          <span className="flex items-center gap-2">
+            <span className="live-dot" />
+            <span className="text-gray-400">LIVE</span>
+          </span>
+          <span className="text-danger font-bold">
+            Silver ${silver.price.toFixed(2)} ({silver.change_pct >= 0 ? '+' : ''}{silver.change_pct.toFixed(1)}%)
+          </span>
+          <span className="text-gray-500">|</span>
+          <span className="text-warning">
+            Bank Losses: ${(totalLoss / 1e9).toFixed(0)}B and counting
+          </span>
+          <span className="text-gray-500">|</span>
+          <span className={cracksShowing > 0 ? 'text-danger' : 'text-gray-400'}>
+            {cracksShowing} of {totalCracks} Crisis Indicators Active
+          </span>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+          {/* Left: Silver Price & Move */}
+          <motion.div
+            className="text-center lg:text-left"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="text-xs uppercase tracking-widest text-gray-500 mb-1">The Trigger</div>
+            <div className="text-6xl font-black text-white mb-2">${silver.price.toFixed(2)}</div>
+            <div className="text-xl text-gray-400">
+              Silver Spot Price
+              <span className={`ml-3 font-bold ${silver.change_pct >= 0 ? 'text-success' : 'text-danger'}`}>
+                {silver.change_pct >= 0 ? '+' : ''}{silver.change_pct.toFixed(2)}%
+              </span>
+            </div>
+            <div className="mt-4 p-3 rounded-lg bg-danger/10 border border-danger/20">
+              <div className="text-xs text-gray-500 uppercase">Move from $30 Base</div>
+              <div className="text-3xl font-black text-danger">+${silverMove.toFixed(2)}</div>
+              <div className="text-xs text-gray-400 mt-1">Every $1 = $212M+ in bank losses</div>
+            </div>
+          </motion.div>
+
+          {/* Center: Crisis Gauge Ring */}
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="relative inline-block">
+              <svg width="220" height="220" viewBox="0 0 220 220" className="crisis-ring">
+                {/* Background ring */}
+                <circle cx="110" cy="110" r="90" fill="none" stroke="#1a1a1a" strokeWidth="12" />
+                {/* Progress ring */}
+                <circle
+                  cx="110" cy="110" r="90"
+                  fill="none"
+                  stroke={crisisColor}
+                  strokeWidth="12"
+                  strokeLinecap="round"
+                  strokeDasharray={`${crisisProbability * 5.65} 565`}
+                  transform="rotate(-90 110 110)"
+                  className="transition-all duration-1000"
+                />
+                {/* Crack indicators */}
+                {[...Array(totalCracks)].map((_, i) => {
+                  const angle = (i / totalCracks) * 360 - 90
+                  const rad = (angle * Math.PI) / 180
+                  const x = 110 + 75 * Math.cos(rad)
+                  const y = 110 + 75 * Math.sin(rad)
+                  const isActive = i < cracksShowing
+                  return (
+                    <circle
+                      key={i}
+                      cx={x} cy={y} r="4"
+                      fill={isActive ? '#dc2626' : '#333'}
+                      className={isActive ? 'animate-pulse' : ''}
+                    />
+                  )
+                })}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="text-5xl font-black" style={{ color: crisisColor }}>
+                  {crisisProbability.toFixed(0)}%
+                </div>
+                <div className="text-xs uppercase tracking-wider text-gray-500 mt-1">Crisis Risk</div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="badge" style={{ backgroundColor: `${crisisColor}20`, color: crisisColor, borderColor: `${crisisColor}50` }}>
+                Phase {currentPhase}: {crisisLevel}
+              </span>
+            </div>
+          </motion.div>
+
+          {/* Right: Loss Counter & Deadlines */}
+          <motion.div
+            className="text-center lg:text-right"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="text-xs uppercase tracking-widest text-gray-500 mb-1">The Damage</div>
+            <div className="text-5xl font-black text-danger glow-danger loss-counter">
+              ${(totalLoss / 1e9).toFixed(1)}B
+            </div>
+            <div className="text-lg text-gray-400">Aggregate Bank Losses</div>
+
+            <div className="mt-6 space-y-3">
+              <div className={`p-3 rounded-lg ${lloydsUrgent ? 'bg-danger/10 border border-danger/30' : 'bg-black/30 border border-border'}`}>
+                <div className="text-xs text-gray-500 uppercase">Lloyd's Deadline</div>
+                <div className={`text-2xl font-bold ${lloydsUrgent ? 'text-danger countdown-critical' : 'text-white'}`}>
+                  {dashboard.countdowns.lloyds.days}d {dashboard.countdowns.lloyds.hours}h
+                </div>
+              </div>
+              <div className={`p-3 rounded-lg ${secUrgent ? 'bg-danger/10 border border-danger/30' : 'bg-black/30 border border-border'}`}>
+                <div className="text-xs text-gray-500 uppercase">SEC Deadline</div>
+                <div className={`text-2xl font-bold ${secUrgent ? 'text-danger countdown-critical' : 'text-white'}`}>
+                  {dashboard.countdowns.sec.days}d {dashboard.countdowns.sec.hours}h
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Phase Progress Bar */}
+        <motion.div
+          className="mt-10"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            {[1, 2, 3, 4].map((phase) => (
+              <div key={phase} className="flex-1">
+                <div className={`h-2 rounded-full transition-all duration-500 ${
+                  phase < currentPhase ? 'bg-danger' :
+                  phase === currentPhase ? 'bg-warning' :
+                  'bg-gray-800'
+                }`} />
+                <div className={`text-xs mt-1 ${phase === currentPhase ? 'text-warning font-bold' : 'text-gray-600'}`}>
+                  {phase === 1 ? 'Hidden Stress' : phase === 2 ? 'Market Stress' : phase === 3 ? 'Liquidity Crisis' : 'Public Crisis'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
+
+// Section Header Component
+// Crisis Scanner Section - Collapsible Module with 5-minute auto-refresh
+function CrisisScannerSection() {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  // Fetch crisis scanner data with 5-minute refresh interval (300000ms)
+  const { data: scannerData, isLoading, error, dataUpdatedAt } = useQuery({
+    queryKey: ['crisis-scanner'],
+    queryFn: api.getCrisisScanner,
+    refetchInterval: 300000, // 5 minutes
+    refetchIntervalInBackground: true, // Keep refreshing even when tab is not focused
+    staleTime: 60000, // Consider data stale after 1 minute
+  })
+
+  // Format time until next refresh
+  const getNextRefreshTime = () => {
+    if (!dataUpdatedAt) return 'Loading...'
+    const nextRefresh = new Date(dataUpdatedAt + 300000)
+    const now = new Date()
+    const diff = Math.max(0, Math.floor((nextRefresh.getTime() - now.getTime()) / 1000))
+    const mins = Math.floor(diff / 60)
+    const secs = diff % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-4">
+      {/* Scanner Toggle Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-4 rounded-lg transition-all duration-300 hover:bg-amber-500/5"
+        style={{
+          background: 'linear-gradient(90deg, rgba(245,158,11,0.1) 0%, transparent 50%)',
+          border: '1px solid rgba(245,158,11,0.2)',
+          borderLeft: '4px solid #F59E0B'
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+            <Radio className="w-5 h-5 text-amber-400" />
+          </div>
+          <div className="text-left">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold tracking-wider text-white">CRISIS SCANNER</h3>
+              {scannerData && (
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  {scannerData.system_status.alert_level}
+                </span>
+              )}
+              {isLoading && (
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-gray-500/20 text-gray-400 border border-gray-500/30">
+                  LOADING...
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-gray-500 mt-0.5">
+              Advanced monitoring module - Bank surveillance, Fed facilities, Verified/Unverified claims
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {scannerData && (
+            <>
+              <span className="text-[10px] text-emerald-500 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                AUTO-REFRESH 5min
+              </span>
+              <span className="text-[10px] text-gray-600">
+                Next: {getNextRefreshTime()}
+              </span>
+            </>
+          )}
+          {isExpanded ? (
+            <ChevronUp className="w-5 h-5 text-amber-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-500" />
+          )}
+        </div>
+      </button>
+
+      {/* Scanner Content */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-4 p-4 rounded-lg bg-black/40 border border-gray-800">
+              {isLoading && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <div className="text-gray-400">Loading Crisis Scanner...</div>
+                  </div>
+                </div>
+              )}
+              {error && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center text-red-400">
+                    <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+                    <div>Failed to load Crisis Scanner</div>
+                    <div className="text-xs text-gray-500 mt-1">Check API connection</div>
+                  </div>
+                </div>
+              )}
+              {scannerData && (
+                <CrisisScanner data={scannerData as any} />
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function SectionHeader({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon?: any }) {
+  return (
+    <div className="section-header">
+      <div className="flex items-center gap-3">
+        {Icon && <Icon className="w-5 h-5 text-danger" />}
+        <div>
+          <h2>{title}</h2>
+          <p className="text-gray-400 text-sm mt-1">{subtitle}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function RiskGauge({ value, label, color }: { value: number; label: string; color: string }) {
   const glowClass = value >= 7 ? 'glow-danger' : value >= 4 ? 'glow-warning' : 'glow-success'
 
@@ -817,6 +1129,19 @@ function PriceCard({ prices }: { prices: Record<string, any> }) {
   const vix = prices.vix || { price: 0, change_pct: 0 }
   const ms = prices.morgan_stanley || { price: 0, change_pct: 0 }
 
+  // Fetch global physical prices
+  const { data: globalPhysical } = useQuery({
+    queryKey: ['global-physical'],
+    queryFn: api.getGlobalPhysical,
+    refetchInterval: 60000 // Refresh every minute
+  })
+
+  const statusColors: Record<string, string> = {
+    normal: '#10B981',
+    elevated: '#F59E0B',
+    critical: '#EF4444'
+  }
+
   return (
     <motion.div
       className="card cursor-pointer"
@@ -825,44 +1150,131 @@ function PriceCard({ prices }: { prices: Record<string, any> }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <TrendingUp className="w-5 h-5 text-success" />
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Live Prices</h3>
-        <span className="w-2 h-2 rounded-full bg-success animate-pulse ml-auto" />
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Live Prices</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <VerificationBadge status="verified" size="xs" source="Exchange" />
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        </div>
       </div>
 
       <div className="mb-4">
-        <div className="text-xs text-gray-500 uppercase">Silver</div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] text-gray-500 uppercase">COMEX Silver (Paper)</span>
+          <VerificationBadge status="verified" size="xs" source="SI=F" />
+        </div>
         <div className="flex items-baseline gap-3">
-          <span className="text-4xl font-bold text-white">${silver.price.toFixed(2)}</span>
-          <span className={`text-sm font-semibold ${silver.change_pct >= 0 ? 'text-success' : 'text-danger'}`}>
-            {silver.change_pct >= 0 ? '+' : ''}{silver.change_pct.toFixed(1)}%
+          <span className="text-4xl font-black text-white">${silver.price.toFixed(2)}</span>
+          <span className={`text-sm font-bold ${silver.change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {silver.change_pct >= 0 ? '+' : ''}{silver.change_pct.toFixed(2)}%
           </span>
         </div>
       </div>
 
+      {/* Global Physical Prices */}
+      {globalPhysical && (
+        <div className="mb-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] text-amber-400 uppercase font-bold">Physical Silver (What People Pay)</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Shanghai */}
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] text-gray-400">Shanghai</span>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-white">${globalPhysical.shanghai.price.toFixed(0)}</span>
+                <span
+                  className="text-[9px] font-bold"
+                  style={{ color: statusColors[globalPhysical.shanghai.status] }}
+                >
+                  +{globalPhysical.shanghai.premium_pct.toFixed(0)}%
+                </span>
+              </div>
+            </div>
+            {/* Dubai */}
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] text-gray-400">Dubai</span>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-white">${globalPhysical.dubai.price.toFixed(0)}</span>
+                <span
+                  className="text-[9px] font-bold"
+                  style={{ color: statusColors[globalPhysical.dubai.status] }}
+                >
+                  +{globalPhysical.dubai.premium_pct.toFixed(0)}%
+                </span>
+              </div>
+            </div>
+            {/* Tokyo */}
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] text-gray-400">Tokyo</span>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-white">${globalPhysical.tokyo.price.toFixed(0)}</span>
+                <span
+                  className="text-[9px] font-bold"
+                  style={{ color: statusColors[globalPhysical.tokyo.status] }}
+                >
+                  +{globalPhysical.tokyo.premium_pct.toFixed(0)}%
+                </span>
+              </div>
+            </div>
+            {/* US Retail */}
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] text-gray-400">US Retail</span>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-white">${globalPhysical.us_retail.price.toFixed(0)}</span>
+                <span
+                  className="text-[9px] font-bold"
+                  style={{ color: statusColors[globalPhysical.us_retail.status] }}
+                >
+                  +{globalPhysical.us_retail.premium_pct.toFixed(0)}%
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 pt-2 border-t border-amber-500/10">
+            <div className="text-[8px] text-amber-400/60">Premium = physical price above COMEX paper spot</div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <div className="text-xs text-gray-500">Gold</div>
-          <div className="text-lg font-semibold">${gold.price.toFixed(0)}</div>
-          <div className={`text-xs ${gold.change_pct >= 0 ? 'text-success' : 'text-danger'}`}>
+          <div className="flex items-center gap-1 mb-0.5">
+            <span className="text-[9px] text-gray-500">Gold</span>
+            <VerificationDot status="verified" size="sm" />
+          </div>
+          <div className="text-lg font-bold">${gold.price.toFixed(0)}</div>
+          <div className={`text-xs ${gold.change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {gold.change_pct >= 0 ? '+' : ''}{gold.change_pct.toFixed(1)}%
           </div>
         </div>
         <div>
-          <div className="text-xs text-gray-500">VIX</div>
-          <div className="text-lg font-semibold">{vix.price.toFixed(1)}</div>
-          <div className={`text-xs ${vix.change_pct <= 0 ? 'text-success' : 'text-danger'}`}>
+          <div className="flex items-center gap-1 mb-0.5">
+            <span className="text-[9px] text-gray-500">VIX</span>
+            <VerificationDot status="verified" size="sm" />
+          </div>
+          <div className="text-lg font-bold">{vix.price.toFixed(1)}</div>
+          <div className={`text-xs ${vix.change_pct <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {vix.change_pct >= 0 ? '+' : ''}{vix.change_pct.toFixed(1)}%
           </div>
         </div>
         <div>
-          <div className="text-xs text-gray-500">MS</div>
-          <div className="text-lg font-semibold">${ms.price.toFixed(0)}</div>
-          <div className={`text-xs ${ms.change_pct >= 0 ? 'text-success' : 'text-danger'}`}>
+          <div className="flex items-center gap-1 mb-0.5">
+            <span className="text-[9px] text-gray-500">MS</span>
+            <VerificationDot status="verified" size="sm" />
+          </div>
+          <div className="text-lg font-bold">${ms.price.toFixed(0)}</div>
+          <div className={`text-xs ${ms.change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {ms.change_pct >= 0 ? '+' : ''}{ms.change_pct.toFixed(1)}%
           </div>
         </div>
+      </div>
+
+      <div className="mt-3 pt-2 border-t border-gray-800">
+        <div className="text-[9px] text-gray-600">Source: COMEX SI=F, SGE, Regional Markets • Real-time</div>
       </div>
     </motion.div>
   )
@@ -875,15 +1287,22 @@ function BankCard() {
 
   return (
     <motion.div
-      className="card cursor-pointer"
+      className="card cursor-pointer border-orange-500/20"
       whileHover={{ scale: 1.02 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Building2 className="w-5 h-5 text-danger" />
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Bank Exposure</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-orange-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Bank Exposure</h3>
+        </div>
+        <VerificationBadge status="rumored" size="xs" />
+      </div>
+
+      <div className="text-[9px] text-orange-400 bg-orange-500/10 px-2 py-1 rounded mb-3">
+        Position sizes unconfirmed - based on market analysis & OCC derivatives data
       </div>
 
       <div className="space-y-3">
@@ -894,23 +1313,33 @@ function BankCard() {
           return (
             <div key={bank.ticker}>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium">{bank.name}</span>
-                <span className="text-sm text-danger font-semibold">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{bank.name}</span>
+                  <VerificationDot status="rumored" size="sm" />
+                </div>
+                <span className="text-sm text-red-400 font-bold">
                   {formatNumber(bank.paper_loss!)}
                 </span>
               </div>
               <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-danger rounded-full transition-all"
+                  className="h-full bg-red-500 rounded-full transition-all"
                   style={{ width: `${Math.min(lossRatio * 100, 100)}%` }}
                 />
               </div>
-              {isInsolvent && (
-                <span className="badge badge-danger text-[10px] mt-1">INSOLVENT</span>
-              )}
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[9px] text-gray-500">vs ${(bank.equity / 1e9).toFixed(0)}B equity</span>
+                {isInsolvent && (
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500/20 text-red-400 rounded">INSOLVENT</span>
+                )}
+              </div>
             </div>
           )
         })}
+      </div>
+
+      <div className="mt-3 pt-2 border-t border-gray-800">
+        <div className="text-[9px] text-gray-600">Based on: OCC Derivatives Reports, Market Analysis</div>
       </div>
     </motion.div>
   )
@@ -1457,7 +1886,7 @@ function NakedShortsCard() {
 
   const positionColors: Record<string, string> = {
     SHORT: '#ef4444',
-    LONG: '#4ade80'
+    LONG: '#22c55e'
   }
 
   return (
@@ -1468,28 +1897,47 @@ function NakedShortsCard() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.95 }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Skull className="w-5 h-5 text-danger" />
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Naked Short Analysis</h3>
-        <span className="badge badge-danger ml-auto text-xs">30:1 RATIO</span>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Skull className="w-4 h-4 text-red-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Naked Short Analysis</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <VerificationBadge status="calculated" size="xs" source="OCC/CME" />
+          <span className="px-2 py-1 rounded bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/30">
+            {nakedShorts.paper_to_physical_ratio}:1 RATIO
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-4 text-center">
-        <div>
-          <div className="text-xs text-gray-500">Total Shorts</div>
-          <div className="text-2xl font-bold text-danger">{(nakedShorts.total_short_oz / 1e9).toFixed(1)}B oz</div>
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="p-2 rounded bg-black/30 border border-gray-800">
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-[9px] text-gray-500">Total Shorts</span>
+            <VerificationBadge status="estimated" size="xs" />
+          </div>
+          <div className="text-xl font-black text-red-400">{(nakedShorts.total_short_oz / 1e9).toFixed(1)}B oz</div>
         </div>
-        <div>
-          <div className="text-xs text-gray-500">Physical Available</div>
-          <div className="text-2xl font-bold text-warning">{(nakedShorts.available_physical_oz / 1e9).toFixed(0)}B oz</div>
+        <div className="p-2 rounded bg-black/30 border border-emerald-500/20">
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-[9px] text-gray-500">Physical Available</span>
+            <VerificationBadge status="verified" size="xs" />
+          </div>
+          <div className="text-xl font-black text-amber-400">{(nakedShorts.available_physical_oz / 1e9).toFixed(0)}B oz</div>
         </div>
-        <div>
-          <div className="text-xs text-gray-500">Paper:Physical</div>
-          <div className="text-2xl font-bold text-danger">{nakedShorts.paper_to_physical_ratio}:1</div>
+        <div className="p-2 rounded bg-black/30 border border-red-500/20">
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-[9px] text-gray-500">Paper:Physical</span>
+            <VerificationBadge status="calculated" size="xs" />
+          </div>
+          <div className="text-xl font-black text-red-400">{nakedShorts.paper_to_physical_ratio}:1</div>
         </div>
-        <div>
-          <div className="text-xs text-gray-500">Years Production</div>
-          <div className="text-2xl font-bold text-warning">{nakedShorts.years_of_production} yrs</div>
+        <div className="p-2 rounded bg-black/30 border border-gray-800">
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-[9px] text-gray-500">Years Production</span>
+            <VerificationBadge status="calculated" size="xs" />
+          </div>
+          <div className="text-xl font-black text-amber-400">{nakedShorts.years_of_production} yrs</div>
         </div>
       </div>
 
@@ -1498,6 +1946,7 @@ function NakedShortsCard() {
           <thead>
             <tr className="border-b border-gray-800">
               <th className="text-left py-2 text-gray-500">Bank</th>
+              <th className="text-center py-2 text-gray-500">Status</th>
               <th className="text-right py-2 text-gray-500">Position</th>
               <th className="text-right py-2 text-gray-500">Ounces</th>
               <th className="text-right py-2 text-gray-500">Deadline</th>
@@ -1508,18 +1957,21 @@ function NakedShortsCard() {
             {nakedShorts.bank_positions.slice(0, 6).map((bank) => (
               <tr key={bank.ticker} className="border-b border-gray-800/50">
                 <td className="py-2 font-medium">{bank.name}</td>
-                <td className="py-2 text-right">
-                  <span style={{ color: positionColors[bank.position] }}>{bank.position}</span>
+                <td className="py-2 text-center">
+                  <VerificationBadge status={bank.name.includes('rumored') ? 'rumored' : 'estimated'} size="xs" showLabel={false} />
                 </td>
-                <td className="py-2 text-right">{(bank.ounces / 1e9).toFixed(2)}B</td>
+                <td className="py-2 text-right">
+                  <span style={{ color: positionColors[bank.position] }} className="font-bold">{bank.position}</span>
+                </td>
+                <td className="py-2 text-right font-medium">{(bank.ounces / 1e9).toFixed(2)}B</td>
                 <td className="py-2 text-right text-gray-400">{bank.deadline || 'N/A'}</td>
                 <td className="py-2 text-right">
                   {bank.loss_ratio_at_80 ? (
-                    <span className={bank.loss_ratio_at_80 > 1 ? 'text-danger font-bold' : 'text-success'}>
+                    <span className={bank.loss_ratio_at_80 > 1 ? 'text-red-400 font-bold' : 'text-emerald-400'}>
                       {bank.loss_ratio_at_80.toFixed(1)}x equity
                     </span>
                   ) : (
-                    <span className="text-success">PROFIT</span>
+                    <span className="text-emerald-400 font-bold">PROFIT</span>
                   )}
                 </td>
               </tr>
@@ -1670,53 +2122,106 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Minimal Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <h1 className="text-xl font-black text-white">fault.watch</h1>
-
-          <div className="flex items-center gap-6">
-            <CountdownTimer countdown={dashboard.countdowns.lloyds} label="Lloyd's" />
-            <CountdownTimer countdown={dashboard.countdowns.sec} label="SEC" />
-            <div className="text-xs text-gray-500">
-              Updated {new Date(dashboard.last_updated).toLocaleTimeString()}
+        <div className="max-w-7xl mx-auto px-4 h-12 flex items-center justify-between">
+          <h1 className="text-lg font-black text-white tracking-tight">
+            fault<span className="text-danger">.</span>watch
+          </h1>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="live-dot" />
+              <span className="text-xs text-gray-500">LIVE DATA</span>
+            </div>
+            <div className="text-xs text-gray-600">
+              {new Date(dashboard.last_updated).toLocaleTimeString()}
             </div>
           </div>
         </div>
       </header>
 
-      {/* Alert Banner */}
+      {/* Critical Alert Banner */}
       {dashboard.alerts.some(a => a.level === 'critical') && (
-        <div className="bg-danger/90 text-white py-2 px-4 text-center animate-pulse">
-          <span className="font-bold mr-2">[BREAKING]</span>
-          {dashboard.alerts.find(a => a.level === 'critical')?.title}
+        <div className="bg-red-600 text-white py-3 px-4 text-center border-b border-red-500/50">
+          <span className="inline-flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="font-bold">[BREAKING]</span>
+            {dashboard.alerts.find(a => a.level === 'critical')?.title}
+            <VerificationBadge
+              status={dashboard.alerts.find(a => a.level === 'critical')?.verification_status || 'unverified'}
+              size="xs"
+            />
+          </span>
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* Hero */}
-        <RiskGauge
-          value={dashboard.risk_index}
-          label={dashboard.risk_label}
-          color={dashboard.risk_color}
-        />
+      {/* CEO-Level Executive Summary Dashboard */}
+      <ExecutiveSummary dashboard={dashboard} />
 
-        {/* Card Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+      {/* Crisis Scanner Module - Industrial Control Center */}
+      <CrisisScannerSection />
+
+      {/* Main Content - Organized by Narrative */}
+      <main className="max-w-7xl mx-auto px-4 py-6">
+
+        {/* SECTION 1: THE TRIGGER */}
+        <SectionHeader
+          title="THE TRIGGER"
+          subtitle="Silver price movement driving bank losses"
+          icon={Zap}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
           <div onClick={() => setExpandedCard('prices')}><PriceCard prices={dashboard.prices} /></div>
+          <div onClick={() => setExpandedCard('comex')}><ComexCard /></div>
+          <div onClick={() => setExpandedCard('scenarios')}><ScenarioCard /></div>
+        </div>
+
+        {/* SECTION 2: THE EXPOSURE */}
+        <SectionHeader
+          title="THE EXPOSURE"
+          subtitle="Bank short positions and potential insolvency"
+          icon={Skull}
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-12">
+          <div onClick={() => setExpandedCard('naked-shorts')} className="lg:col-span-2"><NakedShortsCard /></div>
+          <div onClick={() => setExpandedCard('banks')}><BankCard /></div>
+        </div>
+
+        {/* SECTION 3: THE CRACKS */}
+        <SectionHeader
+          title="THE CRACKS"
+          subtitle="Early warning indicators of systemic stress"
+          icon={Activity}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+          <div onClick={() => setExpandedCard('crisis-gauge')}><CrisisGaugeCard /></div>
           <div onClick={() => setExpandedCard('cascade')}><CascadeCard /></div>
           <div onClick={() => setExpandedCard('contagion')}><ContagionCard /></div>
-          <div onClick={() => setExpandedCard('banks')}><BankCard /></div>
-          <div onClick={() => setExpandedCard('dominoes')}><DominoCard dominoes={dashboard.dominoes} /></div>
-          <div onClick={() => setExpandedCard('comex')}><ContagionCard /></div>
           <div onClick={() => setExpandedCard('alerts')}><AlertsCard alerts={dashboard.alerts} /></div>
+          <div onClick={() => setExpandedCard('dominoes')}><DominoCard dominoes={dashboard.dominoes} /></div>
           <div onClick={() => setExpandedCard('theories')}><WorkingTheoriesCard /></div>
-          <div onClick={() => setExpandedCard('scenarios')}><ScenarioCard /></div>
+        </div>
+
+        {/* SECTION 4: THE FALLOUT */}
+        <SectionHeader
+          title="THE FALLOUT"
+          subtitle="Sector contagion and investment opportunities"
+          icon={TrendingDown}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
           <div onClick={() => setExpandedCard('sectors')}><SectorsCard /></div>
           <div onClick={() => setExpandedCard('miners')}><MinersCard /></div>
-          <div onClick={() => setExpandedCard('naked-shorts')} className="lg:col-span-2"><NakedShortsCard /></div>
           <div onClick={() => setExpandedCard('opportunities')} className="lg:col-span-2"><OpportunitiesCard /></div>
+        </div>
+
+        {/* Footer with Resources */}
+        <div className="border-t border-border pt-8 mt-8 text-center">
+          <p className="text-xs text-gray-600 mb-4">
+            Data refreshes every 60 seconds. Click any card for detailed analysis.
+          </p>
+          <p className="text-xs text-gray-700">
+            fault.watch - Real-time monitoring of systemic banking risk from precious metals short exposure
+          </p>
         </div>
       </main>
 
@@ -1763,6 +2268,10 @@ export default function Dashboard() {
 
       <Modal isOpen={expandedCard === 'miners'} onClose={() => setExpandedCard(null)} title="Junior Silver Miners">
         <MinersDetailView />
+      </Modal>
+
+      <Modal isOpen={expandedCard === 'crisis-gauge'} onClose={() => setExpandedCard(null)} title="Crisis Gauge - System Crack Monitor">
+        <CrisisGaugeDetailView />
       </Modal>
 
       <Modal isOpen={expandedCard === 'naked-shorts'} onClose={() => setExpandedCard(null)} title="Naked Short Analysis - 30:1 Paper to Physical">

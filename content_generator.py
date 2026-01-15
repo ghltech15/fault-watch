@@ -21,10 +21,28 @@ class TemplateType(Enum):
     DAILY_SUMMARY = "daily_summary"
 
 
+class CardType(Enum):
+    """Dashboard card types for video generation."""
+    PRICES = "prices"
+    COMEX = "comex"
+    SCENARIOS = "scenarios"
+    NAKED_SHORTS = "naked_shorts"
+    BANKS = "banks"
+    CRISIS_GAUGE = "crisis_gauge"
+    CASCADE = "cascade"
+    CONTAGION = "contagion"
+    ALERTS = "alerts"
+    DOMINOES = "dominoes"
+    THEORIES = "theories"
+    SECTORS = "sectors"
+    MINERS = "miners"
+    OPPORTUNITIES = "opportunities"
+
+
 @dataclass
 class ContentConfig:
     """Configuration for content generation."""
-    output_dir: Path = field(default_factory=lambda: Path("./content-output"))
+    output_dir: Path = field(default_factory=lambda: Path("C:/Users/ghlte/projects/fault-watch/content-library"))
     image_width: int = 1080  # TikTok 9:16
     image_height: int = 1920
     brand_color: str = "#e31837"  # CNN red
@@ -32,6 +50,7 @@ class ContentConfig:
     text_color: str = "#ffffff"
     secondary_color: str = "#888888"
     font_path: Optional[str] = None  # Use default
+    organize_by_date: bool = True  # Organize content in date folders
 
 
 @dataclass
@@ -134,12 +153,21 @@ class ContentGenerator:
         elif template == TemplateType.DAILY_SUMMARY:
             self._draw_daily_summary(canvas, draw, data)
 
-        # Save to output
+        # Save to output with date-based organization
         filename = f"{template.value}_{self._get_timestamp()}.png"
-        output_path = self.config.output_dir / "images" / filename
+        output_path = self._get_output_path("images", filename)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         canvas.save(output_path, "PNG")
 
         return output_path
+
+    def _get_output_path(self, content_type: str, filename: str) -> Path:
+        """Get output path with optional date-based organization."""
+        if self.config.organize_by_date:
+            date_folder = datetime.now().strftime("%Y-%m-%d")
+            return self.config.output_dir / date_folder / content_type / filename
+        else:
+            return self.config.output_dir / content_type / filename
 
     def _get_font(self, size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
         """Get a font at specified size, with fallback to default."""
@@ -403,9 +431,10 @@ class ContentGenerator:
             audio = audio.subclipped(0, config.duration)
             video = video.with_audio(audio)
 
-        # Export video
+        # Export video with date-based organization
         filename = f"{template.value}_{self._get_timestamp()}.mp4"
-        output_path = self.config.output_dir / "videos" / filename
+        output_path = self._get_output_path("videos", filename)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         video.write_videofile(
             str(output_path),
@@ -858,3 +887,305 @@ class ContentGenerator:
         clips = [ImageClip(frame).with_duration(1/fps).with_start(i/fps) for i, frame in enumerate(frames)]
         video = concatenate_videoclips(clips, method="compose")
         return [video]
+
+    def generate_card_video(self, card_type: 'CardType', data: Dict[str, Any], duration: int = 3) -> Path:
+        """
+        Generate a 3-second video for a specific dashboard card.
+
+        Args:
+            card_type: Type of dashboard card
+            data: Data to display on the card
+            duration: Video duration in seconds (default 3)
+
+        Returns:
+            Path to generated video file
+        """
+        from moviepy import ImageClip, concatenate_videoclips
+
+        fps = 30
+        frames = []
+
+        # Generate frames with subtle animation
+        for frame_num in range(duration * fps):
+            t = frame_num / fps
+            progress = min(t / 0.5, 1.0)  # Fade in over 0.5 seconds
+
+            canvas = self._create_base_canvas()
+            draw = ImageDraw.Draw(canvas)
+
+            # Draw card based on type
+            if card_type == CardType.PRICES:
+                self._draw_prices_card(canvas, draw, data, progress)
+            elif card_type == CardType.COMEX:
+                self._draw_comex_card(canvas, draw, data, progress)
+            elif card_type == CardType.SCENARIOS:
+                self._draw_scenarios_card(canvas, draw, data, progress)
+            elif card_type == CardType.NAKED_SHORTS:
+                self._draw_naked_shorts_card(canvas, draw, data, progress)
+            elif card_type == CardType.BANKS:
+                self._draw_banks_card(canvas, draw, data, progress)
+            elif card_type == CardType.CRISIS_GAUGE:
+                self._draw_crisis_gauge_card(canvas, draw, data, progress)
+            elif card_type == CardType.CASCADE:
+                self._draw_cascade_card(canvas, draw, data, progress)
+            else:
+                self._draw_generic_card(canvas, draw, data, progress, card_type.value.upper().replace('_', ' '), str(data.get('value', '')))
+
+            frames.append(np.array(canvas))
+
+        # Create video clips
+        clips = [ImageClip(frame).with_duration(1/fps).with_start(i/fps) for i, frame in enumerate(frames)]
+        video = concatenate_videoclips(clips, method="compose")
+        video = video.with_duration(duration)
+
+        # Export video
+        filename = f"card_{card_type.value}_{self._get_timestamp()}.mp4"
+        output_path = self._get_output_path("cards", filename)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        video.write_videofile(
+            str(output_path),
+            fps=fps,
+            codec='libx264',
+            audio_codec='aac',
+            temp_audiofile='temp-audio.m4a',
+            remove_temp=True,
+            logger=None
+        )
+
+        video.close()
+        return output_path
+
+    def _draw_prices_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Prices card - Silver, Gold, VIX, Physical premiums"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        amber = (245, 158, 11)
+
+        alpha = int(255 * progress)
+
+        font_header = self._get_font(60, bold=True)
+        self._center_text(draw, "LIVE SILVER PRICES", 150, font_header, (*white, alpha))
+
+        silver_price = data.get('silver_price', 91.43)
+        silver_change = data.get('silver_change', 0.61)
+        font_price = self._get_font(180, bold=True)
+        self._center_text(draw, f"${silver_price:.2f}", 350, font_price, (*white, alpha))
+
+        change_color = (16, 185, 129) if silver_change >= 0 else (239, 68, 68)
+        font_change = self._get_font(50)
+        change_text = f"+{silver_change:.2f}%" if silver_change >= 0 else f"{silver_change:.2f}%"
+        self._center_text(draw, f"COMEX Spot  {change_text}", 550, font_change, (*change_color, alpha))
+
+        font_section = self._get_font(45, bold=True)
+        self._center_text(draw, "PHYSICAL SILVER PRICES", 700, font_section, (*amber, alpha))
+
+        font_label = self._get_font(35)
+        font_value = self._get_font(55, bold=True)
+
+        locations = [
+            ('Shanghai', data.get('shanghai_price', 101), data.get('shanghai_premium', 10)),
+            ('Dubai', data.get('dubai_price', 128), data.get('dubai_premium', 40)),
+            ('Tokyo', data.get('tokyo_price', 114), data.get('tokyo_premium', 25)),
+            ('US Retail', data.get('us_retail_price', 101), data.get('us_retail_premium', 10)),
+        ]
+
+        y_start = 800
+        for i, (loc, price, premium) in enumerate(locations):
+            y = y_start + i * 120
+            draw.text((150, y), loc, font=font_label, fill=(*secondary, alpha))
+            draw.text((700, y), f"${price:.0f}", font=font_value, fill=(*white, alpha))
+            prem_color = (239, 68, 68) if premium > 30 else (amber if premium > 10 else (16, 185, 129))
+            draw.text((880, y + 10), f"+{premium}%", font=font_label, fill=(*prem_color, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_comex_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw COMEX inventory card"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        font_header = self._get_font(60, bold=True)
+        self._center_text(draw, "COMEX SILVER", 150, font_header, (*white, alpha))
+        font_sub = self._get_font(40)
+        self._center_text(draw, "REGISTERED INVENTORY", 230, font_sub, (*secondary, alpha))
+
+        registered = data.get('registered_oz', 212000000)
+        font_big = self._get_font(140, bold=True)
+        self._center_text(draw, f"{registered/1e6:.0f}M oz", 450, font_big, (*white, alpha))
+
+        status = data.get('status', 'CRITICALLY LOW')
+        font_status = self._get_font(50, bold=True)
+        self._center_text(draw, status, 650, font_status, (*brand, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_naked_shorts_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Naked Shorts card"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        font_header = self._get_font(55, bold=True)
+        self._center_text(draw, "NAKED SHORT ANALYSIS", 150, font_header, (*white, alpha))
+
+        ratio = data.get('ratio', 30)
+        font_ratio = self._get_font(200, bold=True)
+        self._center_text(draw, f"{ratio}:1", 400, font_ratio, (*brand, alpha))
+
+        font_sub = self._get_font(45)
+        self._center_text(draw, "PAPER TO PHYSICAL RATIO", 600, font_sub, (*secondary, alpha))
+
+        verdict = data.get('verdict', 'MATHEMATICALLY IMPOSSIBLE')
+        font_verdict = self._get_font(40, bold=True)
+        self._center_text(draw, verdict, 800, font_verdict, (*brand, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_banks_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Banks exposure card"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        font_header = self._get_font(55, bold=True)
+        self._center_text(draw, "BANK EXPOSURE", 150, font_header, (*white, alpha))
+
+        total_loss = data.get('total_loss', 289)
+        font_loss = self._get_font(150, bold=True)
+        self._center_text(draw, f"${total_loss}B", 400, font_loss, (*brand, alpha))
+
+        font_sub = self._get_font(45)
+        self._center_text(draw, "ESTIMATED LOSSES", 580, font_sub, (*secondary, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_crisis_gauge_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Crisis Gauge card"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        font_header = self._get_font(55, bold=True)
+        self._center_text(draw, "CRISIS GAUGE", 150, font_header, (*white, alpha))
+
+        level = data.get('level', 3)
+        level_names = {1: 'STABLE', 2: 'ELEVATED', 3: 'STRESSED', 4: 'CRITICAL', 5: 'SYSTEMIC'}
+        level_colors = {1: (16, 185, 129), 2: (132, 204, 22), 3: (251, 191, 36), 4: (249, 115, 22), 5: (239, 68, 68)}
+        level_color = level_colors.get(level, brand)
+
+        font_level = self._get_font(180, bold=True)
+        self._center_text(draw, str(level), 400, font_level, (*level_color, alpha))
+
+        font_name = self._get_font(60, bold=True)
+        self._center_text(draw, level_names.get(level, ''), 600, font_name, (*level_color, alpha))
+
+        cracks = data.get('cracks_showing', 4)
+        font_cracks = self._get_font(45)
+        self._center_text(draw, f"System Cracks: {cracks}/15", 750, font_cracks, (*secondary, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_cascade_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Cascade Stage card"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        font_header = self._get_font(55, bold=True)
+        self._center_text(draw, "CASCADE STAGE", 150, font_header, (*white, alpha))
+
+        stage = data.get('stage', 2)
+        stage_names = {1: 'STABLE', 2: 'ELEVATED', 3: 'STRESSED', 4: 'CRITICAL', 5: 'SYSTEMIC'}
+
+        font_stage = self._get_font(200, bold=True)
+        self._center_text(draw, str(stage), 400, font_stage, (*brand, alpha))
+
+        font_name = self._get_font(60, bold=True)
+        self._center_text(draw, stage_names.get(stage, ''), 600, font_name, (*white, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_scenarios_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Scenarios card"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        font_header = self._get_font(50, bold=True)
+        self._center_text(draw, "SILVER SCENARIOS", 150, font_header, (*white, alpha))
+
+        scenarios = [('$100', '-$156B'), ('$150', '-$289B'), ('$200', '-$422B')]
+        font_price = self._get_font(60, bold=True)
+        font_loss = self._get_font(50)
+        y = 350
+        for price, loss in scenarios:
+            self._center_text(draw, f"{price} Silver → {loss}", y, font_price, (*brand, alpha))
+            y += 150
+
+        font_warn = self._get_font(38, bold=True)
+        self._center_text(draw, "MS insolvent at $75", 900, font_warn, (*white, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_generic_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float, title: str, value: str):
+        """Draw a generic card"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        font_header = self._get_font(60, bold=True)
+        self._center_text(draw, title, 300, font_header, (*white, alpha))
+
+        font_value = self._get_font(80, bold=True)
+        self._center_text(draw, value, 550, font_value, (*brand, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def generate_all_card_videos(self, dashboard_data: Dict[str, Any], duration: int = 3) -> List[Path]:
+        """Generate 3-second videos for all dashboard cards."""
+        generated = []
+
+        card_configs = [
+            (CardType.PRICES, {
+                'silver_price': dashboard_data.get('prices', {}).get('silver', {}).get('price', 91.43),
+                'silver_change': dashboard_data.get('prices', {}).get('silver', {}).get('change_pct', 0.61),
+                'shanghai_price': 101, 'shanghai_premium': 10,
+                'dubai_price': 128, 'dubai_premium': 40,
+                'tokyo_price': 114, 'tokyo_premium': 25,
+                'us_retail_price': 101, 'us_retail_premium': 10,
+            }),
+            (CardType.COMEX, {'registered_oz': 212000000, 'status': 'CRITICALLY LOW'}),
+            (CardType.NAKED_SHORTS, {'ratio': 30, 'verdict': 'MATHEMATICALLY IMPOSSIBLE'}),
+            (CardType.BANKS, {'total_loss': 289}),
+            (CardType.CRISIS_GAUGE, {'level': 3, 'cracks_showing': 4}),
+            (CardType.CASCADE, {'stage': 2}),
+            (CardType.SCENARIOS, {}),
+        ]
+
+        for card_type, card_data in card_configs:
+            try:
+                path = self.generate_card_video(card_type, card_data, duration)
+                generated.append(path)
+                print(f"Generated: {path}")
+            except Exception as e:
+                print(f"Error generating {card_type.value}: {e}")
+
+        return generated

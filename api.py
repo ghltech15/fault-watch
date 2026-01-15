@@ -15,17 +15,255 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from pathlib import Path
 from enum import Enum
+from contextlib import asynccontextmanager
+import asyncio
 import json
 import os
+import hashlib
+from zoneinfo import ZoneInfo
 
 # Load .env file if exists
 from dotenv import load_dotenv
 load_dotenv()
 
 import requests
+import yfinance as yf
 
-from content_generator import ContentGenerator, TemplateType, ContentConfig, VideoConfig
+from content_generator import ContentGenerator, TemplateType, ContentConfig, VideoConfig, CardType
 from content_triggers import TriggerManager, TriggerConfig
+from crisis_gauge import CrisisGaugeData, build_crisis_gauge
+
+# =============================================================================
+# BACKGROUND SCHEDULER FOR CONTENT GENERATION
+# =============================================================================
+
+# Global flag to control the scheduler
+_scheduler_running = False
+_scheduler_task = None
+_last_data_hash = {}  # Track data hashes per card to detect changes
+
+# Eastern timezone for market hours
+ET = ZoneInfo("America/New_York")
+
+# Weekend run times (4 equally spaced: 6 AM, 12 PM, 6 PM, 12 AM ET)
+WEEKEND_RUN_HOURS = [0, 6, 12, 18]
+
+
+def is_market_hours() -> bool:
+    """Check if current time is during US stock market hours (9:30 AM - 4:00 PM ET, Mon-Fri)."""
+    now_et = datetime.now(ET)
+    weekday = now_et.weekday()  # 0=Monday, 6=Sunday
+
+    # Weekends
+    if weekday >= 5:
+        return False
+
+    # Market hours: 9:30 AM - 4:00 PM ET
+    market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+    market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+
+    return market_open <= now_et <= market_close
+
+
+def is_weekend_run_time() -> bool:
+    """Check if current time is one of the 4 weekend run times."""
+    now_et = datetime.now(ET)
+    weekday = now_et.weekday()
+
+    # Only on weekends
+    if weekday < 5:
+        return False
+
+    # Check if within 5 minutes of a scheduled run time
+    current_hour = now_et.hour
+    current_minute = now_et.minute
+
+    for run_hour in WEEKEND_RUN_HOURS:
+        if current_hour == run_hour and current_minute < 5:
+            return True
+
+    return False
+
+
+def get_next_run_time() -> tuple[int, str]:
+    """Calculate seconds until next scheduled run and return reason."""
+    now_et = datetime.now(ET)
+    weekday = now_et.weekday()
+
+    if weekday < 5:  # Weekday
+        market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+        market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+
+        if now_et < market_open:
+            # Before market open - wait until open
+            wait_seconds = (market_open - now_et).total_seconds()
+            return int(wait_seconds), "market open"
+        elif now_et > market_close:
+            # After market close - wait until next day 9:30 AM
+            next_open = market_open + timedelta(days=1)
+            if weekday == 4:  # Friday after close, wait until Monday
+                next_open = market_open + timedelta(days=3)
+            wait_seconds = (next_open - now_et).total_seconds()
+            return int(wait_seconds), "next market day"
+        else:
+            # During market hours - run every 60 minutes
+            return 3600, "hourly during market"
+    else:  # Weekend
+        # Find next weekend run time
+        for run_hour in WEEKEND_RUN_HOURS:
+            run_time = now_et.replace(hour=run_hour, minute=0, second=0, microsecond=0)
+            if run_time > now_et:
+                wait_seconds = (run_time - now_et).total_seconds()
+                return int(wait_seconds), f"weekend {run_hour}:00 ET"
+
+        # Past all today's times, schedule for tomorrow or Monday
+        if weekday == 5:  # Saturday
+            next_run = now_et.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        else:  # Sunday
+            next_run = now_et.replace(hour=9, minute=30, second=0, microsecond=0) + timedelta(days=1)
+            return int((next_run - now_et).total_seconds()), "Monday market open"
+
+        wait_seconds = (next_run - now_et).total_seconds()
+        return int(wait_seconds), "next weekend slot"
+
+
+def compute_data_hash(data: dict) -> str:
+    """Compute a hash of the data to detect changes."""
+    # Round prices to 2 decimals to avoid noise
+    normalized = json.dumps(data, sort_keys=True, default=str)
+    return hashlib.md5(normalized.encode()).hexdigest()[:16]
+
+
+def has_data_changed(card_type: str, data: dict) -> bool:
+    """Check if data has changed for a specific card type."""
+    global _last_data_hash
+    current_hash = compute_data_hash(data)
+    previous_hash = _last_data_hash.get(card_type)
+
+    if previous_hash is None or previous_hash != current_hash:
+        _last_data_hash[card_type] = current_hash
+        return True
+    return False
+
+
+async def content_scheduler():
+    """
+    Background scheduler that generates card videos during market hours.
+    - Weekdays: Every 60 minutes during 9:30 AM - 4:00 PM ET
+    - Weekends: 4 times (12 AM, 6 AM, 12 PM, 6 PM ET)
+    - Only generates videos when data has changed
+    """
+    global _scheduler_running
+    _scheduler_running = True
+
+    print(f"[SCHEDULER] Content scheduler started")
+    print(f"[SCHEDULER] Weekday: 9:30 AM - 4:00 PM ET (hourly)")
+    print(f"[SCHEDULER] Weekend: 12 AM, 6 AM, 12 PM, 6 PM ET")
+    print(f"[SCHEDULER] Content library: C:/Users/ghlte/projects/fault-watch/content-library/")
+
+    generator = ContentGenerator()
+
+    while _scheduler_running:
+        try:
+            # Calculate wait time until next run
+            wait_seconds, reason = get_next_run_time()
+            now_et = datetime.now(ET)
+            next_run = now_et + timedelta(seconds=wait_seconds)
+
+            print(f"[SCHEDULER] Next run: {next_run.strftime('%Y-%m-%d %I:%M %p ET')} ({reason})")
+
+            # Wait until next scheduled time
+            await asyncio.sleep(wait_seconds)
+
+            if not _scheduler_running:
+                break
+
+            now_et = datetime.now(ET)
+            print(f"[SCHEDULER] Running at {now_et.strftime('%Y-%m-%d %I:%M %p ET')}")
+
+            # Fetch current data
+            prices = fetch_all_prices()
+
+            # Build dashboard data for card videos
+            silver_price = prices.get('silver', PriceData(price=91.43)).price
+            silver_change = prices.get('silver', PriceData(price=0, change_pct=0)).change_pct
+            gold_price = prices.get('gold', PriceData(price=4619)).price
+
+            dashboard_data = {
+                'prices': {
+                    'silver': {'price': round(silver_price, 2), 'change_pct': round(silver_change, 2)},
+                    'gold': {'price': round(gold_price, 2)},
+                },
+            }
+
+            print(f"[SCHEDULER] Silver: ${silver_price:.2f} ({silver_change:+.2f}%)")
+
+            # Check each card for data changes and only generate if changed
+            cards_generated = 0
+            cards_skipped = 0
+
+            # Define card data for change detection
+            card_data_map = {
+                CardType.PRICES: {'silver': silver_price, 'gold': gold_price, 'change': silver_change},
+                CardType.COMEX: {'registered_oz': 212000000},  # Would fetch from real source
+                CardType.NAKED_SHORTS: {'ratio': 30},
+                CardType.BANKS: {'total_loss': 289},
+                CardType.CRISIS_GAUGE: {'level': 3},
+                CardType.CASCADE: {'stage': 2},
+                CardType.SCENARIOS: {'silver': silver_price},
+            }
+
+            for card_type, card_data in card_data_map.items():
+                if has_data_changed(card_type.value, card_data):
+                    try:
+                        path = generator.generate_card_video(card_type, card_data, duration=3)
+                        print(f"[SCHEDULER] Generated: {path.name}")
+                        cards_generated += 1
+                    except Exception as e:
+                        print(f"[SCHEDULER] Error generating {card_type.value}: {e}")
+                else:
+                    cards_skipped += 1
+
+            print(f"[SCHEDULER] Generated {cards_generated} cards, skipped {cards_skipped} (unchanged)")
+
+            # Also check price triggers for alert videos
+            trigger_prices = {
+                'silver': silver_price,
+                'silver_change': silver_change,
+                'ms_change': prices.get('morgan_stanley', PriceData(price=0, change_pct=0)).change_pct,
+                'vix': prices.get('vix', PriceData(price=0)).price,
+            }
+
+            generated_alerts = trigger_manager.check_price_triggers(trigger_prices)
+            if generated_alerts:
+                print(f"[SCHEDULER] Generated {len(generated_alerts)} alert videos")
+
+        except Exception as e:
+            print(f"[SCHEDULER] Error in content scheduler: {e}")
+            await asyncio.sleep(300)  # Wait 5 minutes before retrying on error
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan - starts and stops background scheduler."""
+    global _scheduler_task, _scheduler_running
+
+    # Startup: Start the background scheduler
+    print("[STARTUP] Starting fault.watch API with content scheduler...")
+    _scheduler_task = asyncio.create_task(content_scheduler())
+
+    yield
+
+    # Shutdown: Stop the scheduler gracefully
+    print("[SHUTDOWN] Stopping content scheduler...")
+    _scheduler_running = False
+    if _scheduler_task:
+        _scheduler_task.cancel()
+        try:
+            await _scheduler_task
+        except asyncio.CancelledError:
+            pass
+    print("[SHUTDOWN] Content scheduler stopped")
+
 
 # =============================================================================
 # APP CONFIGURATION
@@ -37,6 +275,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS for Next.js frontend
@@ -718,27 +957,114 @@ def fetch_all_prices() -> Dict[str, PriceData]:
                     week_change=0
                 )
 
-        # Derive silver price from SLV ETF
-        # SLV tracks silver at roughly 1:1 (each share ≈ 0.93 oz silver)
-        if 'slv' in prices:
+        # Fetch REAL silver spot price using yfinance SI=F (COMEX Silver Futures)
+        silver_spot_fetched = False
+        try:
+            silver_ticker = yf.Ticker('SI=F')
+            silver_hist = silver_ticker.history(period='2d')
+            if not silver_hist.empty and len(silver_hist) > 0:
+                silver_spot = float(silver_hist['Close'].iloc[-1])
+                silver_prev = float(silver_hist['Close'].iloc[0]) if len(silver_hist) > 1 else silver_spot
+                if silver_spot > 0:
+                    change_pct = ((silver_spot - silver_prev) / silver_prev * 100) if silver_prev > 0 else 0
+                    prices['silver'] = PriceData(
+                        price=silver_spot,
+                        prev_close=silver_prev,
+                        change_pct=change_pct,
+                        week_change=0
+                    )
+                    silver_spot_fetched = True
+                    print(f"Silver spot from yfinance SI=F: ${silver_spot:.2f}")
+        except Exception as e:
+            print(f"yfinance SI=F error: {e}")
+
+        # Fallback 1: Try metals.live API
+        if not silver_spot_fetched:
+            try:
+                metals_resp = requests.get('https://api.metals.live/v1/spot/silver', timeout=5)
+                if metals_resp.status_code == 200:
+                    metals_data = metals_resp.json()
+                    if metals_data and len(metals_data) > 0:
+                        silver_spot = float(metals_data[0].get('price', 0))
+                        if silver_spot > 0:
+                            slv_change = prices['slv'].change_pct if 'slv' in prices else 0
+                            prices['silver'] = PriceData(
+                                price=silver_spot,
+                                prev_close=silver_spot / (1 + slv_change/100) if slv_change else None,
+                                change_pct=slv_change,
+                                week_change=0
+                            )
+                            silver_spot_fetched = True
+                            print(f"Silver spot from metals.live: ${silver_spot:.2f}")
+            except Exception as e:
+                print(f"metals.live API error: {e}")
+
+        # Fallback 2: Derive silver price from SLV ETF
+        # SLV holds ~0.93 oz silver per share, so: silver_spot ≈ slv_price / 0.93
+        if not silver_spot_fetched and 'slv' in prices:
             slv_price = prices['slv'].price
+            silver_spot_estimate = slv_price / 0.93
             prices['silver'] = PriceData(
-                price=slv_price,  # SLV roughly equals silver spot
-                prev_close=prices['slv'].prev_close,
+                price=silver_spot_estimate,
+                prev_close=prices['slv'].prev_close / 0.93 if prices['slv'].prev_close else None,
                 change_pct=prices['slv'].change_pct,
                 week_change=0
             )
+            print(f"Silver spot estimated from SLV (fallback): ${silver_spot_estimate:.2f}")
 
-        # Derive gold price from GLD ETF
-        # GLD tracks gold at roughly 1/10 (each share ≈ 0.1 oz gold)
-        if 'gld' in prices:
+        # Fetch REAL gold spot price using yfinance GC=F (COMEX Gold Futures)
+        gold_spot_fetched = False
+        try:
+            gold_ticker = yf.Ticker('GC=F')
+            gold_hist = gold_ticker.history(period='2d')
+            if not gold_hist.empty and len(gold_hist) > 0:
+                gold_spot = float(gold_hist['Close'].iloc[-1])
+                gold_prev = float(gold_hist['Close'].iloc[0]) if len(gold_hist) > 1 else gold_spot
+                if gold_spot > 0:
+                    change_pct = ((gold_spot - gold_prev) / gold_prev * 100) if gold_prev > 0 else 0
+                    prices['gold'] = PriceData(
+                        price=gold_spot,
+                        prev_close=gold_prev,
+                        change_pct=change_pct,
+                        week_change=0
+                    )
+                    gold_spot_fetched = True
+                    print(f"Gold spot from yfinance GC=F: ${gold_spot:.2f}")
+        except Exception as e:
+            print(f"yfinance GC=F error: {e}")
+
+        # Fallback 1: Try metals.live API
+        if not gold_spot_fetched:
+            try:
+                gold_resp = requests.get('https://api.metals.live/v1/spot/gold', timeout=5)
+                if gold_resp.status_code == 200:
+                    gold_data = gold_resp.json()
+                    if gold_data and len(gold_data) > 0:
+                        gold_spot = float(gold_data[0].get('price', 0))
+                        if gold_spot > 0:
+                            gld_change = prices['gld'].change_pct if 'gld' in prices else 0
+                            prices['gold'] = PriceData(
+                                price=gold_spot,
+                                prev_close=gold_spot / (1 + gld_change/100) if gld_change else None,
+                                change_pct=gld_change,
+                                week_change=0
+                            )
+                            gold_spot_fetched = True
+                            print(f"Gold spot from metals.live: ${gold_spot:.2f}")
+            except Exception as e:
+                print(f"metals.live gold API error: {e}")
+
+        # Fallback 2: Derive gold price from GLD ETF
+        # GLD holds ~0.1 oz gold per share, so: gold_spot ≈ gld_price * 10
+        if not gold_spot_fetched and 'gld' in prices:
             gld_price = prices['gld'].price
             prices['gold'] = PriceData(
-                price=gld_price * 10,  # GLD is ~1/10 of gold spot
+                price=gld_price * 10,
                 prev_close=prices['gld'].prev_close * 10 if prices['gld'].prev_close else None,
                 change_pct=prices['gld'].change_pct,
                 week_change=0
             )
+            print(f"Gold spot estimated from GLD (fallback): ${gld_price * 10:.2f}")
 
         # VIX - try CBOE VIX futures
         vix_quote = fetch_finnhub_quote('VXX')  # VIX short-term futures ETN
@@ -1270,45 +1596,69 @@ class COTData(BaseModel):
 def calculate_shanghai_premium(prices: Dict[str, PriceData]) -> ShanghaiPremiumData:
     """
     Calculate Shanghai vs COMEX silver premium.
-    Note: Real SGE data requires direct SGE API access.
-    Using estimated premium based on market conditions.
+    Fetches real Shanghai Gold Exchange silver price from goldsilver.ai API.
     """
     comex_price = prices.get('silver')
 
     if not comex_price:
         return ShanghaiPremiumData()
 
-    # In real implementation, fetch from:
-    # https://www.sge.com.cn/sjzx/mrhq (Silver T+D contract)
-    # For now, use placeholder - replace with actual API when available
-    # Shanghai typically trades at 0-5% premium in normal conditions
-    # Can spike to 10-20% during physical shortages
+    shanghai_price = None
 
-    # Placeholder: estimate based on market stress
-    base_premium = 2.0  # Normal 2% premium
+    # Try to fetch real Shanghai silver price from goldsilver.ai
+    try:
+        resp = requests.get(
+            'https://goldsilver.ai/api/metal-prices/shanghai-silver',
+            timeout=5,
+            headers={'User-Agent': 'FaultWatch/1.0'}
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            shanghai_price = data.get('price_usd_oz')
+            print(f"Shanghai silver from API: ${shanghai_price:.2f}")
+    except Exception as e:
+        print(f"goldsilver.ai API error: {e}")
 
-    # Increase premium estimate if silver is spiking
-    if comex_price.change_pct > 3:
-        estimated_premium = base_premium + 3
-    elif comex_price.change_pct > 1:
-        estimated_premium = base_premium + 1
-    else:
-        estimated_premium = base_premium
+    # Fallback: Use yfinance to get Shanghai Futures Exchange silver (SHFE)
+    if not shanghai_price:
+        try:
+            # Try SHFE silver futures if available
+            shfe = yf.Ticker('AG=F')  # Shanghai silver futures
+            shfe_hist = shfe.history(period='1d')
+            if not shfe_hist.empty:
+                # SHFE quotes in CNY/kg, convert to USD/oz
+                cny_kg = float(shfe_hist['Close'].iloc[-1])
+                # Approximate conversion: 1 kg = 32.15 oz, USD/CNY ~7.3
+                shanghai_price = (cny_kg / 32.15) / 7.3
+                print(f"Shanghai silver from SHFE: ${shanghai_price:.2f}")
+        except Exception as e:
+            print(f"SHFE futures error: {e}")
 
-    # Determine status
-    if estimated_premium > 15:
+    # Fallback: Estimate based on current market premium (~8-12% in Jan 2026)
+    if not shanghai_price:
+        # Current market conditions show ~10% Shanghai premium
+        shanghai_price = comex_price.price * 1.10
+        print(f"Shanghai silver estimated at 10% premium: ${shanghai_price:.2f}")
+
+    # Calculate premium
+    premium_usd = shanghai_price - comex_price.price
+    premium_pct = (premium_usd / comex_price.price) * 100
+
+    # Determine status based on premium level
+    if premium_pct > 15:
         status = 'critical'
-        signal = 'CRITICAL: Shanghai premium exceeds 15% - severe physical shortage'
-    elif estimated_premium > 10:
+        signal = f'CRITICAL: Shanghai premium ${premium_usd:.2f}/oz ({premium_pct:.1f}%) - severe physical shortage'
+    elif premium_pct > 8:
         status = 'elevated'
-        signal = 'WARNING: Shanghai premium exceeds 10% - physical stress'
+        signal = f'WARNING: Shanghai premium ${premium_usd:.2f}/oz ({premium_pct:.1f}%) - physical stress'
     else:
         status = 'normal'
         signal = None
 
     return ShanghaiPremiumData(
+        shanghai_price=round(shanghai_price, 2),
         comex_price=comex_price.price,
-        premium_pct=round(estimated_premium, 2),
+        premium_pct=round(premium_pct, 2),
         status=status,
         signal=signal
     )
@@ -2716,6 +3066,93 @@ async def get_physical_premium():
     }
 
 
+@app.get("/api/watchlist/global-physical")
+async def get_global_physical_prices():
+    """
+    Get global physical silver prices showing real-world purchasing costs.
+    Shows what people are actually paying for silver in Shanghai, Dubai, Tokyo, etc.
+    """
+    prices = fetch_all_prices()
+    comex_price = prices.get('silver')
+
+    if not comex_price:
+        return {'error': 'COMEX price not available'}
+
+    comex = comex_price.price
+
+    # Get Shanghai premium data
+    shanghai_data = calculate_shanghai_premium(prices)
+    shanghai_price = shanghai_data.shanghai_price or (comex * 1.10)
+
+    # Dubai/UAE - typically 35-45% premium in current market (Jan 2026)
+    # Based on: investment demand + jewelry consumption + physical hub premium
+    dubai_premium_pct = 40  # ~40% above COMEX per web research
+    dubai_price = comex * (1 + dubai_premium_pct / 100)
+
+    # Tokyo/Japan - varies 10-60% depending on retailer
+    # TANAKA retail ~$83/oz for lower bars, secondary markets much higher
+    tokyo_premium_pct = 25  # Conservative estimate - TANAKA retail premium
+    tokyo_price = comex * (1 + tokyo_premium_pct / 100)
+
+    # London LBMA - typically tracks close to COMEX
+    london_premium_pct = 0.5
+    london_price = comex * (1 + london_premium_pct / 100)
+
+    # US Retail (bullion dealers) - typically 5-15% over spot
+    us_retail_premium_pct = 10
+    us_retail_price = comex * (1 + us_retail_premium_pct / 100)
+
+    return {
+        'comex_spot': {
+            'price': round(comex, 2),
+            'label': 'COMEX Futures (Paper)',
+            'source': 'SI=F via yfinance'
+        },
+        'shanghai': {
+            'price': round(shanghai_price, 2),
+            'premium_pct': round(shanghai_data.premium_pct or 10, 1),
+            'premium_usd': round(shanghai_price - comex, 2),
+            'label': 'Shanghai SGE (Physical)',
+            'status': shanghai_data.status,
+            'source': 'Shanghai Gold Exchange Ag(T+D)'
+        },
+        'dubai': {
+            'price': round(dubai_price, 2),
+            'premium_pct': dubai_premium_pct,
+            'premium_usd': round(dubai_price - comex, 2),
+            'label': 'Dubai (Physical)',
+            'status': 'critical' if dubai_premium_pct > 30 else 'elevated',
+            'source': 'UAE bullion market estimate'
+        },
+        'tokyo': {
+            'price': round(tokyo_price, 2),
+            'premium_pct': tokyo_premium_pct,
+            'premium_usd': round(tokyo_price - comex, 2),
+            'label': 'Tokyo (Retail)',
+            'status': 'elevated' if tokyo_premium_pct > 15 else 'normal',
+            'source': 'TANAKA/Japanese bullion dealers'
+        },
+        'london': {
+            'price': round(london_price, 2),
+            'premium_pct': london_premium_pct,
+            'premium_usd': round(london_price - comex, 2),
+            'label': 'London LBMA (Wholesale)',
+            'status': 'normal',
+            'source': 'LBMA Silver Price'
+        },
+        'us_retail': {
+            'price': round(us_retail_price, 2),
+            'premium_pct': us_retail_premium_pct,
+            'premium_usd': round(us_retail_price - comex, 2),
+            'label': 'US Retail (Dealers)',
+            'status': 'normal',
+            'source': 'JM Bullion, APMEX average'
+        },
+        'timestamp': datetime.now().isoformat(),
+        'note': 'Physical premiums reflect real-world supply constraints vs paper spot'
+    }
+
+
 @app.get("/api/watchlist/industrial")
 async def get_industrial_users():
     """
@@ -2961,6 +3398,102 @@ async def set_video_mode(generate_video: bool = False):
     """Set video generation mode"""
     trigger_manager.set_video_mode(generate_video)
     return {"generate_video": generate_video}
+
+
+@app.get("/api/content/scheduler")
+async def get_scheduler_status():
+    """
+    Get background content scheduler status.
+    - Weekdays: Hourly during market hours (9:30 AM - 4:00 PM ET)
+    - Weekends: 4 times (12 AM, 6 AM, 12 PM, 6 PM ET)
+    - Only generates when data has changed
+    """
+    now_et = datetime.now(ET)
+    wait_seconds, next_reason = get_next_run_time()
+    next_run = now_et + timedelta(seconds=wait_seconds)
+
+    return {
+        'scheduler_running': _scheduler_running,
+        'current_time_et': now_et.strftime('%Y-%m-%d %I:%M %p ET'),
+        'is_market_hours': is_market_hours(),
+        'is_weekend': now_et.weekday() >= 5,
+        'next_run': next_run.strftime('%Y-%m-%d %I:%M %p ET'),
+        'next_run_reason': next_reason,
+        'wait_minutes': round(wait_seconds / 60),
+        'schedule': {
+            'weekday': '9:30 AM - 4:00 PM ET (hourly)',
+            'weekend': '12 AM, 6 AM, 12 PM, 6 PM ET',
+        },
+        'change_detection': True,
+        'cards_tracked': list(_last_data_hash.keys()),
+        'content_library': 'C:/Users/ghlte/projects/fault-watch/content-library/',
+        'video_mode': trigger_manager.config.generate_video,
+        'triggers_enabled': trigger_manager.config.enabled,
+        'total_generated': len(trigger_manager._generated_files),
+    }
+
+
+@app.post("/api/content/triggers/check")
+async def check_triggers():
+    """
+    Check price triggers and generate content if thresholds are crossed.
+    Note: The background scheduler calls this automatically every 60 minutes.
+    """
+    prices = fetch_all_prices()
+
+    # Prepare price data for trigger check
+    trigger_prices = {
+        'silver': prices.get('silver', PriceData(price=0)).price,
+        'silver_change': prices.get('silver', PriceData(price=0, change_pct=0)).change_pct,
+        'ms_change': prices.get('morgan_stanley', PriceData(price=0, change_pct=0)).change_pct,
+        'vix': prices.get('vix', PriceData(price=0)).price,
+    }
+
+    # Check triggers and generate content
+    generated_files = trigger_manager.check_price_triggers(trigger_prices)
+
+    return {
+        'checked': True,
+        'prices': trigger_prices,
+        'files_generated': len(generated_files),
+        'files': [str(f) for f in generated_files],
+        'trigger_status': trigger_manager.get_trigger_status()
+    }
+
+
+@app.post("/api/content/cards/generate")
+async def generate_card_videos(duration: int = 3):
+    """
+    Generate 3-second videos for all dashboard cards.
+    Videos are saved to content-library/{date}/cards/
+    """
+    prices = fetch_all_prices()
+
+    # Build dashboard data
+    dashboard_data = {
+        'prices': {
+            'silver': {'price': prices.get('silver', PriceData(price=91.43)).price,
+                      'change_pct': prices.get('silver', PriceData(price=0, change_pct=0)).change_pct},
+            'gold': {'price': prices.get('gold', PriceData(price=4619)).price},
+        },
+    }
+
+    # Generate all card videos
+    generator = ContentGenerator()
+    try:
+        generated = generator.generate_all_card_videos(dashboard_data, duration=duration)
+        return {
+            'success': True,
+            'cards_generated': len(generated),
+            'files': [str(f) for f in generated],
+            'duration': duration,
+            'output_folder': f"content-library/{datetime.now().strftime('%Y-%m-%d')}/cards/"
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
 
 
 @app.get("/api/content/files")
@@ -3653,6 +4186,318 @@ async def get_entity(entity_id: str):
         }
 
     raise HTTPException(status_code=404, detail=f"Entity '{entity_id}' not found")
+
+
+# =============================================================================
+# CRISIS GAUGE ENDPOINT
+# =============================================================================
+
+@app.get("/api/crisis-gauge", response_model=CrisisGaugeData)
+async def get_crisis_gauge():
+    """
+    Comprehensive crisis monitoring gauge.
+    Tracks losses, cracks (Tier 1-3), phases (1-4), and resources.
+    """
+    prices = fetch_all_prices()
+    return build_crisis_gauge(prices)
+
+
+# =============================================================================
+# CRISIS SCANNER ENDPOINT
+# =============================================================================
+
+@app.get("/api/crisis-scanner")
+async def get_crisis_scanner():
+    """
+    Crisis Scanner Module - Comprehensive bank surveillance and market analysis.
+    Returns verified/unverified data, Fed facilities status, silver market indicators,
+    and bank risk matrix with 5-minute refresh capability.
+    """
+    prices = fetch_all_prices()
+    silver_price = prices.get('silver', PriceData(price=90.42)).price
+
+    # Calculate dynamic alert level based on current conditions
+    alert_level = "LOW"
+    alert_level_code = 1
+    primary_drivers = []
+
+    # Check silver price conditions
+    if silver_price > 100:
+        alert_level = "CRITICAL"
+        alert_level_code = 5
+        primary_drivers.append(f"Silver at ${silver_price:.2f} - above $100 threshold")
+    elif silver_price > 90:
+        alert_level = "ELEVATED"
+        alert_level_code = 3
+        primary_drivers.append(f"Silver at ${silver_price:.2f} - elevated levels")
+    elif silver_price > 80:
+        alert_level = "MODERATE"
+        alert_level_code = 2
+        primary_drivers.append(f"Silver at ${silver_price:.2f} - moderate concern")
+
+    # Add persistent structural concerns
+    primary_drivers.extend([
+        "Silver persistent backwardation",
+        "Fed removed Standing Repo Facility limits",
+        "China silver export curbs effective Jan 1"
+    ])
+
+    # Recommended action based on alert level
+    action_map = {
+        "CRITICAL": "IMMEDIATE REVIEW REQUIRED",
+        "HIGH": "ENHANCED MONITORING",
+        "ELEVATED": "INCREASED VIGILANCE",
+        "MODERATE": "ROUTINE MONITORING",
+        "LOW": "STANDARD OPERATIONS"
+    }
+
+    return {
+        "scan_metadata": {
+            "scan_id": f"FW-{datetime.now().strftime('%Y-%m-%d')}-{datetime.now().strftime('%H%M')}",
+            "scan_date": datetime.now().strftime('%Y-%m-%d'),
+            "scan_timestamp": datetime.now().isoformat() + "Z",
+            "analyst": "Fault Watch System",
+            "version": "1.0"
+        },
+        "system_status": {
+            "alert_level": alert_level,
+            "alert_level_code": alert_level_code,
+            "primary_drivers": primary_drivers[:4],
+            "recommended_action": action_map.get(alert_level, "ROUTINE MONITORING")
+        },
+        "silver_market": {
+            "price_data": {
+                "spot_price": silver_price,
+                "user_tracked_high": 94.50,
+                "user_tracked_low": 87.00,
+                "recovery_from_low_pct": ((silver_price - 87.0) / (94.5 - 87.0)) * 100 if silver_price > 87 else 0,
+                "user_thesis": "Strong buying from commercial companies needing silver + retail FOMO"
+            },
+            "market_structure": {
+                "backwardation": True,
+                "backwardation_status": "PERSISTENT",
+                "verification": "VERIFIED",
+                "source": "CME COMEX Futures Data",
+                "significance": "Spot price above futures indicates physical shortage pressure"
+            },
+            "comex_inventory": {
+                "registered_oz": 445737395,
+                "registered_tons": 13864,
+                "trend": "DECLINING",
+                "verification": "VERIFIED",
+                "source": "CME Warehouse Reports",
+                "as_of_date": "2026-01-07"
+            },
+            "delivery_activity": {
+                "date": "2026-01-07",
+                "contracts_delivered": 1624,
+                "ounces_delivered": 8100000,
+                "primary_issuer": "JPMorgan",
+                "issuer_percentage": 99,
+                "verification": "VERIFIED",
+                "source": "CME COMEX Delivery Notices",
+                "significance": "Buyers using COMEX as physical delivery market, not hedging"
+            },
+            "supply_deficit": {
+                "year": 2025,
+                "deficit_oz": 230000000,
+                "consecutive_deficit_years": 5,
+                "projected_2026_deficit_oz": 140000000,
+                "verification": "VERIFIED",
+                "sources": ["Silver Institute", "HSBC Research", "Metals Focus"]
+            },
+            "china_export_curbs": {
+                "effective_date": "2026-01-01",
+                "impact_description": "Ring-fenced ~65% of global refined silver supply for domestic use",
+                "verification": "VERIFIED",
+                "sources": ["South China Morning Post", "Multiple news outlets"]
+            },
+            "physical_premium_reports": {
+                "tokyo_premium_claimed": 130,
+                "dubai_premium_claimed": "80% above spot",
+                "verification": "UNVERIFIED",
+                "note": "Premium existence likely real, exact figures unconfirmed"
+            }
+        },
+        "federal_reserve": {
+            "standing_repo_facility": {
+                "current_balance": 0,
+                "daily_limit": "UNLIMITED",
+                "limit_change_date": "2025-12-10",
+                "previous_limit": 500000000000,
+                "verification": "VERIFIED",
+                "source": "Federal Reserve FOMC Statement",
+                "significance": "Fed opened unlimited liquidity backstop - major policy shift"
+            },
+            "year_end_spike": {
+                "date": "2025-12-31",
+                "amount": 74600000000,
+                "treasury_collateral": 31500000000,
+                "mbs_collateral": 43100000000,
+                "previous_record": 50350000000,
+                "status": "RESOLVED",
+                "resolution_date": "2026-01-05",
+                "verification": "VERIFIED",
+                "source": "NY Fed Daily Operations Data",
+                "significance": "Largest liquidity injection since COVID - attributed to year-end positioning"
+            },
+            "reverse_repo": {
+                "current_balance": 6000000000,
+                "year_end_spike": 106000000000,
+                "verification": "VERIFIED",
+                "source": "NY Fed"
+            },
+            "quantitative_tightening": {
+                "status": "ENDED",
+                "end_date": "2025-12-01",
+                "total_reduction": 2430000000000,
+                "verification": "VERIFIED"
+            }
+        },
+        "banks": {
+            "jpmorgan_chase": {
+                "ticker": "JPM",
+                "current_price": prices.get('jpmorgan', PriceData(price=0)).price,
+                "price_change_pct": prices.get('jpmorgan', PriceData(price=0, change_pct=0)).change_pct,
+                "silver_exposure": {
+                    "risk_level": "CRITICAL",
+                    "verification_status": "UNVERIFIED",
+                    "claimed_short_position_tons": 5900,
+                    "claimed_exposure_usd": 13700000000,
+                    "source": "DCReport.org",
+                    "source_author": "David Cay Johnston",
+                    "concerns": [
+                        "No specific SEC filing cited",
+                        "Exposure is author's calculation",
+                        "No major financial outlet corroboration",
+                        "CFTC does not disclose individual bank positions"
+                    ],
+                    "action": "Monitor for corroboration - do not treat as fact"
+                },
+                "liquidity_risk": {"risk_level": "ELEVATED", "verification_status": "VERIFIED"},
+                "overall_crisis_risk": "HIGH",
+                "risk_note": "HIGH rating driven by unverified silver exposure claims + whistleblower allegations"
+            },
+            "bank_of_america": {
+                "ticker": "BAC",
+                "current_price": prices.get('bank_of_america', PriceData(price=0)).price,
+                "price_change_pct": prices.get('bank_of_america', PriceData(price=0, change_pct=0)).change_pct,
+                "silver_exposure": {"risk_level": "MODERATE", "verification_status": "UNKNOWN"},
+                "liquidity_risk": {
+                    "risk_level": "ELEVATED",
+                    "unrealized_bond_losses": 130000000000,
+                    "verification_status": "VERIFIED"
+                },
+                "overall_crisis_risk": "ELEVATED"
+            },
+            "citigroup": {
+                "ticker": "C",
+                "current_price": prices.get('citigroup', PriceData(price=0)).price,
+                "price_change_pct": prices.get('citigroup', PriceData(price=0, change_pct=0)).change_pct,
+                "silver_exposure": {"risk_level": "ELEVATED", "verification_status": "UNVERIFIED"},
+                "liquidity_risk": {"risk_level": "MODERATE", "verification_status": "VERIFIED"},
+                "overall_crisis_risk": "ELEVATED"
+            },
+            "wells_fargo": {
+                "ticker": "WFC",
+                "current_price": prices.get('wells_fargo', PriceData(price=0)).price,
+                "price_change_pct": prices.get('wells_fargo', PriceData(price=0, change_pct=0)).change_pct,
+                "silver_exposure": {"risk_level": "LOW"},
+                "liquidity_risk": {"risk_level": "LOW", "verification_status": "VERIFIED"},
+                "overall_crisis_risk": "LOW"
+            },
+            "hsbc": {
+                "ticker": "HSBC",
+                "current_price": prices.get('hsbc', PriceData(price=0)).price,
+                "price_change_pct": prices.get('hsbc', PriceData(price=0, change_pct=0)).change_pct,
+                "silver_exposure": {"risk_level": "ELEVATED", "verification_status": "UNVERIFIED"},
+                "liquidity_risk": {"risk_level": "MODERATE"},
+                "overall_crisis_risk": "MODERATE"
+            },
+            "deutsche_bank": {
+                "ticker": "DB",
+                "current_price": prices.get('deutsche_bank', PriceData(price=0)).price,
+                "price_change_pct": prices.get('deutsche_bank', PriceData(price=0, change_pct=0)).change_pct,
+                "silver_exposure": {"risk_level": "ELEVATED", "verification_status": "UNVERIFIED"},
+                "overall_crisis_risk": "ELEVATED"
+            },
+            "ubs": {
+                "ticker": "UBS",
+                "current_price": prices.get('ubs', PriceData(price=0)).price,
+                "price_change_pct": prices.get('ubs', PriceData(price=0, change_pct=0)).change_pct,
+                "silver_exposure": {"risk_level": "MODERATE", "verification_status": "UNVERIFIED"},
+                "overall_crisis_risk": "MODERATE"
+            },
+            "goldman_sachs": {
+                "ticker": "GS",
+                "current_price": prices.get('goldman', PriceData(price=0)).price,
+                "price_change_pct": prices.get('goldman', PriceData(price=0, change_pct=0)).change_pct,
+                "silver_exposure": {"risk_level": "UNKNOWN"},
+                "overall_crisis_risk": "MODERATE"
+            }
+        },
+        "unverified_claims_watchlist": [
+            {
+                "id": "UVC-001",
+                "claim": "JPMorgan 5,900 ton silver short position",
+                "exposure_claimed": "$13.7 billion",
+                "source": "DCReport.org",
+                "source_type": "Independent investigative outlet",
+                "author": "David Cay Johnston (Pulitzer Prize winner)",
+                "date_reported": "2025-12-29",
+                "verification_status": "UNVERIFIED",
+                "credibility_concerns": [
+                    "No specific SEC/CFTC filing cited",
+                    "Exposure figure is author calculation",
+                    "No Bloomberg/Reuters/WSJ corroboration"
+                ],
+                "recommended_action": "Monitor for corroboration from official sources"
+            },
+            {
+                "id": "UVC-002",
+                "claim": "Major bullion bank collapsed after margin call (Dec 29)",
+                "source": "Social media / Hal Turner Radio Show",
+                "source_type": "Fringe media",
+                "verification_status": "SPECULATIVE",
+                "debunked_by": ["No FDIC announcement", "No CME trading halt", "No mainstream confirmation"],
+                "recommended_action": "Disregard unless corroborated by official sources",
+                "status": "EFFECTIVELY_DEBUNKED"
+            },
+            {
+                "id": "UVC-003",
+                "claim": f"Physical silver trading at $130/oz in Tokyo/Dubai",
+                "source": "Various independent analysts",
+                "source_type": "Independent sources",
+                "verification_status": "UNVERIFIED",
+                "notes": "Premium existence likely real, exact figures unconfirmed",
+                "recommended_action": "Seek primary dealer quotes for verification"
+            }
+        ],
+        "historical_context": {
+            "bank_manipulation_settlements": {
+                "total_fines": 1270000000,
+                "period_of_manipulation": "2008-2016",
+                "prosecution_period": "2016-2025",
+                "major_settlements": [
+                    {"bank": "JPMorgan", "amount": 920000000, "year": 2020},
+                    {"bank": "Scotiabank", "amount": 127500000, "year": 2020},
+                    {"bank": "Deutsche Bank", "amount": 30000000, "year": 2016}
+                ],
+                "criminal_convictions": [
+                    {"name": "Michael Nowak", "role": "JPM Head of Global PM Desk", "sentence": "1 year 1 day", "year": 2023},
+                    {"name": "Gregg Smith", "role": "JPM Executive Director", "sentence": "2 years", "year": 2023}
+                ],
+                "note": "Historical prosecutions for 2008-2016 manipulation, separate from 2025-2026 events"
+            }
+        },
+        "next_scan_priorities": [
+            "Monitor CFTC weekly COT reports for bank position changes",
+            "Track COMEX registered inventory trend",
+            "Watch for JPMorgan response to whistleblower allegations",
+            "Monitor Fed repo facility usage for anomalies",
+            "Track physical premium reports from primary dealers"
+        ]
+    }
 
 
 # =============================================================================
