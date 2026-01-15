@@ -247,22 +247,29 @@ async def lifespan(app: FastAPI):
     """Application lifespan - starts and stops background scheduler."""
     global _scheduler_task, _scheduler_running
 
-    # Startup: Start the background scheduler
-    print("[STARTUP] Starting fault.watch API with content scheduler...")
-    _scheduler_task = asyncio.create_task(content_scheduler())
+    # Check if running on Fly.io (production) - scheduler only runs locally
+    is_production = os.environ.get('FLY_APP_NAME') is not None
+
+    if is_production:
+        print("[STARTUP] Starting fault.watch API (production mode - scheduler disabled)")
+        print("[STARTUP] Video scheduler only runs on local machine")
+    else:
+        # Startup: Start the background scheduler (local only)
+        print("[STARTUP] Starting fault.watch API with content scheduler (local mode)...")
+        _scheduler_task = asyncio.create_task(content_scheduler())
 
     yield
 
-    # Shutdown: Stop the scheduler gracefully
-    print("[SHUTDOWN] Stopping content scheduler...")
-    _scheduler_running = False
-    if _scheduler_task:
+    # Shutdown: Stop the scheduler gracefully (if running)
+    if not is_production and _scheduler_task:
+        print("[SHUTDOWN] Stopping content scheduler...")
+        _scheduler_running = False
         _scheduler_task.cancel()
         try:
             await _scheduler_task
         except asyncio.CancelledError:
             pass
-    print("[SHUTDOWN] Content scheduler stopped")
+        print("[SHUTDOWN] Content scheduler stopped")
 
 
 # =============================================================================
@@ -3404,16 +3411,28 @@ async def set_video_mode(generate_video: bool = False):
 async def get_scheduler_status():
     """
     Get background content scheduler status.
+    - Scheduler only runs locally (disabled on Fly.io production)
     - Weekdays: Hourly during market hours (9:30 AM - 4:00 PM ET)
     - Weekends: 4 times (12 AM, 6 AM, 12 PM, 6 PM ET)
     - Only generates when data has changed
     """
+    is_production = os.environ.get('FLY_APP_NAME') is not None
     now_et = datetime.now(ET)
+
+    if is_production:
+        return {
+            'scheduler_running': False,
+            'mode': 'production',
+            'message': 'Video scheduler only runs on local machine',
+            'current_time_et': now_et.strftime('%Y-%m-%d %I:%M %p ET'),
+        }
+
     wait_seconds, next_reason = get_next_run_time()
     next_run = now_et + timedelta(seconds=wait_seconds)
 
     return {
         'scheduler_running': _scheduler_running,
+        'mode': 'local',
         'current_time_et': now_et.strftime('%Y-%m-%d %I:%M %p ET'),
         'is_market_hours': is_market_hours(),
         'is_weekend': now_et.weekday() >= 5,
