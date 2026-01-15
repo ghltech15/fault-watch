@@ -21,6 +21,7 @@ COPY api.py .
 COPY fault_watch.py .
 COPY content_generator.py .
 COPY content_triggers.py .
+COPY crisis_gauge.py .
 
 # Copy data pipeline modules
 COPY data/ ./data/
