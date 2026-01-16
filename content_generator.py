@@ -37,6 +37,7 @@ class CardType(Enum):
     SECTORS = "sectors"
     MINERS = "miners"
     OPPORTUNITIES = "opportunities"
+    FAULT_WATCH_ALERTS = "fault_watch_alerts"
 
 
 @dataclass
@@ -928,6 +929,8 @@ class ContentGenerator:
                 self._draw_crisis_gauge_card(canvas, draw, data, progress)
             elif card_type == CardType.CASCADE:
                 self._draw_cascade_card(canvas, draw, data, progress)
+            elif card_type == CardType.FAULT_WATCH_ALERTS:
+                self._draw_fault_watch_alerts_card(canvas, draw, data, progress)
             else:
                 self._draw_generic_card(canvas, draw, data, progress, card_type.value.upper().replace('_', ' '), str(data.get('value', '')))
 
@@ -1115,6 +1118,90 @@ class ContentGenerator:
 
         font_name = self._get_font(60, bold=True)
         self._center_text(draw, stage_names.get(stage, ''), 600, font_name, (*white, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_fault_watch_alerts_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Fault Watch Alerts card - Strategic Alert System"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        # Colors for severity levels
+        severity_colors = {
+            'low': (74, 222, 128),      # green
+            'medium': (250, 204, 21),   # yellow
+            'high': (249, 115, 22),     # orange
+            'critical': (239, 68, 68),  # red
+        }
+
+        font_header = self._get_font(50, bold=True)
+        self._center_text(draw, "FAULT-WATCH ALERTS", 120, font_header, (*white, alpha))
+
+        # System status
+        system_status = data.get('system_status', 'MONITORING')
+        severity = data.get('severity', 'medium')
+        alerts_active = data.get('alerts_active', 0)
+        conditions = data.get('conditions_triggered', 0)
+
+        color = severity_colors.get(severity, severity_colors['medium'])
+
+        font_status = self._get_font(70, bold=True)
+        self._center_text(draw, system_status, 280, font_status, (*color, alpha))
+
+        # Market regime
+        regime = data.get('market_regime', 'Managed Stability')
+        font_regime = self._get_font(45)
+        self._center_text(draw, regime, 380, font_regime, (*secondary, alpha))
+
+        # Alert boxes
+        alert_names = ['Squeeze Risk', 'Settlement Risk', 'Door-Risk']
+        alert_statuses = data.get('alert_statuses', ['triggered', 'triggered', 'watching'])
+
+        font_alert = self._get_font(35, bold=True)
+        font_status_small = self._get_font(28)
+
+        box_width = 300
+        total_width = box_width * 3 + 40
+        start_x = (1080 - total_width) // 2
+        y = 500
+
+        for i, (name, status) in enumerate(zip(alert_names, alert_statuses)):
+            x = start_x + i * (box_width + 20)
+
+            # Box color based on status
+            if status == 'triggered':
+                box_color = (*severity_colors['high'], alpha // 3)
+                text_color = (*severity_colors['high'], alpha)
+            elif status == 'confirmed':
+                box_color = (*severity_colors['critical'], alpha // 3)
+                text_color = (*severity_colors['critical'], alpha)
+            else:
+                box_color = (100, 100, 100, alpha // 3)
+                text_color = (*secondary, alpha)
+
+            # Draw box
+            draw.rounded_rectangle([x, y, x + box_width, y + 180], radius=15, fill=box_color)
+
+            # Alert name
+            draw.text((x + box_width // 2, y + 50), name, font=font_alert, fill=text_color, anchor="mm")
+
+            # Status
+            status_text = status.upper()
+            draw.text((x + box_width // 2, y + 120), status_text, font=font_status_small, fill=text_color, anchor="mm")
+
+        # Stats line
+        font_stats = self._get_font(40)
+        stats_text = f"{alerts_active} ACTIVE  |  {conditions} CONDITIONS"
+        self._center_text(draw, stats_text, 780, font_stats, (*white, alpha))
+
+        # Inflection warning
+        inflection = data.get('top_inflection', 'Paper-Physical Linkage Break')
+        inflection_prob = data.get('inflection_prob', '65%')
+        font_inflection = self._get_font(32)
+        self._center_text(draw, f"Inflection: {inflection} ({inflection_prob})", 900, font_inflection, (*severity_colors['high'], alpha))
 
         font_footer = self._get_font(30)
         self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))

@@ -202,6 +202,10 @@ async def content_scheduler():
             cards_generated = 0
             cards_skipped = 0
 
+            # Fetch fault watch alerts data
+            alerts_data = build_fault_watch_alerts_data()
+            alert_statuses = [a.status.value for a in alerts_data.alerts]
+
             # Define card data for change detection
             card_data_map = {
                 CardType.PRICES: {'silver': silver_price, 'gold': gold_price, 'change': silver_change},
@@ -211,6 +215,16 @@ async def content_scheduler():
                 CardType.CRISIS_GAUGE: {'level': 3},
                 CardType.CASCADE: {'stage': 2},
                 CardType.SCENARIOS: {'silver': silver_price},
+                CardType.FAULT_WATCH_ALERTS: {
+                    'system_status': alerts_data.system_status,
+                    'severity': alerts_data.overall_alert_level.value,
+                    'alerts_active': alerts_data.alerts_active,
+                    'conditions_triggered': alerts_data.conditions_triggered,
+                    'market_regime': alerts_data.market_regime,
+                    'alert_statuses': alert_statuses,
+                    'top_inflection': alerts_data.inflection_points[0].name if alerts_data.inflection_points else '',
+                    'inflection_prob': alerts_data.inflection_points[0].probability if alerts_data.inflection_points else '',
+                },
             }
 
             for card_type, card_data in card_data_map.items():
