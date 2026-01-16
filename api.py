@@ -4554,16 +4554,6 @@ async def get_fault_watch_alerts_summary():
     }
 
 
-@app.get("/api/fault-watch-alerts/{alert_id}")
-async def get_specific_alert(alert_id: str):
-    """Get specific alert details"""
-    data = build_fault_watch_alerts_data()
-    for alert in data.alerts:
-        if alert.id == alert_id:
-            return alert
-    raise HTTPException(status_code=404, detail="Alert not found")
-
-
 @app.get("/api/fault-watch-alerts/inflection-points")
 async def get_inflection_points():
     """Get inflection point analysis"""
@@ -4573,6 +4563,16 @@ async def get_inflection_points():
         "market_regime": data.market_regime,
         "regime_description": data.regime_description
     }
+
+
+@app.get("/api/fault-watch-alerts/{alert_id}")
+async def get_specific_alert(alert_id: str):
+    """Get specific alert details"""
+    data = build_fault_watch_alerts_data()
+    for alert in data.alerts:
+        if alert.id == alert_id:
+            return alert
+    raise HTTPException(status_code=404, detail="Alert not found")
 
 
 # =============================================================================
