@@ -3571,9 +3571,10 @@ class UserRegistration(BaseModel):
 
 class UserComment(BaseModel):
     """User feedback comment"""
-    user_id: str
+    user_id: str  # Can be 'anonymous' for non-registered users
     comment: str
     rating: Optional[int] = None  # 1-5 stars
+    page: Optional[str] = None  # Which page the feedback is from
 
 
 @app.post("/api/users/register")
@@ -3643,20 +3644,21 @@ async def verify_user(user_id: str):
 @app.post("/api/users/comment")
 async def add_comment(comment: UserComment):
     """
-    Add a comment/feedback from a registered user.
+    Add a comment/feedback from any user (registered or anonymous).
     """
-    # Verify user exists
-    if comment.user_id not in _user_registrations:
-        raise HTTPException(status_code=403, detail="User not registered. Please register first.")
+    # Allow anonymous users to submit feedback
+    is_registered = comment.user_id in _user_registrations or comment.user_id == 'anonymous'
 
     _user_comments.append({
         'user_id': comment.user_id,
         'comment': comment.comment,
         'rating': comment.rating,
+        'page': comment.page,
+        'is_registered': comment.user_id in _user_registrations,
         'timestamp': datetime.now().isoformat(),
     })
 
-    print(f"[USER] New comment from {comment.user_id}: {comment.comment[:50]}...")
+    print(f"[FEEDBACK] From {comment.user_id}: {comment.comment[:80]}...")
 
     return {
         'success': True,
@@ -3669,18 +3671,521 @@ async def get_user_stats():
     """
     Get registration and feedback statistics (admin endpoint).
     """
-    # Count by platform
+    # Count ALL connected platforms (not just primary)
     platform_counts = {}
+    total_accounts = 0
     for user in _user_registrations.values():
-        platform = user.get('primary_platform', 'unknown')
-        platform_counts[platform] = platform_counts.get(platform, 0) + 1
+        social_accounts = user.get('social_accounts', [])
+        for account in social_accounts:
+            platform = account.get('platform', 'unknown')
+            platform_counts[platform] = platform_counts.get(platform, 0) + 1
+            total_accounts += 1
+
+    # Count feedback by type
+    feedback_types = {}
+    for comment in _user_comments:
+        # Extract reaction type from comment like "[helpful] feedback text"
+        comment_text = comment.get('comment', '')
+        if comment_text.startswith('[') and ']' in comment_text:
+            reaction = comment_text.split(']')[0][1:]
+            feedback_types[reaction] = feedback_types.get(reaction, 0) + 1
 
     return {
         'total_users': len(_user_registrations),
+        'total_accounts': total_accounts,
         'total_comments': len(_user_comments),
-        'by_platform': platform_counts,
+        'platforms': platform_counts,  # For frontend CommunityStatsCard
+        'by_platform': platform_counts,  # Legacy
+        'feedback_types': feedback_types,
         'recent_registrations': list(_user_registrations.values())[-10:],
         'recent_comments': _user_comments[-10:],
+    }
+
+
+# =============================================================================
+# GOVERNMENT INTERVENTION MODULE (Module 7: Strategic Intervention Tracker)
+# =============================================================================
+# Tracks administrative control, back-door deals, and non-market forces
+# that materially affect price discovery, supply availability, and systemic risk.
+
+class ControlLevel(str, Enum):
+    """Confidence level for administrative control signals"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CONFIRMED = "confirmed"
+
+class InterventionType(str, Enum):
+    """Types of government intervention"""
+    EQUITY_STAKE = "equity_stake"
+    JOINT_VENTURE = "joint_venture"
+    OFFTAKE_AGREEMENT = "offtake_agreement"
+    REGULATORY_FORBEARANCE = "regulatory_forbearance"
+    DPA_INVOCATION = "dpa_invocation"
+    LOGISTICS_PRIORITY = "logistics_priority"
+    STOCKPILE_PURCHASE = "stockpile_purchase"
+    EXPORT_RESTRICTION = "export_restriction"
+
+class EquityStake(BaseModel):
+    """Government or strategic equity ownership"""
+    entity: str  # Company or asset name
+    government: str  # US, China, etc.
+    stake_pct: float
+    vehicle: str  # Direct, SPV, sovereign fund, etc.
+    date_acquired: Optional[str] = None
+    strategic_metal: str  # Silver, copper, lithium, etc.
+    control_level: ControlLevel
+    notes: str
+
+class ChokepointAsset(BaseModel):
+    """Critical processing/logistics chokepoint"""
+    name: str
+    type: str  # Smelter, refinery, port, rail hub, etc.
+    location: str
+    controller: str  # Government or company
+    metals_processed: List[str]
+    capacity_pct_global: float  # % of global processing
+    control_level: ControlLevel
+    strategic_significance: str
+
+class RegulatoryAction(BaseModel):
+    """Regulatory forbearance or intervention"""
+    agency: str  # Fed, SEC, OCC, FDIC, etc.
+    action_type: str  # Waiver, relief, extension, etc.
+    target: str  # Bank, sector, rule
+    date: str
+    duration_months: Optional[int] = None
+    impact: str
+    control_level: ControlLevel
+    hidden_signal: str  # What this really means
+
+class DPAAction(BaseModel):
+    """Defense Production Act invocation or implied usage"""
+    title: str
+    sector: str
+    metals_affected: List[str]
+    date: str
+    explicit: bool  # True if formally invoked, False if implied
+    demand_impact: str  # Hidden demand floor created
+    civilian_impact: str  # Effect on civilian supply
+    control_level: ControlLevel
+
+class StrategicScenario(BaseModel):
+    """Strategic outcome scenario"""
+    name: str
+    probability: str  # "likely", "possible", "emerging"
+    description: str
+    indicators: List[str]
+    outcome: str
+    risk_color: str  # green, yellow, orange, red
+
+class GovernmentInterventionData(BaseModel):
+    """Complete government intervention module data"""
+    overall_control_level: ControlLevel
+    administrative_override_active: bool
+    alert_message: Optional[str] = None
+
+    # Sub-panels
+    equity_stakes: List[EquityStake]
+    chokepoints: List[ChokepointAsset]
+    regulatory_actions: List[RegulatoryAction]
+    dpa_actions: List[DPAAction]
+
+    # Strategic outcomes
+    current_scenario: str
+    scenarios: List[StrategicScenario]
+
+    # Interpretation signals
+    signal_hierarchy: Dict[str, str]
+
+    last_updated: str
+
+
+def build_government_intervention_data() -> GovernmentInterventionData:
+    """
+    Build government intervention tracking data.
+    This aggregates known government actions affecting strategic metals markets.
+    """
+
+    # Known equity stakes in strategic metals
+    equity_stakes = [
+        EquityStake(
+            entity="Codelco (Chile)",
+            government="Chile",
+            stake_pct=100.0,
+            vehicle="State-owned enterprise",
+            strategic_metal="Copper",
+            control_level=ControlLevel.CONFIRMED,
+            notes="World's largest copper producer. Government has full control over ~28% of global copper."
+        ),
+        EquityStake(
+            entity="China Molybdenum (CMOC)",
+            government="China",
+            stake_pct=36.0,
+            vehicle="State fund + provincial SOE",
+            strategic_metal="Cobalt, Copper",
+            control_level=ControlLevel.CONFIRMED,
+            notes="Controls ~15% of global cobalt through DRC operations."
+        ),
+        EquityStake(
+            entity="Jiangxi Copper",
+            government="China",
+            stake_pct=47.0,
+            vehicle="Provincial SOE",
+            strategic_metal="Copper, Silver",
+            control_level=ControlLevel.CONFIRMED,
+            notes="Largest copper smelter in China. Key silver byproduct."
+        ),
+        EquityStake(
+            entity="Fresnillo PLC",
+            government="Mexico (implicit)",
+            stake_pct=0.0,
+            vehicle="Regulatory leverage",
+            strategic_metal="Silver",
+            control_level=ControlLevel.MEDIUM,
+            notes="World's largest primary silver miner. Subject to Mexican nationalization risk."
+        ),
+        EquityStake(
+            entity="KGHM Polska Miedź",
+            government="Poland",
+            stake_pct=31.8,
+            vehicle="State Treasury",
+            strategic_metal="Silver, Copper",
+            control_level=ControlLevel.CONFIRMED,
+            notes="2nd largest silver producer globally. State has blocking stake."
+        ),
+        EquityStake(
+            entity="US Strategic Petroleum Reserve",
+            government="USA",
+            stake_pct=100.0,
+            vehicle="Direct government",
+            strategic_metal="Oil (precedent)",
+            control_level=ControlLevel.CONFIRMED,
+            notes="Model for potential strategic metals reserve. 2022 releases showed willingness to intervene."
+        ),
+        EquityStake(
+            entity="Defense Logistics Agency (DLA)",
+            government="USA",
+            stake_pct=100.0,
+            vehicle="DOD direct control",
+            strategic_metal="Silver, Rare Earths",
+            control_level=ControlLevel.CONFIRMED,
+            notes="National Defense Stockpile. Undisclosed quantities of strategic metals."
+        ),
+    ]
+
+    # Critical processing chokepoints
+    chokepoints = [
+        ChokepointAsset(
+            name="Chinese Silver Smelting Complex",
+            type="Smelter network",
+            location="China (multiple provinces)",
+            controller="Chinese SOEs / State coordination",
+            metals_processed=["Silver", "Lead", "Zinc"],
+            capacity_pct_global=42.0,
+            control_level=ControlLevel.CONFIRMED,
+            strategic_significance="China processes 42% of world silver. Export restrictions = global shortage."
+        ),
+        ChokepointAsset(
+            name="LBMA Good Delivery Refiners",
+            type="Refinery certification",
+            location="Global (77 refiners)",
+            controller="LBMA (UK)",
+            metals_processed=["Gold", "Silver"],
+            capacity_pct_global=95.0,
+            control_level=ControlLevel.HIGH,
+            strategic_significance="Controls definition of 'investment grade' bullion. Regulatory chokepoint."
+        ),
+        ChokepointAsset(
+            name="COMEX Approved Depositories",
+            type="Storage certification",
+            location="USA (5 locations)",
+            controller="CME Group",
+            metals_processed=["Gold", "Silver"],
+            capacity_pct_global=100.0,
+            control_level=ControlLevel.CONFIRMED,
+            strategic_significance="All COMEX deliveries must flow through approved vaults. Bottleneck."
+        ),
+        ChokepointAsset(
+            name="Port of Rotterdam",
+            type="Logistics hub",
+            location="Netherlands",
+            controller="Rotterdam Port Authority",
+            metals_processed=["All metals"],
+            capacity_pct_global=15.0,
+            control_level=ControlLevel.MEDIUM,
+            strategic_significance="Key EU entry point for metals. NATO logistics priority in crisis."
+        ),
+        ChokepointAsset(
+            name="Panama Canal",
+            type="Shipping lane",
+            location="Panama",
+            controller="Panama Canal Authority",
+            metals_processed=["All metals"],
+            capacity_pct_global=40.0,
+            control_level=ControlLevel.HIGH,
+            strategic_significance="US-Asia trade route. Drought restrictions = supply shock."
+        ),
+    ]
+
+    # Recent regulatory forbearance
+    regulatory_actions = [
+        RegulatoryAction(
+            agency="Federal Reserve",
+            action_type="BTFP lending facility",
+            target="Banking system",
+            date="2023-03-12",
+            duration_months=12,
+            impact="$165B emergency lending at par value",
+            control_level=ControlLevel.CONFIRMED,
+            hidden_signal="Banks holding underwater securities kept solvent through Fed backstop."
+        ),
+        RegulatoryAction(
+            agency="OCC",
+            action_type="Supplementary Leverage Ratio exemption",
+            target="Large banks",
+            date="2020-04-01",
+            duration_months=12,
+            impact="Excluded Treasuries from leverage calculations",
+            control_level=ControlLevel.CONFIRMED,
+            hidden_signal="Banks allowed to hold unlimited sovereign debt without capital impact."
+        ),
+        RegulatoryAction(
+            agency="SEC",
+            action_type="Delayed mark-to-market enforcement",
+            target="Regional banks",
+            date="2023-03-15",
+            duration_months=None,
+            impact="Unrealized losses not forcing immediate recognition",
+            control_level=ControlLevel.HIGH,
+            hidden_signal="Zombie banks continue operating. True insolvency hidden."
+        ),
+        RegulatoryAction(
+            agency="FDIC",
+            action_type="Systemic risk exception",
+            target="SVB, Signature Bank depositors",
+            date="2023-03-12",
+            duration_months=None,
+            impact="Full deposit guarantee beyond $250K",
+            control_level=ControlLevel.CONFIRMED,
+            hidden_signal="Implicit guarantee now exists for all large deposits."
+        ),
+        RegulatoryAction(
+            agency="CFTC",
+            action_type="Position limit exemptions",
+            target="Bullion banks",
+            date="Ongoing",
+            duration_months=None,
+            impact="Concentrated short positions allowed",
+            control_level=ControlLevel.HIGH,
+            hidden_signal="Market makers can maintain outsized short positions without limits."
+        ),
+    ]
+
+    # Defense Production Act and priority allocation
+    dpa_actions = [
+        DPAAction(
+            title="DPA Title III - Critical Minerals",
+            sector="Mining and processing",
+            metals_affected=["Lithium", "Cobalt", "Nickel", "Graphite", "Manganese"],
+            date="2022-03-31",
+            explicit=True,
+            demand_impact="$750M+ allocated for domestic production. Hidden demand floor.",
+            civilian_impact="EV battery supply competition. Strategic priority over consumer.",
+            control_level=ControlLevel.CONFIRMED
+        ),
+        DPAAction(
+            title="Inflation Reduction Act - Battery Provisions",
+            sector="Battery manufacturing",
+            metals_affected=["Lithium", "Cobalt", "Nickel", "Silver"],
+            date="2022-08-16",
+            explicit=False,
+            demand_impact="Tax credits create structural demand. $7,500/vehicle subsidy.",
+            civilian_impact="Reshoring demand competes with existing supply chains.",
+            control_level=ControlLevel.HIGH
+        ),
+        DPAAction(
+            title="DOD Silver Requirements (F-35, Missiles)",
+            sector="Defense electronics",
+            metals_affected=["Silver"],
+            date="Ongoing",
+            explicit=False,
+            demand_impact="~15M oz/year military demand. Classified exact figures.",
+            civilian_impact="Military contracts get priority. Civilian electronics may face allocation.",
+            control_level=ControlLevel.MEDIUM
+        ),
+        DPAAction(
+            title="CHIPS Act - Semiconductor Priority",
+            sector="Semiconductors",
+            metals_affected=["Silver", "Copper", "Gold"],
+            date="2022-08-09",
+            explicit=False,
+            demand_impact="$52B in subsidies creating metal demand floor.",
+            civilian_impact="Industrial silver demand locked in by government contracts.",
+            control_level=ControlLevel.HIGH
+        ),
+    ]
+
+    # Strategic outcome scenarios
+    scenarios = [
+        StrategicScenario(
+            name="Managed Scarcity",
+            probability="likely",
+            description="Prices suppressed through paper markets while physical allocation controlled administratively.",
+            indicators=[
+                "Paper-physical spread widening",
+                "Dealer premiums rising",
+                "Delivery delays increasing",
+                "Quiet stockpile purchases"
+            ],
+            outcome="Markets appear stable but physical access deteriorates. Two-tier pricing emerges.",
+            risk_color="yellow"
+        ),
+        StrategicScenario(
+            name="Civilian Supply Shock",
+            probability="possible",
+            description="Military/strategic demand crowds out industrial and retail buyers.",
+            indicators=[
+                "DPA invocations expanding",
+                "Export restrictions by producing nations",
+                "Industrial user complaints",
+                "Allocation system rumors"
+            ],
+            outcome="Shortages blamed on logistics. Emergency rationing introduced quietly.",
+            risk_color="orange"
+        ),
+        StrategicScenario(
+            name="Price Signal Break",
+            probability="emerging",
+            description="Paper market fails to clear against physical demand. Emergency intervention required.",
+            indicators=[
+                "COMEX fails to deliver",
+                "LBMA default event",
+                "Physical premiums >50%",
+                "Major dealer halts sales"
+            ],
+            outcome="Paper price becomes meaningless. Physical market takes over with extreme volatility.",
+            risk_color="red"
+        ),
+    ]
+
+    # Determine current scenario based on indicators
+    current_scenario = "Managed Scarcity"  # Default assessment
+
+    # Signal hierarchy (interpretation rules)
+    signal_hierarchy = {
+        "rule_1": "Administrative actions override price signals",
+        "rule_2": "Ownership signals override contract signals",
+        "rule_3": "Processing control signals override mining signals",
+        "rule_4": "Allocation signals override availability signals",
+        "interpretation": "If administrative signal conflicts with market signal, trust administrative signal"
+    }
+
+    # Determine overall control level
+    confirmed_actions = len([a for a in regulatory_actions if a.control_level == ControlLevel.CONFIRMED])
+    high_control_signals = len([a for a in regulatory_actions if a.control_level == ControlLevel.HIGH])
+
+    if confirmed_actions >= 3:
+        overall_level = ControlLevel.HIGH
+        override_active = True
+        alert = "Multiple confirmed administrative interventions detected. Markets not freely clearing."
+    elif high_control_signals >= 2:
+        overall_level = ControlLevel.MEDIUM
+        override_active = True
+        alert = "Elevated administrative control signals. Monitor for escalation."
+    else:
+        overall_level = ControlLevel.LOW
+        override_active = False
+        alert = None
+
+    return GovernmentInterventionData(
+        overall_control_level=overall_level,
+        administrative_override_active=override_active,
+        alert_message=alert,
+        equity_stakes=equity_stakes,
+        chokepoints=chokepoints,
+        regulatory_actions=regulatory_actions,
+        dpa_actions=dpa_actions,
+        current_scenario=current_scenario,
+        scenarios=scenarios,
+        signal_hierarchy=signal_hierarchy,
+        last_updated=datetime.now().isoformat()
+    )
+
+
+@app.get("/api/government-intervention", response_model=GovernmentInterventionData)
+async def get_government_intervention():
+    """
+    Get government intervention and administrative control data.
+    Module 7: Strategic Intervention Tracker
+    """
+    return build_government_intervention_data()
+
+
+@app.get("/api/government-intervention/equity")
+async def get_equity_stakes():
+    """Get government equity stakes in strategic metal assets"""
+    data = build_government_intervention_data()
+    return {
+        "count": len(data.equity_stakes),
+        "stakes": data.equity_stakes,
+        "metals_controlled": list(set(s.strategic_metal for s in data.equity_stakes))
+    }
+
+
+@app.get("/api/government-intervention/chokepoints")
+async def get_chokepoints():
+    """Get critical processing and logistics chokepoints"""
+    data = build_government_intervention_data()
+    return {
+        "count": len(data.chokepoints),
+        "chokepoints": data.chokepoints,
+        "total_control_pct": sum(c.capacity_pct_global for c in data.chokepoints) / len(data.chokepoints)
+    }
+
+
+@app.get("/api/government-intervention/regulatory")
+async def get_regulatory_forbearance():
+    """Get regulatory forbearance and intervention actions"""
+    data = build_government_intervention_data()
+    return {
+        "count": len(data.regulatory_actions),
+        "actions": data.regulatory_actions,
+        "agencies_involved": list(set(a.agency for a in data.regulatory_actions))
+    }
+
+
+@app.get("/api/government-intervention/dpa")
+async def get_dpa_actions():
+    """Get Defense Production Act and priority allocation signals"""
+    data = build_government_intervention_data()
+    return {
+        "count": len(data.dpa_actions),
+        "actions": data.dpa_actions,
+        "metals_affected": list(set(m for a in data.dpa_actions for m in a.metals_affected))
+    }
+
+
+@app.get("/api/government-intervention/scenarios")
+async def get_strategic_scenarios():
+    """Get strategic outcome scenarios and current assessment"""
+    data = build_government_intervention_data()
+    return {
+        "current_scenario": data.current_scenario,
+        "scenarios": data.scenarios,
+        "signal_hierarchy": data.signal_hierarchy
+    }
+
+
+@app.get("/api/government-intervention/alert")
+async def get_intervention_alert():
+    """Get current administrative override alert status"""
+    data = build_government_intervention_data()
+    return {
+        "override_active": data.administrative_override_active,
+        "control_level": data.overall_control_level,
+        "alert": data.alert_message,
+        "interpretation": "Markets are no longer the decision-makers — administrators are." if data.administrative_override_active else "Markets functioning with normal regulatory oversight."
     }
 
 

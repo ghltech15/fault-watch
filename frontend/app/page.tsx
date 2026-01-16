@@ -5,13 +5,14 @@ import { useQuery } from '@tanstack/react-query'
 import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData, NakedShortAnalysis, AlertData, TheoryData, CrisisGaugeData, CrisisScannerData } from '@/lib/api'
 import { VerificationBadge, VerificationDot, CardHeader, VerificationLegend } from '@/components/VerificationBadge'
 import { CrisisGaugeCard, CrisisGaugeDetailView } from '@/components/CrisisGauge'
+import { GovernmentInterventionCard, GovernmentInterventionDetailView } from '@/components/GovernmentIntervention'
 import { ExecutiveSummary } from '@/components/ExecutiveSummary'
 import { CrisisScanner } from '@/components/CrisisScanner'
-import { UserRegistrationCard, AccessGate, useUserAccess } from '@/components/UserRegistration'
+import { UserRegistrationCard, AccessGate, useUserAccess, FeedbackCard, CommunityStatsCard } from '@/components/UserRegistration'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale, Radio, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale, Radio, ChevronDown, ChevronUp, Shield } from 'lucide-react'
 
-type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | 'crisis-gauge' | null
+type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | 'crisis-gauge' | 'government' | null
 
 function formatNumber(num: number, decimals = 2): string {
   if (Math.abs(num) >= 1e9) return `$${(num / 1e9).toFixed(1)}B`
@@ -1089,9 +1090,18 @@ function CrisisScannerSection() {
   )
 }
 
-function SectionHeader({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon?: any }) {
+function SectionHeader({ title, subtitle, icon: Icon, flowFrom }: { title: string; subtitle: string; icon?: any; flowFrom?: string }) {
   return (
     <div className="section-header">
+      {flowFrom && (
+        <div className="flex items-center gap-2 mb-2 text-xs text-gray-500">
+          <div className="flex items-center gap-1 px-2 py-1 bg-gray-800/50 rounded-full">
+            <span className="text-yellow-500">↓</span>
+            <span>{flowFrom}</span>
+          </div>
+          <div className="flex-1 border-t border-dashed border-gray-700"></div>
+        </div>
+      )}
       <div className="flex items-center gap-3">
         {Icon && <Icon className="w-5 h-5 text-danger" />}
         <div>
@@ -2183,6 +2193,7 @@ export default function Dashboard() {
           title="THE EXPOSURE"
           subtitle="Bank short positions and potential insolvency"
           icon={Skull}
+          flowFrom="Rising silver prices create massive losses on bank short positions"
         />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-12">
           <div onClick={() => setExpandedCard('naked-shorts')} className="lg:col-span-2"><NakedShortsCard /></div>
@@ -2194,6 +2205,7 @@ export default function Dashboard() {
           title="THE CRACKS"
           subtitle="Early warning indicators of systemic stress"
           icon={Activity}
+          flowFrom="Bank losses trigger credit stress, margin calls, and early warning signals"
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
           <div onClick={() => setExpandedCard('crisis-gauge')}><CrisisGaugeCard /></div>
@@ -2204,11 +2216,23 @@ export default function Dashboard() {
           <div onClick={() => setExpandedCard('theories')}><WorkingTheoriesCard /></div>
         </div>
 
+        {/* SECTION 3.5: ADMINISTRATIVE CONTROL */}
+        <SectionHeader
+          title="THE OVERRIDE"
+          subtitle="Government intervention and administrative control signals"
+          icon={Shield}
+          flowFrom="When markets break, governments step in — tracking who controls supply"
+        />
+        <div className="grid grid-cols-1 gap-4 mb-12">
+          <div onClick={() => setExpandedCard('government')}><GovernmentInterventionCard /></div>
+        </div>
+
         {/* SECTION 4: THE FALLOUT */}
         <SectionHeader
           title="THE FALLOUT"
           subtitle="Sector contagion and investment opportunities"
           icon={TrendingDown}
+          flowFrom="Systemic stress spreads to other sectors, creating risks and opportunities"
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
           <div onClick={() => setExpandedCard('sectors')}><SectorsCard /></div>
@@ -2216,49 +2240,88 @@ export default function Dashboard() {
           <div onClick={() => setExpandedCard('opportunities')} className="lg:col-span-2"><OpportunitiesCard /></div>
         </div>
 
-        {/* USER REGISTRATION / FEEDBACK */}
-        {!hasAccess && (
-          <>
-            <SectionHeader
-              title="JOIN THE COMMUNITY"
-              subtitle="Unlock full access and help us build a better app"
-              icon={Radio}
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
-              <UserRegistrationCard onRegistered={handleRegistered} userId={userId} />
-              <div className="card bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border-blue-500/30">
-                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <span className="text-2xl">📊</span> Why Register?
-                </h3>
-                <ul className="space-y-2 text-sm text-gray-300">
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span>Full access to detailed bank exposure analysis</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span>Real-time crisis gauge deep dives</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span>Scenario modeling and price projections</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span>Investment opportunity breakdowns</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span>Help shape the future of fault.watch</span>
-                  </li>
-                </ul>
-                <p className="mt-4 text-xs text-gray-500">
-                  Your feedback directly influences our roadmap!
-                </p>
-              </div>
+        {/* COMMUNITY & FEEDBACK - Always visible */}
+        <SectionHeader
+          title="COMMUNITY & FEEDBACK"
+          subtitle="Join the community and help us build a better app"
+          icon={Radio}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+          {/* Registration or Community Stats */}
+          {!hasAccess ? (
+            <UserRegistrationCard onRegistered={handleRegistered} userId={userId} />
+          ) : (
+            <CommunityStatsCard />
+          )}
+
+          {/* Feedback Card - Always visible */}
+          <FeedbackCard userId={userId} />
+
+          {/* Why Join / Benefits */}
+          {!hasAccess ? (
+            <div className="card bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border-blue-500/30">
+              <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                <span className="text-2xl">📊</span> Why Join?
+              </h3>
+              <ul className="space-y-2 text-sm text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Full access to detailed bank exposure analysis</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Real-time crisis gauge deep dives</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Scenario modeling and price projections</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Investment opportunity breakdowns</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400">✓</span>
+                  <span>Shape the future of fault.watch</span>
+                </li>
+              </ul>
+              <p className="mt-4 text-xs text-gray-500">
+                Connect all your social accounts to join our cross-platform community!
+              </p>
             </div>
-          </>
-        )}
+          ) : (
+            <div className="card bg-gradient-to-br from-emerald-900/20 to-green-900/20 border-emerald-500/30">
+              <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                <span className="text-2xl">🎯</span> What's Next
+              </h3>
+              <ul className="space-y-2 text-sm text-gray-300">
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400">→</span>
+                  <span>Mobile app with push alerts</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400">→</span>
+                  <span>Real-time price alerts</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400">→</span>
+                  <span>Community discussion board</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400">→</span>
+                  <span>Portfolio tracking</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400">→</span>
+                  <span>Your suggestions here!</span>
+                </li>
+              </ul>
+              <p className="mt-4 text-xs text-gray-500">
+                Use the feedback card to tell us what you want!
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Footer with Resources */}
         <div className="border-t border-border pt-8 mt-8 text-center">
@@ -2358,6 +2421,12 @@ export default function Dashboard() {
       <Modal isOpen={expandedCard === 'opportunities'} onClose={() => setExpandedCard(null)} title="Investment Opportunities">
         <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
           <OpportunitiesDetailView />
+        </AccessGate>
+      </Modal>
+
+      <Modal isOpen={expandedCard === 'government'} onClose={() => setExpandedCard(null)} title="Administrative Control Layer">
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <GovernmentInterventionDetailView />
         </AccessGate>
       </Modal>
     </div>

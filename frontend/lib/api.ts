@@ -464,6 +464,14 @@ export const api = {
   getCrisisScanner: () => fetchAPI<CrisisScannerData>('/api/crisis-scanner'),
   // Global physical silver prices
   getGlobalPhysical: () => fetchAPI<GlobalPhysicalData>('/api/watchlist/global-physical'),
+  // Government Intervention Module
+  getGovernmentIntervention: () => fetchAPI<GovernmentInterventionData>('/api/government-intervention'),
+  getEquityStakes: () => fetchAPI<{ count: number; stakes: EquityStake[]; metals_controlled: string[] }>('/api/government-intervention/equity'),
+  getChokepoints: () => fetchAPI<{ count: number; chokepoints: ChokepointAsset[]; total_control_pct: number }>('/api/government-intervention/chokepoints'),
+  getRegulatoryActions: () => fetchAPI<{ count: number; actions: RegulatoryAction[]; agencies_involved: string[] }>('/api/government-intervention/regulatory'),
+  getDPAActions: () => fetchAPI<{ count: number; actions: DPAAction[]; metals_affected: string[] }>('/api/government-intervention/dpa'),
+  getStrategicScenarios: () => fetchAPI<{ current_scenario: string; scenarios: StrategicScenario[]; signal_hierarchy: Record<string, string> }>('/api/government-intervention/scenarios'),
+  getInterventionAlert: () => fetchAPI<InterventionAlert>('/api/government-intervention/alert'),
 }
 
 // Global Physical Silver Prices
@@ -730,6 +738,7 @@ export interface UserComment {
   user_id: string
   comment: string
   rating?: number
+  page?: string  // Which page the feedback is from
 }
 
 export async function registerUser(registration: UserRegistration): Promise<{
@@ -767,3 +776,84 @@ export async function submitComment(comment: UserComment): Promise<{ success: bo
   }
   return res.json()
 }
+
+// =============================================================================
+// GOVERNMENT INTERVENTION MODULE (Module 7: Strategic Intervention Tracker)
+// =============================================================================
+
+export type ControlLevel = 'low' | 'medium' | 'high' | 'confirmed'
+
+export interface EquityStake {
+  entity: string
+  government: string
+  stake_pct: number
+  vehicle: string
+  date_acquired?: string
+  strategic_metal: string
+  control_level: ControlLevel
+  notes: string
+}
+
+export interface ChokepointAsset {
+  name: string
+  type: string
+  location: string
+  controller: string
+  metals_processed: string[]
+  capacity_pct_global: number
+  control_level: ControlLevel
+  strategic_significance: string
+}
+
+export interface RegulatoryAction {
+  agency: string
+  action_type: string
+  target: string
+  date: string
+  duration_months?: number
+  impact: string
+  control_level: ControlLevel
+  hidden_signal: string
+}
+
+export interface DPAAction {
+  title: string
+  sector: string
+  metals_affected: string[]
+  date: string
+  explicit: boolean
+  demand_impact: string
+  civilian_impact: string
+  control_level: ControlLevel
+}
+
+export interface StrategicScenario {
+  name: string
+  probability: 'likely' | 'possible' | 'emerging'
+  description: string
+  indicators: string[]
+  outcome: string
+  risk_color: string
+}
+
+export interface GovernmentInterventionData {
+  overall_control_level: ControlLevel
+  administrative_override_active: boolean
+  alert_message?: string
+  equity_stakes: EquityStake[]
+  chokepoints: ChokepointAsset[]
+  regulatory_actions: RegulatoryAction[]
+  dpa_actions: DPAAction[]
+  current_scenario: string
+  scenarios: StrategicScenario[]
+  signal_hierarchy: Record<string, string>
+  last_updated: string
+}
+
+export interface InterventionAlert {
+  override_active: boolean
+  control_level: ControlLevel
+  alert?: string
+  interpretation: string
+}
+
