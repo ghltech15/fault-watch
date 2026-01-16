@@ -6,13 +6,14 @@ import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData, 
 import { VerificationBadge, VerificationDot, CardHeader, VerificationLegend } from '@/components/VerificationBadge'
 import { CrisisGaugeCard, CrisisGaugeDetailView } from '@/components/CrisisGauge'
 import { GovernmentInterventionCard, GovernmentInterventionDetailView } from '@/components/GovernmentIntervention'
+import { FaultWatchAlertsCard, FaultWatchAlertsDetailView } from '@/components/FaultWatchAlerts'
 import { ExecutiveSummary } from '@/components/ExecutiveSummary'
 import { CrisisScanner } from '@/components/CrisisScanner'
 import { UserRegistrationCard, AccessGate, useUserAccess, FeedbackCard, CommunityStatsCard } from '@/components/UserRegistration'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale, Radio, ChevronDown, ChevronUp, Shield } from 'lucide-react'
 
-type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | 'crisis-gauge' | 'government' | null
+type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | 'crisis-gauge' | 'government' | 'fault-watch-alerts' | null
 
 function formatNumber(num: number, decimals = 2): string {
   if (Math.abs(num) >= 1e9) return `$${(num / 1e9).toFixed(1)}B`
@@ -2208,6 +2209,7 @@ export default function Dashboard() {
           flowFrom="Bank losses trigger credit stress, margin calls, and early warning signals"
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+          <div onClick={() => setExpandedCard('fault-watch-alerts')}><FaultWatchAlertsCard /></div>
           <div onClick={() => setExpandedCard('crisis-gauge')}><CrisisGaugeCard /></div>
           <div onClick={() => setExpandedCard('cascade')}><CascadeCard /></div>
           <div onClick={() => setExpandedCard('contagion')}><ContagionCard /></div>
@@ -2427,6 +2429,12 @@ export default function Dashboard() {
       <Modal isOpen={expandedCard === 'government'} onClose={() => setExpandedCard(null)} title="Administrative Control Layer">
         <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
           <GovernmentInterventionDetailView />
+        </AccessGate>
+      </Modal>
+
+      <Modal isOpen={expandedCard === 'fault-watch-alerts'} onClose={() => setExpandedCard(null)} title="Fault-Watch Strategic Alerts">
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <FaultWatchAlertsDetailView />
         </AccessGate>
       </Modal>
     </div>

@@ -472,6 +472,11 @@ export const api = {
   getDPAActions: () => fetchAPI<{ count: number; actions: DPAAction[]; metals_affected: string[] }>('/api/government-intervention/dpa'),
   getStrategicScenarios: () => fetchAPI<{ current_scenario: string; scenarios: StrategicScenario[]; signal_hierarchy: Record<string, string> }>('/api/government-intervention/scenarios'),
   getInterventionAlert: () => fetchAPI<InterventionAlert>('/api/government-intervention/alert'),
+  // Fault-Watch Alerts Module
+  getFaultWatchAlerts: () => fetchAPI<FaultWatchAlertsData>('/api/fault-watch-alerts'),
+  getFaultWatchAlertsSummary: () => fetchAPI<AlertsSummary>('/api/fault-watch-alerts/summary'),
+  getSpecificAlert: (alertId: string) => fetchAPI<StrategicAlert>(`/api/fault-watch-alerts/${alertId}`),
+  getInflectionPoints: () => fetchAPI<{ inflection_points: InflectionPoint[]; market_regime: string; regime_description: string }>('/api/fault-watch-alerts/inflection-points'),
 }
 
 // Global Physical Silver Prices
@@ -855,5 +860,71 @@ export interface InterventionAlert {
   control_level: ControlLevel
   alert?: string
   interpretation: string
+}
+
+// =============================================================================
+// FAULT-WATCH ALERTS MODULE
+// =============================================================================
+
+export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical'
+export type AlertStatus = 'inactive' | 'watching' | 'triggered' | 'confirmed'
+
+export interface AlertCondition {
+  id: string
+  name: string
+  description: string
+  detected: boolean
+  detection_date?: string
+  evidence?: string
+  data_source: string
+  weight: number
+}
+
+export interface StrategicAlert {
+  id: string
+  name: string
+  subtitle: string
+  description: string
+  status: AlertStatus
+  severity: AlertSeverity
+  conditions_required: number
+  conditions_met: number
+  conditions: AlertCondition[]
+  trigger_window_days: number
+  last_updated: string
+  interpretation: string
+  action_items: string[]
+}
+
+export interface InflectionPoint {
+  id: string
+  name: string
+  description: string
+  current_status: string
+  indicators: string[]
+  probability: string
+  timeline: string
+  what_to_watch: string
+}
+
+export interface FaultWatchAlertsData {
+  overall_alert_level: AlertSeverity
+  alerts_active: number
+  conditions_triggered: number
+  system_status: string
+  alerts: StrategicAlert[]
+  inflection_points: InflectionPoint[]
+  market_regime: string
+  regime_description: string
+  last_updated: string
+}
+
+export interface AlertsSummary {
+  overall_level: AlertSeverity
+  alerts_active: number
+  conditions_triggered: number
+  system_status: string
+  market_regime: string
+  regime_description: string
 }
 

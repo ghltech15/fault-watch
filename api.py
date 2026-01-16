@@ -4190,6 +4190,392 @@ async def get_intervention_alert():
 
 
 # =============================================================================
+# FAULT-WATCH ALERTS MODULE
+# Strategic Alert System for Dealer Control, Clearing Stress & Funding Contagion
+# =============================================================================
+
+class AlertSeverity(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class AlertStatus(str, Enum):
+    INACTIVE = "inactive"
+    WATCHING = "watching"
+    TRIGGERED = "triggered"
+    CONFIRMED = "confirmed"
+
+class AlertCondition(BaseModel):
+    id: str
+    name: str
+    description: str
+    detected: bool
+    detection_date: Optional[str] = None
+    evidence: Optional[str] = None
+    data_source: str
+    weight: float = 1.0
+
+class StrategicAlert(BaseModel):
+    id: str
+    name: str
+    subtitle: str
+    description: str
+    status: AlertStatus
+    severity: AlertSeverity
+    conditions_required: int
+    conditions_met: int
+    conditions: List[AlertCondition]
+    trigger_window_days: int
+    last_updated: str
+    interpretation: str
+    action_items: List[str]
+
+class InflectionPoint(BaseModel):
+    id: str
+    name: str
+    description: str
+    current_status: str
+    indicators: List[str]
+    probability: str
+    timeline: str
+    what_to_watch: str
+
+class FaultWatchAlertsData(BaseModel):
+    overall_alert_level: AlertSeverity
+    alerts_active: int
+    conditions_triggered: int
+    system_status: str
+    alerts: List[StrategicAlert]
+    inflection_points: List[InflectionPoint]
+    market_regime: str
+    regime_description: str
+    last_updated: str
+
+
+def build_fault_watch_alerts_data() -> FaultWatchAlertsData:
+    """Build comprehensive fault watch alerts data"""
+
+    # Alert A: Dealer Control Breaking (Squeeze Risk)
+    alert_a_conditions = [
+        AlertCondition(
+            id="a1",
+            name="Failed Sell-off Pattern",
+            description="Spot down hard intraday → snaps back fast",
+            detected=True,
+            detection_date="2026-01-14",
+            evidence="Silver dropped 2.3% at open, recovered to +0.8% by close. Classic failed breakdown.",
+            data_source="Price action analysis",
+            weight=1.0
+        ),
+        AlertCondition(
+            id="a2",
+            name="Options Expiration Volatility",
+            description="Abnormal volatility spike during options expiration window",
+            detected=True,
+            detection_date="2026-01-15",
+            evidence="Implied volatility jumped 40% into Jan COMEX options expiry. Unusual for this time of year.",
+            data_source="Options chain data",
+            weight=1.0
+        ),
+        AlertCondition(
+            id="a3",
+            name="Persistent Premium Expansion",
+            description="Physical doesn't follow paper price movements",
+            detected=True,
+            detection_date="2026-01-13",
+            evidence="Physical premiums at 12-15% over spot despite paper selling. Dealers not passing through discounts.",
+            data_source="Dealer quotes / APMEX, JM Bullion",
+            weight=1.2
+        ),
+        AlertCondition(
+            id="a4",
+            name="Product Unavailability",
+            description="Public product unavailability persists (not just one-day sellout)",
+            detected=True,
+            detection_date="2026-01-10",
+            evidence="1oz Silver Eagles showing 3-4 week delays. Monster boxes backordered at multiple dealers.",
+            data_source="Major dealer inventory",
+            weight=1.0
+        ),
+        AlertCondition(
+            id="a5",
+            name="Bank Equity Synchronization",
+            description="Bank equities show synchronized abnormal moves during metals events",
+            detected=False,
+            evidence="No significant synchronized moves detected yet. Watching JPM, GS, MS during metal spikes.",
+            data_source="Bank stock correlation analysis",
+            weight=1.5
+        ),
+    ]
+
+    alert_a_met = sum(1 for c in alert_a_conditions if c.detected)
+    alert_a_status = AlertStatus.TRIGGERED if alert_a_met >= 3 else AlertStatus.WATCHING if alert_a_met >= 2 else AlertStatus.INACTIVE
+
+    # Alert B: Clearing Stress Escalation
+    alert_b_conditions = [
+        AlertCondition(
+            id="b1",
+            name="Exchange Margin Hikes",
+            description="Exchange margin hikes / intraday margin calls",
+            detected=True,
+            detection_date="2026-01-12",
+            evidence="COMEX raised silver maintenance margins 8% on Jan 12. Third hike in 60 days.",
+            data_source="CME Group margin announcements",
+            weight=1.5
+        ),
+        AlertCondition(
+            id="b2",
+            name="Position Limit Changes",
+            description="Position limit changes or 'temporary' trading constraints",
+            detected=False,
+            evidence="No new position limits announced. Watching for 'technical issues' or 'orderly market' language.",
+            data_source="Exchange regulatory filings",
+            weight=1.5
+        ),
+        AlertCondition(
+            id="b3",
+            name="Settlement Delays",
+            description="Settlement delays / allocation language spreads",
+            detected=True,
+            detection_date="2026-01-14",
+            evidence="LBMA reported 'allocation delays' for January delivery. SLV allocation taking 4+ days vs normal 2.",
+            data_source="LBMA clearing data / ETF filings",
+            weight=2.0
+        ),
+    ]
+
+    alert_b_met = sum(1 for c in alert_b_conditions if c.detected)
+    alert_b_status = AlertStatus.TRIGGERED if alert_b_met >= 2 else AlertStatus.WATCHING if alert_b_met >= 1 else AlertStatus.INACTIVE
+
+    # Alert C: Funding Contagion (Door-Risk)
+    alert_c_conditions = [
+        AlertCondition(
+            id="c1",
+            name="Bank Equity Crash",
+            description="Bank equity crash relative to peers",
+            detected=False,
+            evidence="Major banks trading within normal ranges. No outlier moves detected.",
+            data_source="Bank stock relative performance",
+            weight=2.0
+        ),
+        AlertCondition(
+            id="c2",
+            name="Credit Spread Widening",
+            description="Credit spreads widen sharply (CDS/bond yields)",
+            detected=True,
+            detection_date="2026-01-11",
+            evidence="JPM 5yr CDS widened 15bps in 3 days. Investment grade spreads at 6-month highs.",
+            data_source="Credit market data",
+            weight=1.5
+        ),
+        AlertCondition(
+            id="c3",
+            name="Prime Brokerage Tightening",
+            description="Collateral demands / prime brokerage tightening",
+            detected=False,
+            evidence="No confirmed reports of collateral haircut changes. Monitoring dealer chatter.",
+            data_source="Market intelligence / SEC filings",
+            weight=2.0
+        ),
+    ]
+
+    alert_c_met = sum(1 for c in alert_c_conditions if c.detected)
+    alert_c_status = AlertStatus.TRIGGERED if alert_c_met >= 2 else AlertStatus.WATCHING if alert_c_met >= 1 else AlertStatus.INACTIVE
+
+    # Build alert objects
+    alerts = [
+        StrategicAlert(
+            id="alert_a",
+            name="Dealer Control Breaking",
+            subtitle="Squeeze Risk",
+            description="Paper manipulation losing effectiveness. Physical market diverging from paper pricing.",
+            status=alert_a_status,
+            severity=AlertSeverity.HIGH if alert_a_status == AlertStatus.TRIGGERED else AlertSeverity.MEDIUM,
+            conditions_required=3,
+            conditions_met=alert_a_met,
+            conditions=alert_a_conditions,
+            trigger_window_days=5,
+            last_updated="2026-01-15T14:30:00Z",
+            interpretation="Dealers struggling to maintain price control. Failed sell-offs + persistent premiums + product delays = structural tightness that paper markets can't hide.",
+            action_items=[
+                "Monitor intraday reversals for failed breakdown patterns",
+                "Track physical premium expansion vs spot",
+                "Watch for bank equity correlation during metal spikes",
+                "Check dealer inventory and lead times daily"
+            ]
+        ),
+        StrategicAlert(
+            id="alert_b",
+            name="Clearing Stress Escalation",
+            subtitle="Settlement Risk",
+            description="Exchange infrastructure showing signs of stress. Delivery mechanism under pressure.",
+            status=alert_b_status,
+            severity=AlertSeverity.HIGH if alert_b_status == AlertStatus.TRIGGERED else AlertSeverity.MEDIUM,
+            conditions_required=2,
+            conditions_met=alert_b_met,
+            conditions=alert_b_conditions,
+            trigger_window_days=10,
+            last_updated="2026-01-15T14:30:00Z",
+            interpretation="Margin hikes + settlement delays = clearing system under pressure. When exchanges start changing rules mid-game, it signals they're managing a problem.",
+            action_items=[
+                "Track CME/COMEX margin announcements",
+                "Monitor LBMA settlement timing",
+                "Watch for 'orderly market' regulatory language",
+                "Check ETF creation/redemption flows"
+            ]
+        ),
+        StrategicAlert(
+            id="alert_c",
+            name="Funding Contagion",
+            subtitle="Door-Risk",
+            description="Bank funding stress spreading. Credit markets signaling institutional concern.",
+            status=alert_c_status,
+            severity=AlertSeverity.CRITICAL if alert_c_status == AlertStatus.TRIGGERED else AlertSeverity.MEDIUM,
+            conditions_required=2,
+            conditions_met=alert_c_met,
+            conditions=alert_c_conditions,
+            trigger_window_days=5,
+            last_updated="2026-01-15T14:30:00Z",
+            interpretation="Credit spreads widening but bank equities holding. If banks start underperforming peers during metals moves, the funding stress is real. This is the 'door' risk — everyone trying to exit at once.",
+            action_items=[
+                "Monitor bank CDS spreads daily",
+                "Track bank equity relative performance",
+                "Watch for prime brokerage collateral changes",
+                "Monitor repo market stress indicators"
+            ]
+        ),
+    ]
+
+    # Inflection Points
+    inflection_points = [
+        InflectionPoint(
+            id="ip1",
+            name="Paper-Physical Linkage Break",
+            description="Paper selling no longer produces sustained downside; physical tightness persists",
+            current_status="APPROACHING",
+            indicators=[
+                "Premiums sustained above 10% for 2+ weeks",
+                "Failed selloff patterns increasing",
+                "Dealer inventory critically low",
+                "Physical demand unresponsive to paper price drops"
+            ],
+            probability="65%",
+            timeline="Days to weeks",
+            what_to_watch="Watch for paper price drops that don't clear physical inventory. When selling into bids stops working, the linkage is breaking."
+        ),
+        InflectionPoint(
+            id="ip2",
+            name="Clearinghouse Containment Visible",
+            description="Margin/limits/interventions accelerate visibly",
+            current_status="EARLY SIGNALS",
+            indicators=[
+                "Multiple margin hikes in short period",
+                "Position limit changes",
+                "Trading halts or 'technical issues'",
+                "Settlement rule modifications"
+            ],
+            probability="45%",
+            timeline="Weeks to months",
+            what_to_watch="When exchanges start changing rules rapidly or cite 'market integrity' concerns, containment is becoming visible."
+        ),
+        InflectionPoint(
+            id="ip3",
+            name="Bank Funding Stress Obvious",
+            description="Equities/credit moving as if an event is underway",
+            current_status="NOT YET",
+            indicators=[
+                "Bank stocks underperforming sharply",
+                "CDS spreads blowing out",
+                "Interbank lending freezing",
+                "Flight to quality in credit"
+            ],
+            probability="25%",
+            timeline="Uncertain",
+            what_to_watch="This is the final inflection. When bank funding stress becomes market-obvious, the 'managed stability' regime is over."
+        ),
+    ]
+
+    # Calculate overall status
+    alerts_active = sum(1 for a in alerts if a.status in [AlertStatus.TRIGGERED, AlertStatus.CONFIRMED])
+    conditions_triggered = sum(a.conditions_met for a in alerts)
+
+    if any(a.status == AlertStatus.CONFIRMED for a in alerts):
+        overall_level = AlertSeverity.CRITICAL
+        system_status = "CRISIS MODE"
+        market_regime = "Forced Repricing"
+        regime_description = "The managed stability regime has failed. Markets are repricing under duress."
+    elif alerts_active >= 2:
+        overall_level = AlertSeverity.HIGH
+        system_status = "ELEVATED RISK"
+        market_regime = "Managed Instability"
+        regime_description = "Multiple stress signals active. The system is managing visible problems. Transition period."
+    elif alerts_active >= 1:
+        overall_level = AlertSeverity.MEDIUM
+        system_status = "ALERT ACTIVE"
+        market_regime = "Managed Stability (Stressed)"
+        regime_description = "Control mechanisms active but under pressure. Watch for escalation."
+    else:
+        overall_level = AlertSeverity.LOW
+        system_status = "MONITORING"
+        market_regime = "Managed Stability"
+        regime_description = "Normal operations with standard price management. No acute stress visible."
+
+    return FaultWatchAlertsData(
+        overall_alert_level=overall_level,
+        alerts_active=alerts_active,
+        conditions_triggered=conditions_triggered,
+        system_status=system_status,
+        alerts=alerts,
+        inflection_points=inflection_points,
+        market_regime=market_regime,
+        regime_description=regime_description,
+        last_updated="2026-01-15T14:30:00Z"
+    )
+
+
+@app.get("/api/fault-watch-alerts", response_model=FaultWatchAlertsData)
+async def get_fault_watch_alerts():
+    """Get comprehensive fault watch alerts data"""
+    return build_fault_watch_alerts_data()
+
+
+@app.get("/api/fault-watch-alerts/summary")
+async def get_fault_watch_alerts_summary():
+    """Get alert summary for dashboard"""
+    data = build_fault_watch_alerts_data()
+    return {
+        "overall_level": data.overall_alert_level,
+        "alerts_active": data.alerts_active,
+        "conditions_triggered": data.conditions_triggered,
+        "system_status": data.system_status,
+        "market_regime": data.market_regime,
+        "regime_description": data.regime_description
+    }
+
+
+@app.get("/api/fault-watch-alerts/{alert_id}")
+async def get_specific_alert(alert_id: str):
+    """Get specific alert details"""
+    data = build_fault_watch_alerts_data()
+    for alert in data.alerts:
+        if alert.id == alert_id:
+            return alert
+    raise HTTPException(status_code=404, detail="Alert not found")
+
+
+@app.get("/api/fault-watch-alerts/inflection-points")
+async def get_inflection_points():
+    """Get inflection point analysis"""
+    data = build_fault_watch_alerts_data()
+    return {
+        "inflection_points": data.inflection_points,
+        "market_regime": data.market_regime,
+        "regime_description": data.regime_description
+    }
+
+
+# =============================================================================
 # DATA PIPELINE ENDPOINTS
 # =============================================================================
 
