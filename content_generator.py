@@ -38,6 +38,7 @@ class CardType(Enum):
     MINERS = "miners"
     OPPORTUNITIES = "opportunities"
     FAULT_WATCH_ALERTS = "fault_watch_alerts"
+    CRISIS_SEARCH_PAD = "crisis_search_pad"
 
 
 @dataclass
@@ -931,6 +932,8 @@ class ContentGenerator:
                 self._draw_cascade_card(canvas, draw, data, progress)
             elif card_type == CardType.FAULT_WATCH_ALERTS:
                 self._draw_fault_watch_alerts_card(canvas, draw, data, progress)
+            elif card_type == CardType.CRISIS_SEARCH_PAD:
+                self._draw_crisis_search_pad_card(canvas, draw, data, progress)
             else:
                 self._draw_generic_card(canvas, draw, data, progress, card_type.value.upper().replace('_', ' '), str(data.get('value', '')))
 
@@ -1202,6 +1205,98 @@ class ContentGenerator:
         inflection_prob = data.get('inflection_prob', '65%')
         font_inflection = self._get_font(32)
         self._center_text(draw, f"Inflection: {inflection} ({inflection_prob})", 900, font_inflection, (*severity_colors['high'], alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_crisis_search_pad_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Crisis Search Pad card - Research & Monitoring Dashboard"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        # Status colors
+        status_colors = {
+            'SEVERE': (239, 68, 68),      # red
+            'ELEVATED': (249, 115, 22),   # orange
+            'WATCHLIST': (250, 204, 21),  # yellow
+            'VOLATILE': (168, 85, 247),   # purple
+            'NORMAL': (74, 222, 128),     # green
+        }
+        cyan = (34, 211, 238)
+
+        font_header = self._get_font(50, bold=True)
+        self._center_text(draw, "CRISIS SEARCH PAD", 120, font_header, (*white, alpha))
+
+        font_sub = self._get_font(35)
+        self._center_text(draw, "Research & Monitoring", 190, font_sub, (*cyan, alpha))
+
+        # Assessment grid (2x2)
+        assessments = data.get('assessments', {
+            'physical_market': 'SEVERE',
+            'bank_exposure': 'ELEVATED',
+            'fed_activity': 'WATCHLIST',
+            'price_action': 'VOLATILE',
+        })
+
+        font_label = self._get_font(28)
+        font_status = self._get_font(35, bold=True)
+
+        grid_y = 280
+        grid_items = [
+            ('Physical Market', assessments.get('physical_market', 'SEVERE')),
+            ('Bank Exposure', assessments.get('bank_exposure', 'ELEVATED')),
+            ('Fed Activity', assessments.get('fed_activity', 'WATCHLIST')),
+            ('Price Action', assessments.get('price_action', 'VOLATILE')),
+        ]
+
+        for i, (label, status) in enumerate(grid_items):
+            row = i // 2
+            col = i % 2
+            x = 120 + col * 450
+            y = grid_y + row * 130
+
+            color = status_colors.get(status, status_colors['NORMAL'])
+            draw.rounded_rectangle([x, y, x + 400, y + 110], radius=10, fill=(*color, alpha // 4))
+            draw.text((x + 20, y + 15), label, font=font_label, fill=(*secondary, alpha))
+            draw.text((x + 20, y + 55), status, font=font_status, fill=(*color, alpha))
+
+        # Tier summary
+        tier_y = 580
+        font_tier = self._get_font(32, bold=True)
+        font_tier_desc = self._get_font(26)
+
+        tiers = [
+            ('TIER 1', 'Confirmed', (74, 222, 128)),
+            ('TIER 2', f"{data.get('rumors_count', 5)} Rumors", (249, 115, 22)),
+            ('TIER 3', f"{data.get('banks_count', 4)} Banks", (59, 130, 246)),
+        ]
+
+        box_width = 300
+        start_x = (1080 - (box_width * 3 + 40)) // 2
+
+        for i, (tier, desc, color) in enumerate(tiers):
+            x = start_x + i * (box_width + 20)
+            draw.rounded_rectangle([x, tier_y, x + box_width, tier_y + 100], radius=10, fill=(*color, alpha // 4))
+            draw.text((x + box_width // 2, tier_y + 30), tier, font=font_tier, fill=(*color, alpha), anchor="mm")
+            draw.text((x + box_width // 2, tier_y + 70), desc, font=font_tier_desc, fill=(*secondary, alpha), anchor="mm")
+
+        # Key date
+        key_date = data.get('next_key_date', 'Jan 17, 2026')
+        key_event = data.get('next_key_event', 'SILJ Options Expiration')
+        font_date = self._get_font(38, bold=True)
+        font_event = self._get_font(30)
+
+        self._center_text(draw, "NEXT KEY DATE", 750, font_label, (*secondary, alpha))
+        self._center_text(draw, key_date, 810, font_date, (*status_colors['ELEVATED'], alpha))
+        self._center_text(draw, key_event, 870, font_event, (*white, alpha))
+
+        # Metrics tracking
+        daily_count = data.get('daily_metrics', 7)
+        monthly_count = data.get('monthly_metrics', 4)
+        font_metrics = self._get_font(35)
+        self._center_text(draw, f"{daily_count} Daily + {monthly_count} Monthly Metrics", 960, font_metrics, (*cyan, alpha))
 
         font_footer = self._get_font(30)
         self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))

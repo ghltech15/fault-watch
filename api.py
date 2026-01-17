@@ -206,6 +206,9 @@ async def content_scheduler():
             alerts_data = build_fault_watch_alerts_data()
             alert_statuses = [a.status.value for a in alerts_data.alerts]
 
+            # Fetch crisis search pad data
+            search_pad_data = build_crisis_search_pad_data()
+
             # Define card data for change detection
             card_data_map = {
                 CardType.PRICES: {'silver': silver_price, 'gold': gold_price, 'change': silver_change},
@@ -224,6 +227,20 @@ async def content_scheduler():
                     'alert_statuses': alert_statuses,
                     'top_inflection': alerts_data.inflection_points[0].name if alerts_data.inflection_points else '',
                     'inflection_prob': alerts_data.inflection_points[0].probability if alerts_data.inflection_points else '',
+                },
+                CardType.CRISIS_SEARCH_PAD: {
+                    'assessments': {
+                        'physical_market': search_pad_data.current_assessment['physical_market']['status'],
+                        'bank_exposure': search_pad_data.current_assessment['bank_exposure']['status'],
+                        'fed_activity': search_pad_data.current_assessment['fed_activity']['status'],
+                        'price_action': search_pad_data.current_assessment['price_action']['status'],
+                    },
+                    'rumors_count': len(search_pad_data.rumors),
+                    'banks_count': len(search_pad_data.bank_positions),
+                    'next_key_date': search_pad_data.key_dates[0].date if search_pad_data.key_dates else '',
+                    'next_key_event': search_pad_data.key_dates[0].event if search_pad_data.key_dates else '',
+                    'daily_metrics': len(search_pad_data.daily_metrics),
+                    'monthly_metrics': len(search_pad_data.monthly_metrics),
                 },
             }
 
