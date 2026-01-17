@@ -477,6 +477,12 @@ export const api = {
   getFaultWatchAlertsSummary: () => fetchAPI<AlertsSummary>('/api/fault-watch-alerts/summary'),
   getSpecificAlert: (alertId: string) => fetchAPI<StrategicAlert>(`/api/fault-watch-alerts/${alertId}`),
   getInflectionPoints: () => fetchAPI<{ inflection_points: InflectionPoint[]; market_regime: string; regime_description: string }>('/api/fault-watch-alerts/inflection-points'),
+  // Crisis Search Pad Module
+  getCrisisSearchPad: () => fetchAPI<CrisisSearchPadData>('/api/crisis-search-pad'),
+  getCrisisSearchPadTier1: () => fetchAPI<{ fed_repo_activity: RepoEntry[]; fed_repo_key_change: string; comex_delivery_stress: ComexDeliveryEntry[]; lbma_data: LbmaDataEntry[]; lbma_key_event: string; china_export_restrictions: ChinaExportRestrictions; silver_price_action: SearchPadPriceEntry[] }>('/api/crisis-search-pad/tier1'),
+  getCrisisSearchPadTier2: () => fetchAPI<{ rumors: RumorEntry[] }>('/api/crisis-search-pad/tier2'),
+  getCrisisSearchPadTier3: () => fetchAPI<{ bank_positions: SearchPadBankPosition[] }>('/api/crisis-search-pad/tier3'),
+  getCrisisAssessment: () => fetchAPI<{ current_assessment: CurrentAssessment; key_dates: KeyDate[]; last_updated: string }>('/api/crisis-search-pad/assessment'),
 }
 
 // Global Physical Silver Prices
@@ -926,5 +932,121 @@ export interface AlertsSummary {
   system_status: string
   market_regime: string
   regime_description: string
+}
+
+// =============================================================================
+// CRISIS SEARCH PAD MODULE
+// =============================================================================
+
+export type DataTier = 'tier1' | 'tier2' | 'tier3'
+export type SearchPadVerificationStatus = 'verified' | 'unverified' | 'partial' | 'fabricated'
+
+export interface RepoEntry {
+  date: string
+  amount: string
+  notes: string
+}
+
+export interface ComexDeliveryEntry {
+  event: string
+  date: string
+  details: string
+}
+
+export interface LbmaDataEntry {
+  metric: string
+  value: string
+  date?: string
+}
+
+export interface SearchPadPriceEntry {
+  date: string
+  price: string
+  event: string
+}
+
+export interface RumorEntry {
+  title: string
+  claim: string
+  origin: string
+  verification_status: SearchPadVerificationStatus
+  status_note: string
+}
+
+export interface SearchPadBankPosition {
+  bank: string
+  reported_action?: string
+  current_position?: string
+  stock_price?: string
+  net_income?: string
+  status: string
+  forecast?: string
+  rumors?: string
+}
+
+export interface MonitoringMetric {
+  name: string
+  frequency: string
+  source?: string
+}
+
+export interface KeySource {
+  category: string
+  name: string
+  url?: string
+  notes?: string
+}
+
+export interface KeyDate {
+  date: string
+  event: string
+  significance: string
+}
+
+export interface ChinaExportRestrictions {
+  effective_date: string
+  authorized_companies: number
+  min_capacity: string
+  requirement: string
+  impact: string
+  sources: string[]
+}
+
+export interface CurrentAssessment {
+  physical_market: { status: string; detail: string }
+  bank_exposure: { status: string; detail: string }
+  fed_activity: { status: string; detail: string }
+  price_action: { status: string; detail: string }
+}
+
+export interface CrisisSearchPadData {
+  last_updated: string
+  // Tier 1: Confirmed Data
+  fed_repo_activity: RepoEntry[]
+  fed_repo_key_change: string
+  fed_repo_sources: string[]
+  comex_delivery_stress: ComexDeliveryEntry[]
+  comex_sources: string[]
+  lbma_data: LbmaDataEntry[]
+  lbma_key_event: string
+  lbma_sources: string[]
+  china_export_restrictions: ChinaExportRestrictions
+  silver_price_action: SearchPadPriceEntry[]
+  silver_2025_performance: string
+  silver_2026_ytd: string
+  // Tier 2: Rumors
+  rumors: RumorEntry[]
+  // Tier 3: Bank Positions
+  bank_positions: SearchPadBankPosition[]
+  // Monitoring
+  daily_metrics: MonitoringMetric[]
+  monthly_metrics: MonitoringMetric[]
+  event_triggers: string[]
+  // Sources
+  key_sources: KeySource[]
+  search_queries: string[]
+  // Assessment
+  current_assessment: CurrentAssessment
+  key_dates: KeyDate[]
 }
 

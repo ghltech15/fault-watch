@@ -7,13 +7,14 @@ import { VerificationBadge, VerificationDot, CardHeader, VerificationLegend } fr
 import { CrisisGaugeCard, CrisisGaugeDetailView } from '@/components/CrisisGauge'
 import { GovernmentInterventionCard, GovernmentInterventionDetailView } from '@/components/GovernmentIntervention'
 import { FaultWatchAlertsCard, FaultWatchAlertsDetailView } from '@/components/FaultWatchAlerts'
+import { CrisisSearchPadCard, CrisisSearchPadDetailView } from '@/components/CrisisSearchPad'
 import { ExecutiveSummary } from '@/components/ExecutiveSummary'
 import { CrisisScanner } from '@/components/CrisisScanner'
 import { UserRegistrationCard, AccessGate, useUserAccess, FeedbackCard, CommunityStatsCard } from '@/components/UserRegistration'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, TrendingDown, TrendingUp, Clock, Building2, Zap, BarChart3, Activity, Target, DollarSign, Layers, Gem, X, ChevronRight, Skull, Scale, Radio, ChevronDown, ChevronUp, Shield } from 'lucide-react'
 
-type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | 'crisis-gauge' | 'government' | 'fault-watch-alerts' | null
+type CardType = 'prices' | 'cascade' | 'contagion' | 'banks' | 'dominoes' | 'comex' | 'alerts' | 'theories' | 'scenarios' | 'sectors' | 'miners' | 'opportunities' | 'naked-shorts' | 'crisis-gauge' | 'government' | 'fault-watch-alerts' | 'crisis-search-pad' | null
 
 function formatNumber(num: number, decimals = 2): string {
   if (Math.abs(num) >= 1e9) return `$${(num / 1e9).toFixed(1)}B`
@@ -2216,6 +2217,7 @@ export default function Dashboard() {
           <div onClick={() => setExpandedCard('alerts')}><AlertsCard alerts={dashboard.alerts} /></div>
           <div onClick={() => setExpandedCard('dominoes')}><DominoCard dominoes={dashboard.dominoes} /></div>
           <div onClick={() => setExpandedCard('theories')}><WorkingTheoriesCard /></div>
+          <div onClick={() => setExpandedCard('crisis-search-pad')}><CrisisSearchPadCard /></div>
         </div>
 
         {/* SECTION 3.5: ADMINISTRATIVE CONTROL */}
@@ -2435,6 +2437,12 @@ export default function Dashboard() {
       <Modal isOpen={expandedCard === 'fault-watch-alerts'} onClose={() => setExpandedCard(null)} title="Fault-Watch Strategic Alerts">
         <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
           <FaultWatchAlertsDetailView />
+        </AccessGate>
+      </Modal>
+
+      <Modal isOpen={expandedCard === 'crisis-search-pad'} onClose={() => setExpandedCard(null)} title="Crisis Search Pad - Research & Monitoring">
+        <AccessGate userId={userId} onRequestAccess={() => { setExpandedCard(null); requestAccess(); }}>
+          <CrisisSearchPadDetailView />
         </AccessGate>
       </Modal>
     </div>

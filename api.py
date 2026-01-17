@@ -4590,6 +4590,370 @@ async def get_specific_alert(alert_id: str):
 
 
 # =============================================================================
+# CRISIS SEARCH PAD MODULE
+# Silver/Bank Crisis Research & Monitoring Dashboard
+# =============================================================================
+
+class DataTier(str, Enum):
+    TIER1_CONFIRMED = "tier1"
+    TIER2_RUMOR = "tier2"
+    TIER3_POSITIONS = "tier3"
+
+class VerificationStatus(str, Enum):
+    VERIFIED = "verified"
+    UNVERIFIED = "unverified"
+    PARTIAL = "partial"
+    FABRICATED = "fabricated"
+
+class RepoEntry(BaseModel):
+    date: str
+    amount: str
+    notes: str
+
+class ComexDeliveryEntry(BaseModel):
+    event: str
+    date: str
+    details: str
+
+class LbmaData(BaseModel):
+    metric: str
+    value: str
+    date: Optional[str] = None
+
+class PriceEntry(BaseModel):
+    date: str
+    price: str
+    event: str
+
+class RumorEntry(BaseModel):
+    title: str
+    claim: str
+    origin: str
+    verification_status: VerificationStatus
+    status_note: str
+
+class BankPosition(BaseModel):
+    bank: str
+    reported_action: Optional[str] = None
+    current_position: Optional[str] = None
+    stock_price: Optional[str] = None
+    net_income: Optional[str] = None
+    status: str
+    forecast: Optional[str] = None
+    rumors: Optional[str] = None
+
+class MonitoringMetric(BaseModel):
+    name: str
+    frequency: str
+    source: Optional[str] = None
+
+class KeySource(BaseModel):
+    category: str
+    name: str
+    url: Optional[str] = None
+    notes: Optional[str] = None
+
+class KeyDate(BaseModel):
+    date: str
+    event: str
+    significance: str
+
+class CrisisSearchPadData(BaseModel):
+    last_updated: str
+    # Tier 1: Confirmed Data
+    fed_repo_activity: List[RepoEntry]
+    fed_repo_key_change: str
+    fed_repo_sources: List[str]
+    comex_delivery_stress: List[ComexDeliveryEntry]
+    comex_sources: List[str]
+    lbma_data: List[LbmaData]
+    lbma_key_event: str
+    lbma_sources: List[str]
+    china_export_restrictions: dict
+    silver_price_action: List[PriceEntry]
+    silver_2025_performance: str
+    silver_2026_ytd: str
+    # Tier 2: Rumors
+    rumors: List[RumorEntry]
+    # Tier 3: Bank Positions
+    bank_positions: List[BankPosition]
+    # Monitoring
+    daily_metrics: List[MonitoringMetric]
+    monthly_metrics: List[MonitoringMetric]
+    event_triggers: List[str]
+    # Sources
+    key_sources: List[KeySource]
+    search_queries: List[str]
+    # Assessment
+    current_assessment: dict
+    key_dates: List[KeyDate]
+
+
+def build_crisis_search_pad_data() -> CrisisSearchPadData:
+    """Build comprehensive crisis search pad data"""
+
+    # Fed Repo Activity
+    fed_repo_activity = [
+        RepoEntry(date="Oct 31, 2025", amount="$51B", notes="First major injection after 5+ years of near-zero activity"),
+        RepoEntry(date="Dec 26, 2025", amount="$17.251B", notes="Morning of, banks tapped Standing Repo Facility"),
+        RepoEntry(date="Dec 28, 2025", amount="$34B", notes="Sunday 5PM injection"),
+        RepoEntry(date="Dec 31, 2025", amount="$74.6B", notes="Record year-end draw on Standing Repo Facility"),
+        RepoEntry(date="Jan 2, 2026", amount="$0", notes="Year-end turmoil resolved, SRF balance returned to zero"),
+    ]
+
+    # COMEX Delivery Stress
+    comex_delivery = [
+        ComexDeliveryEntry(event="Thanksgiving Block Order", date="Nov 30, 2025", details="7,330 contracts (36.65M oz) demanded; only 2.57M oz delivered; 93% cash settled at $65M premium"),
+        ComexDeliveryEntry(event="December Deliveries", date="Dec 2025", details="12,946 contracts (65M oz) requested; ~95% cash settled"),
+        ComexDeliveryEntry(event="January Deliveries MTD", date="Jan 7, 2026", details="1,624 contracts delivered; JPM issued 99% of 8.1M oz"),
+        ComexDeliveryEntry(event="Registered Inventory", date="Current", details="~127M oz (down 70%+ since 2020)"),
+        ComexDeliveryEntry(event="Margin Hike", date="Dec 29, 2025", details="CME raised margins"),
+        ComexDeliveryEntry(event="Margin Hike", date="Jan 7, 2026", details="Raised to $32,500 (47% increase in one week)"),
+    ]
+
+    # LBMA Data
+    lbma_data = [
+        LbmaData(metric="Total Silver Holdings", value="27,818 tonnes (894M oz)", date="End Dec 2025"),
+        LbmaData(metric="Monthly Change", value="+2.30%", date="Dec 2025"),
+        LbmaData(metric="Free Float Estimate", value="~135-155M oz", date="Per TD Securities"),
+        LbmaData(metric="ETF Holdings", value="~62% of vault total", date="Historic average"),
+        LbmaData(metric="Years to Depletion", value="4-7 months", date="At current drain rate"),
+    ]
+
+    # Silver Price Action
+    price_action = [
+        PriceEntry(date="Jan 1, 2025", price="~$29/oz", event="Year start"),
+        PriceEntry(date="Dec 26, 2025", price="$79.28", event="2025 High"),
+        PriceEntry(date="Dec 29, 2025", price="$83+/oz", event="Shanghai price"),
+        PriceEntry(date="Dec 31, 2025", price="~$71/oz", event="Post-correction"),
+        PriceEntry(date="Jan 14, 2026", price="$92.25", event="All-time nominal high"),
+        PriceEntry(date="Jan 16, 2026", price="~$91.50", event="Current"),
+    ]
+
+    # Tier 2: Rumors
+    rumors = [
+        RumorEntry(
+            title="Bank Collapse Narrative (Dec 28-29, 2025)",
+            claim="'Systemically important' bank failed $2.3B margin call at 2:47 AM",
+            origin="Hal Turner Radio Show, amplified via @silvertrade on X",
+            verification_status=VerificationStatus.UNVERIFIED,
+            status_note="No CME default notice, no FDIC action, no regulator statement"
+        ),
+        RumorEntry(
+            title="HSBC January 31 Exit Deadline",
+            claim="HSBC must exit silver market by Jan 31, 2026 due to inability to deliver registered metal + lawsuits",
+            origin="Social media, precious metals forums",
+            verification_status=VerificationStatus.UNVERIFIED,
+            status_note="Unconfirmed; HSBC continues active participation"
+        ),
+        RumorEntry(
+            title="BofA + Citi Massive Shorts",
+            claim="BofA short 1B oz; Citi short 3.4B oz (combined 4.4B oz = 550% of annual production)",
+            origin="@NoLimitGains on X, widely shared",
+            verification_status=VerificationStatus.FABRICATED,
+            status_note="CFTC reports show 22 banks net short ~212M oz total (not 4.4B)"
+        ),
+        RumorEntry(
+            title="$429M SILJ Options Bet",
+            claim="$429M in SILJ calls placed 8 minutes before close on Dec 27, 2025",
+            origin="SilverTrade",
+            verification_status=VerificationStatus.PARTIAL,
+            status_note="Timing suspicious but not verified"
+        ),
+        RumorEntry(
+            title="Physical Premium Divergence",
+            claim="Physical silver trading at $130/oz in Tokyo/Dubai vs $71 paper price (80% premium)",
+            origin="@barkmeta on X, various precious metals sites",
+            verification_status=VerificationStatus.PARTIAL,
+            status_note="Premiums confirmed elevated but 80% divergence is extreme end of reports"
+        ),
+    ]
+
+    # Bank Positions
+    bank_positions = [
+        BankPosition(
+            bank="JPMorgan Chase",
+            reported_action="Sold entire 200M oz paper short position (Jun-Oct 2025)",
+            current_position="Net LONG; holds estimated 750M oz physical (largest stockpile in history)",
+            stock_price="$334.61 (Jan 6, 2026) - near 52-week high",
+            net_income="$56.66B TTM",
+            status="Appears to be benefiting from rally, not distressed"
+        ),
+        BankPosition(
+            bank="HSBC",
+            current_position="Active in precious metals, LBMA member",
+            rumors="Jan 31 exit deadline, leased out client metal",
+            status="No confirmed distress",
+            forecast="Expects silver to average $68.25 in 2026"
+        ),
+        BankPosition(
+            bank="Citigroup",
+            reported_action="Significant derivatives book (2nd to JPM in precious metals notionals)",
+            current_position="Estimated $6.8B in silver futures to be sold during January index rebalancing",
+            status="No confirmed silver-specific distress"
+        ),
+        BankPosition(
+            bank="Bank of America",
+            forecast="Raised 12-month silver target; sees potential $135-$309/oz",
+            rumors="Short 1B oz (unverified)",
+            status="Forecasting higher prices"
+        ),
+    ]
+
+    # Monitoring Metrics
+    daily_metrics = [
+        MonitoringMetric(name="COMEX Registered Silver Inventory", frequency="Daily"),
+        MonitoringMetric(name="COMEX Daily Delivery Notices", frequency="Daily"),
+        MonitoringMetric(name="Silver Spot vs Futures (Backwardation)", frequency="Daily"),
+        MonitoringMetric(name="Shanghai vs COMEX price spread", frequency="Daily"),
+        MonitoringMetric(name="Fed Standing Repo Facility balance", frequency="Daily", source="FRED"),
+        MonitoringMetric(name="CME Margin announcements", frequency="Daily"),
+        MonitoringMetric(name="Bank stock prices (JPM, C, BAC, HSBC)", frequency="Daily"),
+    ]
+
+    monthly_metrics = [
+        MonitoringMetric(name="LBMA Vault Holdings", frequency="5th business day each month"),
+        MonitoringMetric(name="CFTC Bank Participation Report", frequency="Monthly"),
+        MonitoringMetric(name="CFTC Commitment of Traders", frequency="Weekly/Monthly"),
+        MonitoringMetric(name="Silver lease rates", frequency="Monthly"),
+    ]
+
+    event_triggers = [
+        "Any FDIC/Fed emergency announcements",
+        "CME member default notices",
+        "China export license approvals/denials",
+        "India import data",
+        "SLV/PSLV redemption suspensions",
+    ]
+
+    # Key Sources
+    key_sources = [
+        KeySource(category="Official", name="NY Fed", url="https://www.newyorkfed.org/markets/opolicy/operating_policy_251210"),
+        KeySource(category="Official", name="FRED Repo Data", url="https://fred.stlouisfed.org/series/RPONTSYD"),
+        KeySource(category="Official", name="CME Delivery Reports", url="https://www.cmegroup.com/delivery_reports/"),
+        KeySource(category="Official", name="LBMA Vault Data", url="https://www.lbma.org.uk/prices-and-data/london-vault-data"),
+        KeySource(category="Official", name="CFTC Reports", url="https://cftc.gov"),
+        KeySource(category="Analysis", name="DisruptionBanking.com", notes="Balanced analysis"),
+        KeySource(category="Analysis", name="SchiffGold.com", notes="COMEX tracking"),
+        KeySource(category="Analysis", name="SilverTrade.com", notes="Bullish, rumor amplifier"),
+        KeySource(category="Analysis", name="DCReport.org", notes="Investigative journalism"),
+        KeySource(category="Analysis", name="Wolf Street", notes="Macro/Fed analysis"),
+        KeySource(category="Analysis", name="ZeroHedge", notes="Sentiment indicator"),
+        KeySource(category="Social", name="r/WallStreetSilver", notes="Reddit community"),
+        KeySource(category="Social", name="X: @silvertrade, @barkmeta", notes="Twitter sentiment"),
+    ]
+
+    search_queries = [
+        "overnight repo facility banks silver [month] [year]",
+        "COMEX silver failure to deliver [year]",
+        "LBMA silver inventory drain [year]",
+        "JPMorgan silver short position [year]",
+        "HSBC silver exit [year]",
+        "Bank of America Citigroup silver short [year]",
+        "silver margin call bank [year]",
+        "silver backwardation COMEX [year]",
+        "Shanghai silver premium [year]",
+        "China silver export restriction [year]",
+        "Fed standing repo facility spike [year]",
+        "CME silver margin hike [year]",
+        "silver squeeze bank collapse [year]",
+        "CFTC bank participation report silver [year]",
+    ]
+
+    # Current Assessment
+    current_assessment = {
+        "physical_market": {"status": "SEVERE", "detail": "Backwardation, delivery failures, elevated premiums"},
+        "bank_exposure": {"status": "ELEVATED", "detail": "Rumors exceed evidence but watching closely"},
+        "fed_activity": {"status": "WATCHLIST", "detail": "Repo spikes normalized but pattern since Halloween unusual"},
+        "price_action": {"status": "VOLATILE", "detail": "Flat today after record week, consolidation or coiling unclear"},
+    }
+
+    key_dates = [
+        KeyDate(date="Jan 17, 2026", event="SILJ options expiration", significance="From Dec 27 rumored $429M bet"),
+        KeyDate(date="Jan 31, 2026", event="Rumored HSBC exit deadline", significance="Unverified but widely circulated"),
+        KeyDate(date="Early Feb 2026", event="LBMA January vault data release", significance="Key inventory data point"),
+    ]
+
+    return CrisisSearchPadData(
+        last_updated="January 16, 2026",
+        fed_repo_activity=fed_repo_activity,
+        fed_repo_key_change="Dec 11, 2025 - NY Fed removed aggregate operational limit on Standing Repo; now 'full allotment' with $40B max per proposition",
+        fed_repo_sources=["NY Fed", "FRED", "Wolf Street", "DCReport"],
+        comex_delivery_stress=comex_delivery,
+        comex_sources=["CME Group", "SchiffGold", "Jensen David Substack"],
+        lbma_data=lbma_data,
+        lbma_key_event="Oct 8, 2025 - India placed 1,000 ton order; lease rates spiked from 0.25% to 200%; METALOR (Swiss refiner) withdrew until January 2026",
+        lbma_sources=["LBMA", "TD Securities", "Mining.com"],
+        china_export_restrictions={
+            "effective_date": "January 1, 2026",
+            "authorized_companies": 44,
+            "min_capacity": "80+ tons annual production",
+            "requirement": "Government license required",
+            "impact": "Ring-fences ~60-70% of global refined silver supply",
+            "sources": ["Global Times", "China Daily", "FXStreet"],
+        },
+        silver_price_action=price_action,
+        silver_2025_performance="+147% (best since 1979)",
+        silver_2026_ytd="+20-29%",
+        rumors=rumors,
+        bank_positions=bank_positions,
+        daily_metrics=daily_metrics,
+        monthly_metrics=monthly_metrics,
+        event_triggers=event_triggers,
+        key_sources=key_sources,
+        search_queries=search_queries,
+        current_assessment=current_assessment,
+        key_dates=key_dates,
+    )
+
+
+@app.get("/api/crisis-search-pad", response_model=CrisisSearchPadData)
+async def get_crisis_search_pad():
+    """Get comprehensive crisis search pad data"""
+    return build_crisis_search_pad_data()
+
+
+@app.get("/api/crisis-search-pad/tier1")
+async def get_tier1_data():
+    """Get Tier 1 confirmed/verifiable data"""
+    data = build_crisis_search_pad_data()
+    return {
+        "fed_repo_activity": data.fed_repo_activity,
+        "fed_repo_key_change": data.fed_repo_key_change,
+        "comex_delivery_stress": data.comex_delivery_stress,
+        "lbma_data": data.lbma_data,
+        "lbma_key_event": data.lbma_key_event,
+        "china_export_restrictions": data.china_export_restrictions,
+        "silver_price_action": data.silver_price_action,
+    }
+
+
+@app.get("/api/crisis-search-pad/tier2")
+async def get_tier2_data():
+    """Get Tier 2 rumors/unverified data"""
+    data = build_crisis_search_pad_data()
+    return {"rumors": data.rumors}
+
+
+@app.get("/api/crisis-search-pad/tier3")
+async def get_tier3_data():
+    """Get Tier 3 bank positions"""
+    data = build_crisis_search_pad_data()
+    return {"bank_positions": data.bank_positions}
+
+
+@app.get("/api/crisis-search-pad/assessment")
+async def get_crisis_assessment():
+    """Get current crisis assessment"""
+    data = build_crisis_search_pad_data()
+    return {
+        "current_assessment": data.current_assessment,
+        "key_dates": data.key_dates,
+        "last_updated": data.last_updated,
+    }
+
+
+# =============================================================================
 # DATA PIPELINE ENDPOINTS
 # =============================================================================
 

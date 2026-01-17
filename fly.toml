@@ -2,7 +2,7 @@
 # fault.watch - Fly.io Configuration
 # ============================================
 
-app = "fault-watch"
+app = "fault-watch-api"
 primary_region = "sjc"  # San Jose - closest to you
 
 [build]
