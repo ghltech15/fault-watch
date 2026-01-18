@@ -63,9 +63,9 @@ function MonitorItemRow({ item }: { item: MonitorItem }) {
 // Monitoring Period Section
 function MonitoringSection({ period }: { period: MonitoringPeriod }) {
   const periodColors: Record<string, string> = {
-    'Sunday Night': 'text-purple-400 border-purple-500/30',
-    'Monday-Tuesday': 'text-blue-400 border-blue-500/30',
-    'Later This Week': 'text-cyan-400 border-cyan-500/30',
+    'Saturday-Sunday': 'text-purple-400 border-purple-500/30',
+    'Sunday 6 PM ET (Futures Open)': 'text-orange-400 border-orange-500/30',
+    'Monday': 'text-blue-400 border-blue-500/30',
   }
   const colors = periodColors[period.period] || 'text-gray-400 border-gray-500/30'
 

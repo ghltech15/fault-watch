@@ -5077,28 +5077,33 @@ def build_risk_matrix_data() -> RiskMatrixData:
 
     monitoring_schedule = [
         MonitoringPeriod(
-            period="Sunday Night",
+            period="Saturday-Sunday",
             items=[
-                MonitorItem(item="Silver futures gap size", priority="high"),
-                MonitorItem(item="Gold futures gap size", priority="high"),
-                MonitorItem(item="DXY (dollar) reaction", priority="normal"),
+                MonitorItem(item="Emergency Fed announcements", priority="high"),
+                MonitorItem(item="Bank press releases (MS, UBS, HSBC)", priority="high"),
+                MonitorItem(item="CME/COMEX margin hike announcements", priority="high"),
+                MonitorItem(item="Unusual options activity Friday close", priority="high"),
+                MonitorItem(item="Gold/silver lease rate spikes", priority="high"),
+                MonitorItem(item="Shanghai premium movements", priority="normal"),
             ]
         ),
         MonitoringPeriod(
-            period="Monday-Tuesday",
+            period="Sunday 6 PM ET (Futures Open)",
             items=[
-                MonitorItem(item="CME margin announcements (another hike?)", priority="high"),
-                MonitorItem(item="COMEX delivery notices", priority="high"),
-                MonitorItem(item="Bank stock prices (JPM, HSBC, DB)", priority="normal"),
-                MonitorItem(item="SRF usage (daily Fed data)", priority="high"),
+                MonitorItem(item="Opening gap direction and size", priority="high"),
+                MonitorItem(item="Volume in first 30 minutes", priority="high"),
+                MonitorItem(item="Spread between bid/ask (liquidity)", priority="normal"),
+                MonitorItem(item="COMEX vs. Shanghai vs. London pricing", priority="normal"),
             ]
         ),
         MonitoringPeriod(
-            period="Later This Week",
+            period="Monday",
             items=[
-                MonitorItem(item="CFTC Commitment of Traders (if released)", priority="normal"),
-                MonitorItem(item="LBMA clearing data", priority="normal"),
-                MonitorItem(item="Physical premium reports from Asia", priority="high"),
+                MonitorItem(item="Fed SRF usage (watch for leaks)", priority="high"),
+                MonitorItem(item="Bank stock pre-market (MS, UBS, HSBC, C, JPM)", priority="high"),
+                MonitorItem(item="Credit default swap spreads", priority="high"),
+                MonitorItem(item="VIX spike", priority="normal"),
+                MonitorItem(item="Treasury yields (flight to safety vs forced selling)", priority="normal"),
             ]
         ),
     ]
