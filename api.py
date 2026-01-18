@@ -5215,6 +5215,497 @@ async def get_risk_matrix_queries():
 
 
 # =============================================================================
+# POSSIBLE OUTLOOK MODULE (Controlled Demolition Thesis)
+# =============================================================================
+
+class PoliticalFactor(BaseModel):
+    id: str
+    description: str
+    status: bool  # True = confirmed/active
+    detail: Optional[str] = None
+
+class BankDomino(BaseModel):
+    name: str
+    ticker: str
+    insolvency_threshold: float  # Silver price that triggers insolvency
+    current_price: Optional[float] = None
+    price_change_pct: Optional[float] = None
+    status: str  # 'stable', 'warning', 'critical', 'insolvent', 'survivor'
+    is_survivor_candidate: bool = False
+    distance_to_threshold: Optional[float] = None  # How far silver is from trigger
+
+class CascadePhase(BaseModel):
+    phase: str
+    name: str
+    description: str
+    status: str  # 'pending', 'active', 'completed'
+    indicators: List[str]
+
+class TimelineEvent(BaseModel):
+    date: str
+    original_date: str  # Keep original for reference
+    day: str
+    event: str
+    price_target: Optional[str] = None
+    status: str  # 'past', 'today', 'upcoming', 'future'
+
+class TierIndicator(BaseModel):
+    id: str
+    name: str
+    description: str
+    triggered: bool
+    trigger_value: Optional[str] = None
+
+class JPMorganTheory(BaseModel):
+    theory_a: dict  # They know they survive
+    theory_b: dict  # Trying to save themselves
+    current_evidence: List[str]
+
+class PriceTarget(BaseModel):
+    label: str
+    price_low: float
+    price_high: float
+    significance: str
+
+class PossibleOutlookData(BaseModel):
+    last_updated: str
+    current_silver_price: float
+    thesis_stage: str  # 'pre-cascade', 'early-cascade', 'mid-cascade', 'resolution'
+
+    # Political setup
+    political_factors: List[PoliticalFactor]
+    bailout_impossible_score: int  # 0-100
+
+    # Bank dominoes
+    bank_dominoes: List[BankDomino]
+    dominoes_fallen: int
+    next_domino: Optional[str]
+    survivor_bank: str
+
+    # Cascade phases
+    cascade_phases: List[CascadePhase]
+    current_phase: str
+
+    # Timeline
+    timeline: List[TimelineEvent]
+    sprint_start_date: str
+    sprint_end_date: str
+    days_into_sprint: int
+
+    # Tier indicators
+    tier1_indicators: List[TierIndicator]
+    tier2_indicators: List[TierIndicator]
+    tier3_indicators: List[TierIndicator]
+    tier1_triggered: int
+    tier2_triggered: int
+    tier3_triggered: int
+
+    # JPMorgan analysis
+    jpmorgan_theory: JPMorganTheory
+    selected_theory: str  # 'A' or 'B'
+
+    # Price targets
+    price_targets: List[PriceTarget]
+
+    # Inauguration tracking
+    inauguration_date: str
+    inauguration_factors: List[str]
+
+
+def build_possible_outlook_data(selected_theory: str = "A") -> PossibleOutlookData:
+    """Build the possible outlook / controlled demolition thesis data"""
+    from datetime import datetime, timedelta
+
+    # Get current prices
+    prices = fetch_all_prices()
+    silver_price = prices.get('silver', PriceData(price=30.50, change_pct=0, week_change=0)).price
+
+    # Political factors - why bailout is impossible
+    political_factors = [
+        PoliticalFactor(
+            id="public_memory",
+            description="2008 bailout rage still fresh in public memory",
+            status=True,
+            detail="'Too big to fail' anger never died"
+        ),
+        PoliticalFactor(
+            id="populist_sentiment",
+            description="Populist sentiment on BOTH sides of the aisle",
+            status=True,
+            detail="Left and right united against Wall Street"
+        ),
+        PoliticalFactor(
+            id="trump_base",
+            description="Trump's base hates Wall Street bailouts",
+            status=True,
+            detail="MAGA movement anti-establishment"
+        ),
+        PoliticalFactor(
+            id="narrative_impossible",
+            description="'Bailed out banks who shorted silver' is unexplainable",
+            status=True,
+            detail="No political cover possible"
+        ),
+        PoliticalFactor(
+            id="musk_critical",
+            description="Musk publicly critical of silver situation",
+            status=True,
+            detail="Won't provide establishment cover"
+        ),
+        PoliticalFactor(
+            id="social_media",
+            description="Social media makes narrative control impossible",
+            status=True,
+            detail="Truth spreads faster than spin"
+        ),
+    ]
+
+    # Bank dominoes with insolvency thresholds
+    ms_price = prices.get('morgan_stanley', PriceData(price=0, change_pct=0, week_change=0))
+    ubs_price = prices.get('ubs', PriceData(price=0, change_pct=0, week_change=0))
+    hsbc_price = prices.get('hsbc', PriceData(price=0, change_pct=0, week_change=0))
+    citi_price = prices.get('citigroup', PriceData(price=0, change_pct=0, week_change=0))
+    jpm_price = prices.get('jpmorgan', PriceData(price=0, change_pct=0, week_change=0))
+
+    def get_bank_status(threshold: float, is_survivor: bool = False) -> str:
+        if silver_price >= threshold:
+            return 'insolvent'
+        elif silver_price >= threshold * 0.95:
+            return 'critical'
+        elif silver_price >= threshold * 0.85:
+            return 'warning'
+        elif is_survivor:
+            return 'survivor'
+        return 'stable'
+
+    bank_dominoes = [
+        BankDomino(
+            name="Morgan Stanley",
+            ticker="MS",
+            insolvency_threshold=104.41,
+            current_price=ms_price.price if ms_price.price > 0 else None,
+            price_change_pct=ms_price.change_pct,
+            status=get_bank_status(104.41),
+            is_survivor_candidate=False,
+            distance_to_threshold=104.41 - silver_price
+        ),
+        BankDomino(
+            name="UBS",
+            ticker="UBS",
+            insolvency_threshold=107.13,
+            current_price=ubs_price.price if ubs_price.price > 0 else None,
+            price_change_pct=ubs_price.change_pct,
+            status=get_bank_status(107.13),
+            is_survivor_candidate=False,
+            distance_to_threshold=107.13 - silver_price
+        ),
+        BankDomino(
+            name="HSBC",
+            ticker="HSBC",
+            insolvency_threshold=111.26,
+            current_price=hsbc_price.price if hsbc_price.price > 0 else None,
+            price_change_pct=hsbc_price.change_pct,
+            status=get_bank_status(111.26),
+            is_survivor_candidate=False,
+            distance_to_threshold=111.26 - silver_price
+        ),
+        BankDomino(
+            name="Citigroup",
+            ticker="C",
+            insolvency_threshold=118.73,
+            current_price=citi_price.price if citi_price.price > 0 else None,
+            price_change_pct=citi_price.change_pct,
+            status=get_bank_status(118.73),
+            is_survivor_candidate=False,
+            distance_to_threshold=118.73 - silver_price
+        ),
+        BankDomino(
+            name="JPMorgan",
+            ticker="JPM",
+            insolvency_threshold=125.98,
+            current_price=jpm_price.price if jpm_price.price > 0 else None,
+            price_change_pct=jpm_price.change_pct,
+            status=get_bank_status(125.98, is_survivor=True),
+            is_survivor_candidate=True,
+            distance_to_threshold=125.98 - silver_price
+        ),
+    ]
+
+    dominoes_fallen = sum(1 for b in bank_dominoes if b.status == 'insolvent')
+    next_domino = next((b.name for b in bank_dominoes if b.status in ['warning', 'critical']), None)
+
+    # Cascade phases
+    def get_phase_status(phase_triggers: List[float]) -> str:
+        if silver_price >= phase_triggers[1]:
+            return 'completed'
+        elif silver_price >= phase_triggers[0]:
+            return 'active'
+        return 'pending'
+
+    cascade_phases = [
+        CascadePhase(
+            phase="hour_1_4",
+            name="Hour 1-4: Initial Shock",
+            description="Trading halt on MS stock, counterparties freeze exposure, CDS explosion",
+            status='pending' if silver_price < 104 else 'active' if silver_price < 107 else 'completed',
+            indicators=["MS trading halt", "Counterparty freeze", "CDS spreads explode", "Banks mark losses"]
+        ),
+        CascadePhase(
+            phase="hour_4_12",
+            name="Hour 4-12: Contagion",
+            description="UBS and HSBC counterparty risk reprices, stocks halt, silver accelerates",
+            status='pending' if silver_price < 107 else 'active' if silver_price < 111 else 'completed',
+            indicators=["UBS/HSBC stocks halt", "Silver $107→$110", "No sellers into crisis"]
+        ),
+        CascadePhase(
+            phase="day_2_3",
+            name="Day 2-3: Resolution Begins",
+            description="Three banks simultaneously in resolution, Fed announces 'liquidity support'",
+            status='pending' if silver_price < 111 else 'active' if silver_price < 115 else 'completed',
+            indicators=["Multiple banks in resolution", "Fed 'liquidity support'", "COMEX halts/limit-up", "Physical unavailable"]
+        ),
+        CascadePhase(
+            phase="week_1",
+            name="Week 1 End: Survivor Identified",
+            description="Survivor bank identified (JPM?), merger framework announced",
+            status='pending' if silver_price < 115 else 'active' if silver_price < 120 else 'completed',
+            indicators=["Survivor bank named", "Merger framework", "Depositors protected", "Shareholders wiped"]
+        ),
+        CascadePhase(
+            phase="week_2",
+            name="Week 2: Consolidation",
+            description="Legal framework, congressional theater, new entity emerges",
+            status='pending' if silver_price < 120 else 'active' if silver_price < 126 else 'completed',
+            indicators=["Legal framework", "Congressional hearings", "New mega-bank emerges", "Paper silver dead"]
+        ),
+    ]
+
+    current_phase = next((p.phase for p in cascade_phases if p.status == 'active'), 'pre_cascade')
+
+    # Timeline with original dates
+    today = datetime.now()
+    base_date = datetime(2026, 1, 19)  # Original timeline start
+
+    def get_timeline_status(event_date: datetime) -> str:
+        if event_date.date() < today.date():
+            return 'past'
+        elif event_date.date() == today.date():
+            return 'today'
+        elif (event_date - today).days <= 3:
+            return 'upcoming'
+        return 'future'
+
+    timeline = [
+        TimelineEvent(date="Jan 19", original_date="2026-01-19", day="Sun",
+                      event="Futures open 6 PM ET", price_target="Gap up?",
+                      status=get_timeline_status(datetime(2026, 1, 19))),
+        TimelineEvent(date="Jan 20", original_date="2026-01-20", day="Mon",
+                      event="INAUGURATION DAY — Markets watching Trump", price_target="$93-98?",
+                      status=get_timeline_status(datetime(2026, 1, 20))),
+        TimelineEvent(date="Jan 21", original_date="2026-01-21", day="Tue",
+                      event="Target window", price_target="$105-110?",
+                      status=get_timeline_status(datetime(2026, 1, 21))),
+        TimelineEvent(date="Jan 22", original_date="2026-01-22", day="Wed",
+                      event="First margin call failures visible", price_target="???",
+                      status=get_timeline_status(datetime(2026, 1, 22))),
+        TimelineEvent(date="Jan 23-24", original_date="2026-01-23", day="Thu-Fri",
+                      event="Emergency meetings, weekend prep", price_target="???",
+                      status=get_timeline_status(datetime(2026, 1, 23))),
+        TimelineEvent(date="Jan 25-26", original_date="2026-01-25", day="Weekend",
+                      event="Fed/Treasury emergency session?", price_target="---",
+                      status=get_timeline_status(datetime(2026, 1, 25))),
+        TimelineEvent(date="Jan 27", original_date="2026-01-27", day="Mon",
+                      event="First public insolvency announcement?", price_target="$110+?",
+                      status=get_timeline_status(datetime(2026, 1, 27))),
+        TimelineEvent(date="Jan 28-31", original_date="2026-01-28", day="Week 2",
+                      event="Cascade accelerates", price_target="$115-125?",
+                      status=get_timeline_status(datetime(2026, 1, 28))),
+        TimelineEvent(date="Feb 1-7", original_date="2026-02-01", day="Week 3",
+                      event="Resolution / consolidation", price_target="???",
+                      status=get_timeline_status(datetime(2026, 2, 1))),
+    ]
+
+    days_into_sprint = max(0, (today - base_date).days)
+
+    # Tier indicators
+    tier1_indicators = [
+        TierIndicator(id="futures_gap", name="Silver futures gap at 6 PM Sunday",
+                      description="Watch for significant gap up on futures open",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="volume_first_hour", name="Volume in first hour",
+                      description="Abnormal volume indicates institutional moves",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="shanghai_premium", name="Shanghai premium overnight",
+                      description="Premium indicates physical demand",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="bank_premarket", name="Bank stock pre-market Monday",
+                      description="Watch MS, UBS, HSBC pre-market",
+                      triggered=False, trigger_value=None),
+    ]
+
+    tier2_indicators = [
+        TierIndicator(id="fed_srf", name="Fed SRF usage",
+                      description="Standing Repo Facility usage spike",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="cds_spreads", name="CDS spreads on MS, UBS, HSBC",
+                      description="Credit default swap widening",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="comex_delivery", name="COMEX delivery notices",
+                      description="Abnormal delivery activity",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="cme_announcements", name="Emergency CME announcements",
+                      description="Margin hikes or trading halts",
+                      triggered=False, trigger_value=None),
+    ]
+
+    tier3_indicators = [
+        TierIndicator(id="trading_halts", name="Trading halts on bank stocks",
+                      description="CONFIRMATION: Bank stocks halted",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="fed_statement", name="Emergency Fed statement",
+                      description="CONFIRMATION: Fed intervening",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="comex_halt", name="COMEX trading halt or limit-up lock",
+                      description="CONFIRMATION: Silver market breaking",
+                      triggered=False, trigger_value=None),
+        TierIndicator(id="dealers_pull", name="Physical dealers pull inventory",
+                      description="CONFIRMATION: No physical available",
+                      triggered=False, trigger_value=None),
+    ]
+
+    # JPMorgan theory
+    jpmorgan_theory = JPMorganTheory(
+        theory_a={
+            "name": "They Know They Survive",
+            "description": "Fed has already told them they're the chosen survivor",
+            "evidence": [
+                "Accumulating physical to back consolidated entity",
+                "Positioning to be the 'solution' not the problem",
+                "Deep Fed relationship (deepest of all banks)"
+            ]
+        },
+        theory_b={
+            "name": "Trying to Save Themselves",
+            "description": "Desperately covering shorts before cascade",
+            "evidence": [
+                "Knows they're last domino but still a domino",
+                "Physical accumulation = survival hedge",
+                "$125.98 threshold still exists"
+            ]
+        },
+        current_evidence=[
+            "JPM taking massive physical delivery",
+            "Acting like someone who knows what's coming",
+            "Largest gold/silver holdings of any bank"
+        ]
+    )
+
+    # Price targets
+    price_targets = [
+        PriceTarget(label="Inauguration Day", price_low=93, price_high=98,
+                    significance="Initial market reaction to Trump"),
+        PriceTarget(label="Target Window", price_low=105, price_high=110,
+                    significance="MS and UBS insolvency triggers crossed"),
+        PriceTarget(label="Cascade Acceleration", price_low=115, price_high=125,
+                    significance="Multiple banks in resolution"),
+    ]
+
+    # Inauguration factors
+    inauguration_factors = [
+        "Executive orders on tariffs",
+        "Greenland/Venezuela rhetoric",
+        "Any mention of dollar policy",
+        "Cabinet confirmation signals",
+        "If Trump weakens dollar confidence → silver spikes"
+    ]
+
+    # Determine thesis stage
+    if silver_price < 90:
+        thesis_stage = 'pre-cascade'
+    elif silver_price < 105:
+        thesis_stage = 'early-cascade'
+    elif silver_price < 120:
+        thesis_stage = 'mid-cascade'
+    else:
+        thesis_stage = 'resolution'
+
+    return PossibleOutlookData(
+        last_updated=datetime.now().strftime("%B %d, %Y %I:%M %p ET"),
+        current_silver_price=silver_price,
+        thesis_stage=thesis_stage,
+        political_factors=political_factors,
+        bailout_impossible_score=sum(1 for p in political_factors if p.status) * 100 // len(political_factors),
+        bank_dominoes=bank_dominoes,
+        dominoes_fallen=dominoes_fallen,
+        next_domino=next_domino,
+        survivor_bank="JPMorgan",
+        cascade_phases=cascade_phases,
+        current_phase=current_phase,
+        timeline=timeline,
+        sprint_start_date="2026-01-19",
+        sprint_end_date="2026-02-07",
+        days_into_sprint=days_into_sprint,
+        tier1_indicators=tier1_indicators,
+        tier2_indicators=tier2_indicators,
+        tier3_indicators=tier3_indicators,
+        tier1_triggered=sum(1 for i in tier1_indicators if i.triggered),
+        tier2_triggered=sum(1 for i in tier2_indicators if i.triggered),
+        tier3_triggered=sum(1 for i in tier3_indicators if i.triggered),
+        jpmorgan_theory=jpmorgan_theory,
+        selected_theory=selected_theory,
+        price_targets=price_targets,
+        inauguration_date="2026-01-20",
+        inauguration_factors=inauguration_factors,
+    )
+
+
+@app.get("/api/possible-outlook", response_model=PossibleOutlookData)
+async def get_possible_outlook(theory: str = "A"):
+    """Get the possible outlook / controlled demolition thesis data"""
+    return build_possible_outlook_data(selected_theory=theory)
+
+
+@app.get("/api/possible-outlook/dominoes")
+async def get_outlook_dominoes():
+    """Get bank domino status"""
+    data = build_possible_outlook_data()
+    return {
+        "bank_dominoes": data.bank_dominoes,
+        "dominoes_fallen": data.dominoes_fallen,
+        "next_domino": data.next_domino,
+        "survivor_bank": data.survivor_bank,
+        "current_silver_price": data.current_silver_price,
+    }
+
+
+@app.get("/api/possible-outlook/timeline")
+async def get_outlook_timeline():
+    """Get the 2-week sprint timeline"""
+    data = build_possible_outlook_data()
+    return {
+        "timeline": data.timeline,
+        "sprint_start_date": data.sprint_start_date,
+        "sprint_end_date": data.sprint_end_date,
+        "days_into_sprint": data.days_into_sprint,
+        "price_targets": data.price_targets,
+    }
+
+
+@app.get("/api/possible-outlook/tiers")
+async def get_outlook_tiers():
+    """Get tier indicator status"""
+    data = build_possible_outlook_data()
+    return {
+        "tier1": data.tier1_indicators,
+        "tier2": data.tier2_indicators,
+        "tier3": data.tier3_indicators,
+        "tier1_triggered": data.tier1_triggered,
+        "tier2_triggered": data.tier2_triggered,
+        "tier3_triggered": data.tier3_triggered,
+    }
+
+
+# =============================================================================
 # DATA PIPELINE ENDPOINTS
 # =============================================================================
 

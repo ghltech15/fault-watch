@@ -487,6 +487,11 @@ export const api = {
   getRiskMatrix: () => fetchAPI<RiskMatrixData>('/api/risk-matrix'),
   getRiskMatrixMonitoring: () => fetchAPI<{ monitoring_schedule: MonitoringPeriod[]; last_updated: string }>('/api/risk-matrix/monitoring'),
   getRiskMatrixQueries: () => fetchAPI<{ search_queries: string[]; context_event: string }>('/api/risk-matrix/queries'),
+  // Possible Outlook Module (Controlled Demolition Thesis)
+  getPossibleOutlook: (theory: 'A' | 'B' = 'A') => fetchAPI<PossibleOutlookData>(`/api/possible-outlook?theory=${theory}`),
+  getOutlookDominoes: () => fetchAPI<{ bank_dominoes: BankDomino[]; dominoes_fallen: number; next_domino?: string; survivor_bank: string; current_silver_price: number }>('/api/possible-outlook/dominoes'),
+  getOutlookTimeline: () => fetchAPI<{ timeline: TimelineEvent[]; sprint_start_date: string; sprint_end_date: string; days_into_sprint: number; price_targets: PriceTarget[] }>('/api/possible-outlook/timeline'),
+  getOutlookTiers: () => fetchAPI<{ tier1: TierIndicator[]; tier2: TierIndicator[]; tier3: TierIndicator[]; tier1_triggered: number; tier2_triggered: number; tier3_triggered: number }>('/api/possible-outlook/tiers'),
 }
 
 // Global Physical Silver Prices
@@ -1092,5 +1097,118 @@ export interface RiskMatrixData {
   monitoring_schedule: MonitoringPeriod[]
   search_queries: string[]
   bottom_line: string
+}
+
+// =============================================================================
+// POSSIBLE OUTLOOK MODULE (Controlled Demolition Thesis)
+// =============================================================================
+
+export interface PoliticalFactor {
+  id: string
+  description: string
+  status: boolean
+  detail?: string
+}
+
+export interface BankDomino {
+  name: string
+  ticker: string
+  insolvency_threshold: number
+  current_price?: number
+  price_change_pct?: number
+  status: 'stable' | 'warning' | 'critical' | 'insolvent' | 'survivor'
+  is_survivor_candidate: boolean
+  distance_to_threshold?: number
+}
+
+export interface CascadePhase {
+  phase: string
+  name: string
+  description: string
+  status: 'pending' | 'active' | 'completed'
+  indicators: string[]
+}
+
+export interface TimelineEvent {
+  date: string
+  original_date: string
+  day: string
+  event: string
+  price_target?: string
+  status: 'past' | 'today' | 'upcoming' | 'future'
+}
+
+export interface TierIndicator {
+  id: string
+  name: string
+  description: string
+  triggered: boolean
+  trigger_value?: string
+}
+
+export interface JPMorganTheory {
+  theory_a: {
+    name: string
+    description: string
+    evidence: string[]
+  }
+  theory_b: {
+    name: string
+    description: string
+    evidence: string[]
+  }
+  current_evidence: string[]
+}
+
+export interface PriceTarget {
+  label: string
+  price_low: number
+  price_high: number
+  significance: string
+}
+
+export interface PossibleOutlookData {
+  last_updated: string
+  current_silver_price: number
+  thesis_stage: 'pre-cascade' | 'early-cascade' | 'mid-cascade' | 'resolution'
+
+  // Political setup
+  political_factors: PoliticalFactor[]
+  bailout_impossible_score: number
+
+  // Bank dominoes
+  bank_dominoes: BankDomino[]
+  dominoes_fallen: number
+  next_domino?: string
+  survivor_bank: string
+
+  // Cascade phases
+  cascade_phases: CascadePhase[]
+  current_phase: string
+
+  // Timeline
+  timeline: TimelineEvent[]
+  sprint_start_date: string
+  sprint_end_date: string
+  days_into_sprint: number
+
+  // Tier indicators
+  tier1_indicators: TierIndicator[]
+  tier2_indicators: TierIndicator[]
+  tier3_indicators: TierIndicator[]
+  tier1_triggered: number
+  tier2_triggered: number
+  tier3_triggered: number
+
+  // JPMorgan analysis
+  jpmorgan_theory: JPMorganTheory
+  selected_theory: 'A' | 'B'
+
+  // Price targets
+  price_targets: PriceTarget[]
+
+  // Inauguration tracking
+  inauguration_date: string
+  inauguration_factors: string[]
 }
 
