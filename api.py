@@ -1169,6 +1169,7 @@ def fetch_all_prices() -> Dict[str, PriceData]:
             print(f"Gold spot estimated from GLD (fallback): ${gld_price * 10:.2f}")
 
         # Fetch copper price using yfinance HG=F (COMEX Copper Futures)
+        copper_fetched = False
         try:
             copper_ticker = yf.Ticker('HG=F')
             copper_hist = copper_ticker.history(period='2d')
@@ -1183,9 +1184,25 @@ def fetch_all_prices() -> Dict[str, PriceData]:
                         change_pct=change_pct,
                         week_change=0
                     )
+                    copper_fetched = True
                     print(f"Copper spot from yfinance HG=F: ${copper_price:.2f}/lb")
         except Exception as e:
             print(f"yfinance HG=F (copper) error: {e}")
+
+        # Fallback: Try Finnhub CPER (United States Copper Index Fund) ETF
+        if not copper_fetched:
+            cper_quote = fetch_finnhub_quote('CPER')
+            if cper_quote and cper_quote['price'] > 0:
+                # CPER roughly tracks copper price - estimate spot price
+                # CPER is ~$27-30 when copper is ~$4-5/lb, ratio ~6:1
+                estimated_copper = cper_quote['price'] / 5.0
+                prices['copper'] = PriceData(
+                    price=estimated_copper,
+                    prev_close=cper_quote['prev_close'] / 5.0 if cper_quote['prev_close'] else None,
+                    change_pct=cper_quote['change_pct'],
+                    week_change=0
+                )
+                print(f"Copper estimated from CPER ETF (fallback): ${estimated_copper:.2f}/lb")
 
         # VIX - try CBOE VIX futures
         vix_quote = fetch_finnhub_quote('VXX')  # VIX short-term futures ETN
