@@ -1011,28 +1011,32 @@ def fetch_all_prices() -> Dict[str, PriceData]:
                     week_change=0
                 )
 
-        # Fetch REAL silver spot price using yfinance SI=F (COMEX Silver Futures)
+        # Fetch REAL silver spot price - prioritize real-time APIs over futures
         silver_spot_fetched = False
-        try:
-            silver_ticker = yf.Ticker('SI=F')
-            silver_hist = silver_ticker.history(period='2d')
-            if not silver_hist.empty and len(silver_hist) > 0:
-                silver_spot = float(silver_hist['Close'].iloc[-1])
-                silver_prev = float(silver_hist['Close'].iloc[0]) if len(silver_hist) > 1 else silver_spot
-                if silver_spot > 0:
-                    change_pct = ((silver_spot - silver_prev) / silver_prev * 100) if silver_prev > 0 else 0
-                    prices['silver'] = PriceData(
-                        price=silver_spot,
-                        prev_close=silver_prev,
-                        change_pct=change_pct,
-                        week_change=0
-                    )
-                    silver_spot_fetched = True
-                    print(f"Silver spot from yfinance SI=F: ${silver_spot:.2f}")
-        except Exception as e:
-            print(f"yfinance SI=F error: {e}")
+        silver_spot = 0
+        silver_prev = 0
 
-        # Fallback 1: Try metals.live API
+        # PRIMARY: Try fxratesapi.com (free, real-time forex rates including XAG/USD)
+        try:
+            fx_resp = requests.get('https://api.fxratesapi.com/latest?base=XAG&currencies=USD', timeout=5)
+            if fx_resp.status_code == 200:
+                fx_data = fx_resp.json()
+                if fx_data.get('success') and 'rates' in fx_data:
+                    silver_spot = float(fx_data['rates'].get('USD', 0))
+                    if silver_spot > 0:
+                        slv_change = prices['slv'].change_pct if 'slv' in prices else 0
+                        prices['silver'] = PriceData(
+                            price=silver_spot,
+                            prev_close=silver_spot / (1 + slv_change/100) if slv_change else None,
+                            change_pct=slv_change,
+                            week_change=0
+                        )
+                        silver_spot_fetched = True
+                        print(f"Silver spot from fxratesapi.com: ${silver_spot:.2f}")
+        except Exception as e:
+            print(f"fxratesapi.com API error: {e}")
+
+        # FALLBACK 1: Try metals.live API (real-time spot price)
         if not silver_spot_fetched:
             try:
                 metals_resp = requests.get('https://api.metals.live/v1/spot/silver', timeout=5)
@@ -1053,7 +1057,28 @@ def fetch_all_prices() -> Dict[str, PriceData]:
             except Exception as e:
                 print(f"metals.live API error: {e}")
 
-        # Fallback 2: Derive silver price from SLV ETF
+        # FALLBACK 2: Try yfinance SI=F (COMEX Silver Futures) - may be delayed on weekends
+        if not silver_spot_fetched:
+            try:
+                silver_ticker = yf.Ticker('SI=F')
+                silver_hist = silver_ticker.history(period='2d')
+                if not silver_hist.empty and len(silver_hist) > 0:
+                    silver_spot = float(silver_hist['Close'].iloc[-1])
+                    silver_prev = float(silver_hist['Close'].iloc[0]) if len(silver_hist) > 1 else silver_spot
+                    if silver_spot > 0:
+                        change_pct = ((silver_spot - silver_prev) / silver_prev * 100) if silver_prev > 0 else 0
+                        prices['silver'] = PriceData(
+                            price=silver_spot,
+                            prev_close=silver_prev,
+                            change_pct=change_pct,
+                            week_change=0
+                        )
+                        silver_spot_fetched = True
+                        print(f"Silver spot from yfinance SI=F: ${silver_spot:.2f}")
+            except Exception as e:
+                print(f"yfinance SI=F error: {e}")
+
+        # FALLBACK 3: Derive silver price from SLV ETF
         # SLV holds ~0.93 oz silver per share, so: silver_spot ≈ slv_price / 0.93
         if not silver_spot_fetched and 'slv' in prices:
             slv_price = prices['slv'].price
@@ -1066,28 +1091,51 @@ def fetch_all_prices() -> Dict[str, PriceData]:
             )
             print(f"Silver spot estimated from SLV (fallback): ${silver_spot_estimate:.2f}")
 
-        # Fetch REAL gold spot price using yfinance GC=F (COMEX Gold Futures)
+        # Fetch REAL gold spot price - prioritize real-time APIs
         gold_spot_fetched = False
-        try:
-            gold_ticker = yf.Ticker('GC=F')
-            gold_hist = gold_ticker.history(period='2d')
-            if not gold_hist.empty and len(gold_hist) > 0:
-                gold_spot = float(gold_hist['Close'].iloc[-1])
-                gold_prev = float(gold_hist['Close'].iloc[0]) if len(gold_hist) > 1 else gold_spot
-                if gold_spot > 0:
-                    change_pct = ((gold_spot - gold_prev) / gold_prev * 100) if gold_prev > 0 else 0
-                    prices['gold'] = PriceData(
-                        price=gold_spot,
-                        prev_close=gold_prev,
-                        change_pct=change_pct,
-                        week_change=0
-                    )
-                    gold_spot_fetched = True
-                    print(f"Gold spot from yfinance GC=F: ${gold_spot:.2f}")
-        except Exception as e:
-            print(f"yfinance GC=F error: {e}")
 
-        # Fallback 1: Try metals.live API
+        # PRIMARY: Try fxratesapi.com (free, real-time forex rates including XAU/USD)
+        try:
+            fx_gold_resp = requests.get('https://api.fxratesapi.com/latest?base=XAU&currencies=USD', timeout=5)
+            if fx_gold_resp.status_code == 200:
+                fx_gold_data = fx_gold_resp.json()
+                if fx_gold_data.get('success') and 'rates' in fx_gold_data:
+                    gold_spot = float(fx_gold_data['rates'].get('USD', 0))
+                    if gold_spot > 0:
+                        gld_change = prices['gld'].change_pct if 'gld' in prices else 0
+                        prices['gold'] = PriceData(
+                            price=gold_spot,
+                            prev_close=gold_spot / (1 + gld_change/100) if gld_change else None,
+                            change_pct=gld_change,
+                            week_change=0
+                        )
+                        gold_spot_fetched = True
+                        print(f"Gold spot from fxratesapi.com: ${gold_spot:.2f}")
+        except Exception as e:
+            print(f"fxratesapi.com gold API error: {e}")
+
+        # FALLBACK 1: Try yfinance GC=F (COMEX Gold Futures) - may be delayed on weekends
+        if not gold_spot_fetched:
+            try:
+                gold_ticker = yf.Ticker('GC=F')
+                gold_hist = gold_ticker.history(period='2d')
+                if not gold_hist.empty and len(gold_hist) > 0:
+                    gold_spot = float(gold_hist['Close'].iloc[-1])
+                    gold_prev = float(gold_hist['Close'].iloc[0]) if len(gold_hist) > 1 else gold_spot
+                    if gold_spot > 0:
+                        change_pct = ((gold_spot - gold_prev) / gold_prev * 100) if gold_prev > 0 else 0
+                        prices['gold'] = PriceData(
+                            price=gold_spot,
+                            prev_close=gold_prev,
+                            change_pct=change_pct,
+                            week_change=0
+                        )
+                        gold_spot_fetched = True
+                        print(f"Gold spot from yfinance GC=F: ${gold_spot:.2f}")
+            except Exception as e:
+                print(f"yfinance GC=F error: {e}")
+
+        # FALLBACK 2: Try metals.live API
         if not gold_spot_fetched:
             try:
                 gold_resp = requests.get('https://api.metals.live/v1/spot/gold', timeout=5)
