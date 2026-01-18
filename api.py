@@ -209,6 +209,9 @@ async def content_scheduler():
             # Fetch crisis search pad data
             search_pad_data = build_crisis_search_pad_data()
 
+            # Fetch risk matrix data
+            risk_matrix_data = build_risk_matrix_data()
+
             # Define card data for change detection
             card_data_map = {
                 CardType.PRICES: {'silver': silver_price, 'gold': gold_price, 'change': silver_change},
@@ -241,6 +244,19 @@ async def content_scheduler():
                     'next_key_event': search_pad_data.key_dates[0].event if search_pad_data.key_dates else '',
                     'daily_metrics': len(search_pad_data.daily_metrics),
                     'monthly_metrics': len(search_pad_data.monthly_metrics),
+                },
+                CardType.RISK_MATRIX: {
+                    'context_event': risk_matrix_data.context_event,
+                    'risk_factors': [
+                        {'name': f.name, 'pre': f.pre_greenland, 'post': f.post_greenland}
+                        for f in risk_matrix_data.risk_factors
+                    ],
+                    'risks_increased': sum(1 for f in risk_matrix_data.risk_factors if f.change_direction == 'up'),
+                    'high_priority_items': sum(
+                        1 for p in risk_matrix_data.monitoring_schedule
+                        for i in p.items if i.priority == 'high'
+                    ),
+                    'next_check': risk_matrix_data.monitoring_schedule[0].period if risk_matrix_data.monitoring_schedule else '',
                 },
             }
 
@@ -4967,6 +4983,229 @@ async def get_crisis_assessment():
         "current_assessment": data.current_assessment,
         "key_dates": data.key_dates,
         "last_updated": data.last_updated,
+    }
+
+
+# =============================================================================
+# RISK MATRIX MODULE
+# =============================================================================
+
+class RiskLevel(str, Enum):
+    LOW = "low"
+    LOW_MEDIUM = "low-medium"
+    MEDIUM = "medium"
+    MEDIUM_HIGH = "medium-high"
+    MODERATE = "moderate"
+    ELEVATED = "elevated"
+    HIGH = "high"
+    HIGHER = "higher"
+    RISING = "rising"
+
+class RiskFactor(BaseModel):
+    name: str
+    pre_greenland: str
+    post_greenland: str
+    change_direction: str  # 'up', 'down', 'same'
+
+class MonitorItem(BaseModel):
+    item: str
+    priority: str = "normal"  # 'high', 'normal'
+
+class MonitoringPeriod(BaseModel):
+    period: str
+    items: List[MonitorItem]
+
+class ImmediatePriority(BaseModel):
+    name: str
+    metric: str
+    threshold: str
+    current_status: str
+    signal_meaning: str
+
+class RiskMatrixData(BaseModel):
+    last_updated: str
+    context_event: str
+    context_description: str
+    risk_factors: List[RiskFactor]
+    immediate_priorities: List[ImmediatePriority]
+    monitoring_schedule: List[MonitoringPeriod]
+    search_queries: List[str]
+    bottom_line: str
+
+
+def build_risk_matrix_data() -> RiskMatrixData:
+    """Build the risk matrix comparison data"""
+
+    risk_factors = [
+        RiskFactor(
+            name="Silver price trajectory",
+            pre_greenland="Elevated",
+            post_greenland="Higher",
+            change_direction="up"
+        ),
+        RiskFactor(
+            name="Bank margin pressure",
+            pre_greenland="Moderate",
+            post_greenland="High",
+            change_direction="up"
+        ),
+        RiskFactor(
+            name="Short squeeze probability",
+            pre_greenland="Medium",
+            post_greenland="Medium-High",
+            change_direction="up"
+        ),
+        RiskFactor(
+            name="COMEX delivery stress",
+            pre_greenland="High",
+            post_greenland="Higher",
+            change_direction="up"
+        ),
+        RiskFactor(
+            name="SRF usage likelihood",
+            pre_greenland="Low (post year-end)",
+            post_greenland="Rising",
+            change_direction="up"
+        ),
+        RiskFactor(
+            name="Systemic contagion risk",
+            pre_greenland="Low-Medium",
+            post_greenland="Medium",
+            change_direction="up"
+        ),
+    ]
+
+    monitoring_schedule = [
+        MonitoringPeriod(
+            period="Sunday Night",
+            items=[
+                MonitorItem(item="Silver futures gap size", priority="high"),
+                MonitorItem(item="Gold futures gap size", priority="high"),
+                MonitorItem(item="DXY (dollar) reaction", priority="normal"),
+            ]
+        ),
+        MonitoringPeriod(
+            period="Monday-Tuesday",
+            items=[
+                MonitorItem(item="CME margin announcements (another hike?)", priority="high"),
+                MonitorItem(item="COMEX delivery notices", priority="high"),
+                MonitorItem(item="Bank stock prices (JPM, HSBC, DB)", priority="normal"),
+                MonitorItem(item="SRF usage (daily Fed data)", priority="high"),
+            ]
+        ),
+        MonitoringPeriod(
+            period="Later This Week",
+            items=[
+                MonitorItem(item="CFTC Commitment of Traders (if released)", priority="normal"),
+                MonitorItem(item="LBMA clearing data", priority="normal"),
+                MonitorItem(item="Physical premium reports from Asia", priority="high"),
+            ]
+        ),
+    ]
+
+    immediate_priorities = [
+        ImmediatePriority(
+            name="Fed SRF Usage",
+            metric="Standing Repo Facility Balance",
+            threshold="$200B+ spike",
+            current_status="$0 (normalized post year-end)",
+            signal_meaning="Hidden bank stress requiring emergency liquidity"
+        ),
+        ImmediatePriority(
+            name="COMEX Delivery Failures",
+            metric="Delivery vs Demand Ratio",
+            threshold="Any inability to deliver",
+            current_status="~95% cash settled (Dec)",
+            signal_meaning="Physical shortage forcing paper settlement"
+        ),
+        ImmediatePriority(
+            name="Bank CDS Spreads",
+            metric="Credit Default Swaps (JPM, HSBC, Citi, BofA, MS, GS)",
+            threshold="Sudden widening >50bps",
+            current_status="Monitoring",
+            signal_meaning="Market pricing in bank credit risk"
+        ),
+        ImmediatePriority(
+            name="Gold/Silver Lease Rates",
+            metric="LBMA/COMEX Lease Rates",
+            threshold="Spike above 5%",
+            current_status="Elevated (Oct spike to 200%)",
+            signal_meaning="Desperation for physical metal"
+        ),
+        ImmediatePriority(
+            name="Executive Movements",
+            metric="Metals Desk Departures",
+            threshold="Key personnel leaving",
+            current_status="Watching",
+            signal_meaning="Insiders exiting before problems surface"
+        ),
+        ImmediatePriority(
+            name="Unusual Options Activity",
+            metric="Large Put/Call Positions",
+            threshold="$100M+ single bets",
+            current_status="SILJ $429M rumor (Dec 27)",
+            signal_meaning="Someone positioning for collapse"
+        ),
+    ]
+
+    search_queries = [
+        # Current event queries
+        "Trump Greenland rare earth minerals silver",
+        "Greenland mining critical minerals investment",
+        "US strategic mineral reserves silver platinum",
+        "Denmark Greenland sovereignty minerals deal",
+        # Standard monitoring queries (use current month/year)
+        "overnight repo facility banks silver January 2026",
+        "COMEX silver failure to deliver 2026",
+        "LBMA silver inventory drain 2026",
+        "JPMorgan silver short position 2026",
+        "HSBC silver exit 2026",
+        "Bank of America Citigroup silver short 2026",
+        "silver margin call bank 2026",
+        "silver backwardation COMEX 2026",
+        "Shanghai silver premium 2026",
+        "China silver export restriction 2026",
+        "Fed standing repo facility spike 2026",
+        "CME silver margin hike 2026",
+        "silver squeeze bank collapse 2026",
+        "CFTC bank participation report silver 2026",
+    ]
+
+    return RiskMatrixData(
+        last_updated="January 17, 2026",
+        context_event="Trump Greenland Announcement",
+        context_description="Trump's renewed push to acquire Greenland signals strategic interest in rare earth minerals and precious metals, potentially accelerating existing silver market pressures.",
+        risk_factors=risk_factors,
+        immediate_priorities=immediate_priorities,
+        monitoring_schedule=monitoring_schedule,
+        search_queries=search_queries,
+        bottom_line="All risk vectors have shifted upward post-Greenland. The strategic minerals narrative adds fuel to an already stressed physical silver market. Watch Sunday night futures for initial market reaction."
+    )
+
+
+@app.get("/api/risk-matrix", response_model=RiskMatrixData)
+async def get_risk_matrix():
+    """Get current risk matrix data"""
+    return build_risk_matrix_data()
+
+
+@app.get("/api/risk-matrix/monitoring")
+async def get_monitoring_schedule():
+    """Get this week's monitoring schedule"""
+    data = build_risk_matrix_data()
+    return {
+        "monitoring_schedule": data.monitoring_schedule,
+        "last_updated": data.last_updated,
+    }
+
+
+@app.get("/api/risk-matrix/queries")
+async def get_risk_matrix_queries():
+    """Get search queries for risk monitoring"""
+    data = build_risk_matrix_data()
+    return {
+        "search_queries": data.search_queries,
+        "context_event": data.context_event,
     }
 
 

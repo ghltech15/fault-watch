@@ -483,6 +483,10 @@ export const api = {
   getCrisisSearchPadTier2: () => fetchAPI<{ rumors: RumorEntry[] }>('/api/crisis-search-pad/tier2'),
   getCrisisSearchPadTier3: () => fetchAPI<{ bank_positions: SearchPadBankPosition[] }>('/api/crisis-search-pad/tier3'),
   getCrisisAssessment: () => fetchAPI<{ current_assessment: CurrentAssessment; key_dates: KeyDate[]; last_updated: string }>('/api/crisis-search-pad/assessment'),
+  // Risk Matrix Module
+  getRiskMatrix: () => fetchAPI<RiskMatrixData>('/api/risk-matrix'),
+  getRiskMatrixMonitoring: () => fetchAPI<{ monitoring_schedule: MonitoringPeriod[]; last_updated: string }>('/api/risk-matrix/monitoring'),
+  getRiskMatrixQueries: () => fetchAPI<{ search_queries: string[]; context_event: string }>('/api/risk-matrix/queries'),
 }
 
 // Global Physical Silver Prices
@@ -1048,5 +1052,45 @@ export interface CrisisSearchPadData {
   // Assessment
   current_assessment: CurrentAssessment
   key_dates: KeyDate[]
+}
+
+// =============================================================================
+// RISK MATRIX MODULE
+// =============================================================================
+
+export interface RiskFactor {
+  name: string
+  pre_greenland: string
+  post_greenland: string
+  change_direction: 'up' | 'down' | 'same'
+}
+
+export interface MonitorItem {
+  item: string
+  priority: 'high' | 'normal'
+}
+
+export interface MonitoringPeriod {
+  period: string
+  items: MonitorItem[]
+}
+
+export interface ImmediatePriority {
+  name: string
+  metric: string
+  threshold: string
+  current_status: string
+  signal_meaning: string
+}
+
+export interface RiskMatrixData {
+  last_updated: string
+  context_event: string
+  context_description: string
+  risk_factors: RiskFactor[]
+  immediate_priorities: ImmediatePriority[]
+  monitoring_schedule: MonitoringPeriod[]
+  search_queries: string[]
+  bottom_line: string
 }
 

@@ -39,6 +39,7 @@ class CardType(Enum):
     OPPORTUNITIES = "opportunities"
     FAULT_WATCH_ALERTS = "fault_watch_alerts"
     CRISIS_SEARCH_PAD = "crisis_search_pad"
+    RISK_MATRIX = "risk_matrix"
 
 
 @dataclass
@@ -934,6 +935,8 @@ class ContentGenerator:
                 self._draw_fault_watch_alerts_card(canvas, draw, data, progress)
             elif card_type == CardType.CRISIS_SEARCH_PAD:
                 self._draw_crisis_search_pad_card(canvas, draw, data, progress)
+            elif card_type == CardType.RISK_MATRIX:
+                self._draw_risk_matrix_card(canvas, draw, data, progress)
             else:
                 self._draw_generic_card(canvas, draw, data, progress, card_type.value.upper().replace('_', ' '), str(data.get('value', '')))
 
@@ -1297,6 +1300,100 @@ class ContentGenerator:
         monthly_count = data.get('monthly_metrics', 4)
         font_metrics = self._get_font(35)
         self._center_text(draw, f"{daily_count} Daily + {monthly_count} Monthly Metrics", 960, font_metrics, (*cyan, alpha))
+
+        font_footer = self._get_font(30)
+        self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
+
+    def _draw_risk_matrix_card(self, canvas: Image.Image, draw: ImageDraw.Draw, data: Dict[str, Any], progress: float):
+        """Draw Risk Matrix card - Pre/Post Event Comparison"""
+        brand = self._hex_to_rgb(self.config.brand_color)
+        white = self._hex_to_rgb(self.config.text_color)
+        secondary = self._hex_to_rgb(self.config.secondary_color)
+        alpha = int(255 * progress)
+
+        # Colors
+        purple = (168, 85, 247)
+        red = (239, 68, 68)
+        orange = (249, 115, 22)
+        yellow = (250, 204, 21)
+        green = (74, 222, 128)
+
+        def get_risk_color(level: str):
+            l = level.lower()
+            if 'higher' in l or 'high' in l: return red
+            if 'rising' in l: return orange
+            if 'medium-high' in l: return orange
+            if 'medium' in l or 'moderate' in l: return yellow
+            if 'elevated' in l: return yellow
+            if 'low-medium' in l: return (59, 130, 246)
+            if 'low' in l: return green
+            return secondary
+
+        font_header = self._get_font(50, bold=True)
+        self._center_text(draw, "RISK MATRIX", 120, font_header, (*white, alpha))
+
+        # Context event
+        context_event = data.get('context_event', 'Trump Greenland')
+        font_event = self._get_font(35)
+        self._center_text(draw, context_event, 190, font_event, (*purple, alpha))
+
+        # Risk factors table
+        risk_factors = data.get('risk_factors', [
+            {'name': 'Silver trajectory', 'pre': 'Elevated', 'post': 'Higher'},
+            {'name': 'Bank margin', 'pre': 'Moderate', 'post': 'High'},
+            {'name': 'Squeeze prob', 'pre': 'Medium', 'post': 'Medium-High'},
+            {'name': 'COMEX stress', 'pre': 'High', 'post': 'Higher'},
+            {'name': 'SRF usage', 'pre': 'Low', 'post': 'Rising'},
+            {'name': 'Contagion risk', 'pre': 'Low-Medium', 'post': 'Medium'},
+        ])
+
+        font_label = self._get_font(26)
+        font_value = self._get_font(24, bold=True)
+
+        # Column headers
+        y = 270
+        draw.text((100, y), "FACTOR", font=font_label, fill=(*secondary, alpha))
+        draw.text((450, y), "BEFORE", font=font_label, fill=(*secondary, alpha))
+        draw.text((700, y), "AFTER", font=font_label, fill=(*secondary, alpha))
+
+        # Risk factor rows
+        y = 320
+        for factor in risk_factors[:6]:
+            name = factor.get('name', '')
+            pre = factor.get('pre', '')
+            post = factor.get('post', '')
+
+            draw.text((100, y), name, font=font_label, fill=(*white, alpha))
+
+            pre_color = get_risk_color(pre)
+            draw.text((450, y), pre, font=font_value, fill=(*pre_color, alpha))
+
+            post_color = get_risk_color(post)
+            draw.text((700, y), post, font=font_value, fill=(*post_color, alpha))
+
+            # Arrow
+            draw.text((640, y), "→", font=font_value, fill=(*red, alpha))
+
+            y += 60
+
+        # Summary stats
+        risks_up = data.get('risks_increased', 6)
+        high_priority = data.get('high_priority_items', 5)
+
+        font_stat = self._get_font(40, bold=True)
+        font_stat_label = self._get_font(28)
+
+        y = 720
+        draw.text((200, y), str(risks_up), font=font_stat, fill=(*red, alpha))
+        draw.text((250, y + 5), "Risks ↑", font=font_stat_label, fill=(*secondary, alpha))
+
+        draw.text((550, y), str(high_priority), font=font_stat, fill=(*orange, alpha))
+        draw.text((600, y + 5), "High Priority", font=font_stat_label, fill=(*secondary, alpha))
+
+        # Monitoring reminder
+        next_check = data.get('next_check', 'Sunday Night')
+        font_check = self._get_font(32)
+        self._center_text(draw, f"Next Check: {next_check}", 850, font_check, (*purple, alpha))
 
         font_footer = self._get_font(30)
         self._center_text(draw, "fault.watch", 1750, font_footer, (*secondary, alpha))
