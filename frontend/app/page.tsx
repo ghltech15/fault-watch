@@ -81,6 +81,7 @@ function PricesDetailView({ prices }: { prices: Record<string, any> }) {
   const allPrices = [
     { key: 'silver', label: 'Silver (SLV)', data: prices.silver },
     { key: 'gold', label: 'Gold (GLD)', data: prices.gold },
+    { key: 'copper', label: 'Copper (HG=F)', data: prices.copper },
     { key: 'vix', label: 'VIX (Fear Index)', data: prices.vix },
     { key: 'morgan_stanley', label: 'Morgan Stanley', data: prices.morgan_stanley },
     { key: 'citigroup', label: 'Citigroup', data: prices.citigroup },
@@ -117,6 +118,7 @@ function PricesDetailView({ prices }: { prices: Record<string, any> }) {
         <ul className="text-sm text-gray-400 space-y-2">
           <li><ChevronRight className="w-4 h-4 inline text-warning" /> <strong>Silver:</strong> Main catalyst - rising prices pressure bank short positions</li>
           <li><ChevronRight className="w-4 h-4 inline text-warning" /> <strong>Gold:</strong> Safe haven indicator - rises during financial stress</li>
+          <li><ChevronRight className="w-4 h-4 inline text-warning" /> <strong>Copper:</strong> Economic health indicator - tracks industrial demand and inflation</li>
           <li><ChevronRight className="w-4 h-4 inline text-warning" /> <strong>VIX:</strong> Fear gauge - spikes signal market panic</li>
           <li><ChevronRight className="w-4 h-4 inline text-warning" /> <strong>Bank Stocks:</strong> Direct exposure - falling prices indicate trouble</li>
         </ul>
@@ -1141,6 +1143,7 @@ function RiskGauge({ value, label, color }: { value: number; label: string; colo
 function PriceCard({ prices }: { prices: Record<string, any> }) {
   const silver = prices.silver || { price: 0, change_pct: 0 }
   const gold = prices.gold || { price: 0, change_pct: 0 }
+  const copper = prices.copper || { price: 0, change_pct: 0 }
   const vix = prices.vix || { price: 0, change_pct: 0 }
   const ms = prices.morgan_stanley || { price: 0, change_pct: 0 }
 
@@ -1255,15 +1258,25 @@ function PriceCard({ prices }: { prices: Record<string, any> }) {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         <div>
           <div className="flex items-center gap-1 mb-0.5">
             <span className="text-[9px] text-gray-500">Gold</span>
             <VerificationDot status="verified" size="sm" />
           </div>
-          <div className="text-lg font-bold">${gold.price.toFixed(0)}</div>
+          <div className="text-base font-bold">${gold.price.toFixed(0)}</div>
           <div className={`text-xs ${gold.change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {gold.change_pct >= 0 ? '+' : ''}{gold.change_pct.toFixed(1)}%
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center gap-1 mb-0.5">
+            <span className="text-[9px] text-gray-500">Copper</span>
+            <VerificationDot status="verified" size="sm" />
+          </div>
+          <div className="text-base font-bold">${copper.price.toFixed(2)}</div>
+          <div className={`text-xs ${copper.change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {copper.change_pct >= 0 ? '+' : ''}{copper.change_pct.toFixed(1)}%
           </div>
         </div>
         <div>
@@ -1271,7 +1284,7 @@ function PriceCard({ prices }: { prices: Record<string, any> }) {
             <span className="text-[9px] text-gray-500">VIX</span>
             <VerificationDot status="verified" size="sm" />
           </div>
-          <div className="text-lg font-bold">{vix.price.toFixed(1)}</div>
+          <div className="text-base font-bold">{vix.price.toFixed(1)}</div>
           <div className={`text-xs ${vix.change_pct <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {vix.change_pct >= 0 ? '+' : ''}{vix.change_pct.toFixed(1)}%
           </div>
@@ -1281,7 +1294,7 @@ function PriceCard({ prices }: { prices: Record<string, any> }) {
             <span className="text-[9px] text-gray-500">MS</span>
             <VerificationDot status="verified" size="sm" />
           </div>
-          <div className="text-lg font-bold">${ms.price.toFixed(0)}</div>
+          <div className="text-base font-bold">${ms.price.toFixed(0)}</div>
           <div className={`text-xs ${ms.change_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {ms.change_pct >= 0 ? '+' : ''}{ms.change_pct.toFixed(1)}%
           </div>

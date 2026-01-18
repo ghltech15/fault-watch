@@ -1168,6 +1168,25 @@ def fetch_all_prices() -> Dict[str, PriceData]:
             )
             print(f"Gold spot estimated from GLD (fallback): ${gld_price * 10:.2f}")
 
+        # Fetch copper price using yfinance HG=F (COMEX Copper Futures)
+        try:
+            copper_ticker = yf.Ticker('HG=F')
+            copper_hist = copper_ticker.history(period='2d')
+            if not copper_hist.empty and len(copper_hist) > 0:
+                copper_price = float(copper_hist['Close'].iloc[-1])
+                copper_prev = float(copper_hist['Close'].iloc[0]) if len(copper_hist) > 1 else copper_price
+                if copper_price > 0:
+                    change_pct = ((copper_price - copper_prev) / copper_prev * 100) if copper_prev > 0 else 0
+                    prices['copper'] = PriceData(
+                        price=copper_price,
+                        prev_close=copper_prev,
+                        change_pct=change_pct,
+                        week_change=0
+                    )
+                    print(f"Copper spot from yfinance HG=F: ${copper_price:.2f}/lb")
+        except Exception as e:
+            print(f"yfinance HG=F (copper) error: {e}")
+
         # VIX - try CBOE VIX futures
         vix_quote = fetch_finnhub_quote('VXX')  # VIX short-term futures ETN
         if vix_quote and vix_quote['price'] > 0:
