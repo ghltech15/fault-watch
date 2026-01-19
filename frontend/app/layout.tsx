@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         {/* Google Analytics */}
         {GA_MEASUREMENT_ID && (
@@ -40,7 +40,7 @@ export default function RootLayout({
           </>
         )}
       </head>
-      <body className={inter.className}>
+      <body className={inter.className} style={{ backgroundColor: '#0a0a0a', color: '#e5e5e5' }} suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>
