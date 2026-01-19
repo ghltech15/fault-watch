@@ -26,7 +26,6 @@ function VisitorTracker() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false)
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -39,19 +38,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   )
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Only render auth provider after hydration to prevent mismatch
-  if (!mounted) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    )
-  }
 
   return (
     <QueryClientProvider client={queryClient}>

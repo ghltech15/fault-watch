@@ -1,0 +1,3 @@
+# Start Claude Code with GSD progress check
+  Set-Location "C:\Users\ghlte\projects\fault-watch"
+  claude "/gsd:progress"

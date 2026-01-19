@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAULT WATCH | Crisis Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'crisis-critical': '#ff0040',
+            'crisis-severe': '#ff3366',
+            'crisis-warning': '#ffaa00',
+            'crisis-elevated': '#ffd700',
+            'crisis-normal': '#00ff88',
+            'void': '#0a0a0f',
+            'abyss': '#12121a',
+            'slate': '#1a1a2e',
+            'gunmetal': '#2d2d44',
+            'steel': '#4a4a6a',
+            'neon-cyan': '#00f5ff',
+          },
+          fontFamily: {
+            'mono': ['JetBrains Mono', 'monospace'],
+            'display': ['Orbitron', 'sans-serif'],
+            'body': ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body {
+      background: #0a0a0f;
+      background-image: 
+        radial-gradient(ellipse at 20% 20%, rgba(0, 245, 255, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(255, 0, 64, 0.02) 0%, transparent 50%);
+    }
+    .crisis-badge-critical { animation: pulse-critical 1s ease-in-out infinite; }
+    @keyframes pulse-critical {
+      0%, 100% { opacity: 1; box-shadow: 0 0 20px rgba(255, 0, 64, 0.6); }
+      50% { opacity: 0.7; box-shadow: 0 0 30px rgba(255, 0, 64, 0.8); }
+    }
+    .scanline::before {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.3), transparent);
+      animation: scan 3s linear infinite;
+    }
+    @keyframes scan {
+      0% { transform: translateY(-100vh); }
+      100% { transform: translateY(100vh); }
+    }
+    .gauge-ring { fill: none; stroke-width: 12; stroke-linecap: round; }
+  </style>
+</head>
+<body class="text-white font-body min-h-screen">
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    // ============================================================
+    // INDICATOR DATA & THRESHOLDS
+    // ============================================================
+    
+    const CRISIS_PHASES = {
+      NORMAL: { level: 0, label: 'NORMAL', color: '#00ff88' },
+      ELEVATED: { level: 1, label: 'ELEVATED', color: '#ffd700' },
+      WARNING: { level: 2, label: 'WARNING', color: '#ffaa00' },
+      SEVERE: { level: 3, label: 'SEVERE', color: '#ff3366' },
+      CRITICAL: { level: 4, label: 'CRITICAL', color: '#ff0040' },
+    };
+    
+    const TIMELINE = {
+      0: 'Months away',
+      1: 'Weeks to months', 
+      2: 'Days to weeks',
+      3: 'Hours to days',
+      4: 'IMMINENT',
+    };
+    
+    // Current indicator values - UPDATE THESE MANUALLY
+    const INDICATORS = {
+      // TIER 1 - Check Daily
+      tier1: [
+        { 
+          id: 'silver_spot', name: 'Silver Spot Price', 
+          value: 94.00, unit: '$/oz', category: 'Precious Metals',
+          thresholds: [50, 70, 90, 100],
+          source: 'https://www.cmegroup.com/markets/metals/precious/silver.html'
+        },
+        { 
+          id: 'silver_daily', name: 'Silver 24h Change', 
+          value: 7.14, unit: '%', category: 'Precious Metals',
+          thresholds: [2, 4, 7, 10],
+        },
+        { 
+          id: 'shanghai_premium', name: 'Shanghai Premium', 
+          value: 12.0, unit: '%', category: 'Physical Market',
+          thresholds: [3, 8, 12, 15],
+          source: 'https://en.sge.com.cn/data_SilverBenchmarkPrice'
+        },
+        { 
+          id: 'comex_inventory', name: 'COMEX Registered', 
+          value: 85, unit: 'M oz', category: 'Physical Market',
+          thresholds: [150, 100, 75, 50], inverted: true,
+          source: 'https://www.cmegroup.com/delivery_reports/Silver_stocks.xls'
+        },
+        { 
+          id: 'bank_vs_xlf', name: 'Bank vs XLF', 
+          value: -4.2, unit: '%', category: 'Bank Stress',
+          thresholds: [-2, -5, -8, -12], inverted: true,
+        },
+        { 
+          id: 'ofr_fsi', name: 'OFR Stress Index', 
+          value: 0.3, unit: 'index', category: 'Systemic',
+          thresholds: [0, 1, 2, 4],
+          source: 'https://www.financialresearch.gov/financial-stress-index/'
+        },
+        { 
+          id: 'sofr_spread', name: 'SOFR vs Target', 
+          value: 12, unit: 'bps', category: 'Funding',
+          thresholds: [10, 25, 50, 100],
+          source: 'https://fred.stlouisfed.org/series/SOFR'
+        },
+      ],
+      
+      // TIER 2 - Check Weekly
+      tier2: [
+        { id: 'cds_spread', name: 'Bank CDS Change', value: null, unit: 'bps/wk', category: 'Credit Risk', thresholds: [10, 25, 50, 100] },
+        { id: 'insider_selling', name: 'Insider Selling', value: 3, unit: 'trans', category: 'Corporate', thresholds: [2, 5, 10, 20], source: 'https://www.secform4.com/insider-trading/831001.htm' },
+        { id: 'put_volume', name: 'Put Volume', value: 2.1, unit: 'x avg', category: 'Options', thresholds: [1.5, 2.5, 4, 6] },
+        { id: 'comex_drain', name: 'COMEX Drain', value: 4.2, unit: 'M oz/day', category: 'Physical', thresholds: [1, 3, 5, 8] },
+        { id: 'backwardation', name: 'Backwardation', value: true, unit: 'bool', category: 'Futures', thresholds: [false, false, true, true] },
+        { id: 'margin_hikes', name: 'CME Margin Hikes', value: 2, unit: '/month', category: 'Exchange', thresholds: [0, 1, 2, 5] },
+        { id: 'broker_restrict', name: 'Broker Restrictions', value: 1, unit: 'count', category: 'Systemic', thresholds: [0, 1, 2, 5] },
+        { id: 'layoffs', name: 'Finance Layoffs', value: 4, unit: '/week', category: 'Corporate', thresholds: [1, 3, 5, 8] },
+      ],
+      
+      // TIER 3 - Watch News
+      tier3: [
+        { id: 'discount_window', name: 'Fed Discount Window', value: 0, unit: '$B', category: 'Fed', thresholds: [0, 5, 20, 50], source: 'https://www.federalreserve.gov/releases/h41/' },
+        { id: 'srf_usage', name: 'Standing Repo', value: 0, unit: '$B', category: 'Fed', thresholds: [10, 30, 50, 100], source: 'https://www.newyorkfed.org/markets/desk-operations/repo' },
+        { id: 'rating_watch', name: 'Rating Watch', value: false, unit: 'bool', category: 'Credit', thresholds: [false, false, false, true] },
+        { id: 'dividend_cuts', name: 'Dividend Cuts', value: 0, unit: 'count', category: 'Corporate', thresholds: [0, 0, 1, 2] },
+        { id: 'credit_drawdown', name: 'Credit Drawdowns', value: 0, unit: 'count', category: 'Corporate', thresholds: [0, 0, 0, 1] },
+        { id: 'interbank_freeze', name: 'Interbank Freeze', value: false, unit: 'bool', category: 'Systemic', thresholds: [false, false, false, true] },
+      ],
+    };
+    
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+    
+    const getPhase = (indicator) => {
+      const { value, thresholds, inverted } = indicator;
+      if (value === null) return CRISIS_PHASES.NORMAL;
+      if (typeof value === 'boolean') {
+        return value ? CRISIS_PHASES.WARNING : CRISIS_PHASES.NORMAL;
+      }
+      
+      const [t1, t2, t3, t4] = thresholds;
+      
+      if (inverted) {
+        if (value <= t4) return CRISIS_PHASES.CRITICAL;
+        if (value <= t3) return CRISIS_PHASES.SEVERE;
+        if (value <= t2) return CRISIS_PHASES.WARNING;
+        if (value <= t1) return CRISIS_PHASES.ELEVATED;
+        return CRISIS_PHASES.NORMAL;
+      } else {
+        if (value >= t4) return CRISIS_PHASES.CRITICAL;
+        if (value >= t3) return CRISIS_PHASES.SEVERE;
+        if (value >= t2) return CRISIS_PHASES.WARNING;
+        if (value >= t1) return CRISIS_PHASES.ELEVATED;
+        return CRISIS_PHASES.NORMAL;
+      }
+    };
+    
+    const getOverallLevel = () => {
+      const allIndicators = [...INDICATORS.tier1, ...INDICATORS.tier2, ...INDICATORS.tier3];
+      const levels = allIndicators.map(i => getPhase(i).level);
+      const tier1Levels = INDICATORS.tier1.map(i => getPhase(i).level);
+      const avgTier1 = tier1Levels.reduce((a, b) => a + b, 0) / tier1Levels.length;
+      const maxLevel = Math.max(...levels);
+      return Math.round((avgTier1 * 0.6) + (maxLevel * 0.4));
+    };
+    
+    const formatValue = (val, unit) => {
+      if (val === null) return 'N/A';
+      if (typeof val === 'boolean') return val ? 'YES' : 'NO';
+      if (unit === '%' || unit === '$/oz') return val.toFixed(2);
+      return val;
+    };
+    
+    // ============================================================
+    // COMPONENTS
+    // ============================================================
+    
+    const CrisisGauge = ({ level }) => {
+      const phases = Object.values(CRISIS_PHASES);
+      const phase = phases.find(p => p.level === level) || CRISIS_PHASES.NORMAL;
+      const pct = (level / 4) * 100;
+      const size = 200;
+      const r = 85;
+      const circ = 2 * Math.PI * r;
+      const offset = circ - (pct / 100) * circ * 0.75;
+      
+      return (
+        <div className="flex flex-col items-center">
+          <div className="relative" style={{width: size, height: size}}>
+            <svg width={size} height={size} className="transform -rotate-[135deg]">
+              <circle cx={size/2} cy={size/2} r={r} className="gauge-ring" stroke="#2d2d44" strokeDasharray={`${circ * 0.75} ${circ}`} />
+              <circle cx={size/2} cy={size/2} r={r} className="gauge-ring" stroke={phase.color} strokeDasharray={circ * 0.75} strokeDashoffset={offset} style={{transition: 'all 0.5s', filter: level >= 3 ? `drop-shadow(0 0 8px ${phase.color})` : 'none'}} />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-4xl font-display font-bold" style={{color: phase.color}}>{phase.label}</span>
+              <span className="text-sm text-steel">CRISIS LEVEL</span>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <div className="text-xs text-steel uppercase mb-1">Timeline Estimate</div>
+            <div className="text-lg font-mono font-semibold" style={{color: phase.color}}>{TIMELINE[level]}</div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            {phases.map(p => (
+              <div key={p.level} className={`w-8 h-2 rounded-full ${p.level <= level ? 'opacity-100' : 'opacity-30'}`} style={{backgroundColor: p.color}} />
+            ))}
+          </div>
+        </div>
+      );
+    };
+    
+    const IndicatorRow = ({ indicator }) => {
+      const phase = getPhase(indicator);
+      const badgeClass = {
+        0: 'bg-crisis-normal/20 text-crisis-normal border-crisis-normal/50',
+        1: 'bg-crisis-elevated/20 text-crisis-elevated border-crisis-elevated/50',
+        2: 'bg-crisis-warning/20 text-crisis-warning border-crisis-warning/50',
+        3: 'bg-crisis-severe/20 text-crisis-severe border-crisis-severe/50',
+        4: 'bg-crisis-critical/20 text-crisis-critical border-crisis-critical/50 crisis-badge-critical',
+      }[phase.level];
+      
+      return (
+        <div className="flex items-center justify-between py-3 px-4 border-b border-gunmetal/30 hover:bg-slate/30 transition-colors">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-white">{indicator.name}</span>
+              {phase.level >= 3 && <span className="text-crisis-critical animate-pulse">⚠</span>}
+            </div>
+            <div className="text-xs text-steel">{indicator.category}</div>
+          </div>
+          <div className="px-4 text-right">
+            <div className="text-lg font-mono font-semibold" style={{color: phase.color}}>
+              {formatValue(indicator.value, indicator.unit)}
+              {indicator.unit && indicator.unit !== 'bool' && <span className="text-xs text-steel ml-1">{indicator.unit}</span>}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${badgeClass}`}>
+              {phase.label}
+            </span>
+            {indicator.source && (
+              <a href={indicator.source} target="_blank" rel="noopener noreferrer" className="text-steel hover:text-neon-cyan">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+                </svg>
+              </a>
+            )}
+          </div>
+        </div>
+      );
+    };
+    
+    const TierPanel = ({ title, subtitle, indicators, tierNum }) => {
+      const critCount = indicators.filter(i => getPhase(i).level >= 3).length;
+      const warnCount = indicators.filter(i => getPhase(i).level === 2).length;
+      
+      return (
+        <div className={`bg-abyss/80 backdrop-blur border rounded-lg ${critCount > 0 ? 'border-crisis-critical/50' : warnCount > 0 ? 'border-crisis-warning/50' : 'border-gunmetal/50'}`}>
+          <div className="px-4 py-3 border-b border-gunmetal/50 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${critCount > 0 ? 'bg-crisis-critical/20' : warnCount > 0 ? 'bg-crisis-warning/20' : 'bg-gunmetal/50'}`}>
+                <span className="text-xl">{tierNum === 1 ? '⚡' : tierNum === 2 ? '⚠' : '🛡'}</span>
+              </div>
+              <div>
+                <h3 className="font-display font-semibold text-white">{title}</h3>
+                <p className="text-xs text-steel">{subtitle}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {critCount > 0 && <span className="px-3 py-1 rounded-full text-xs font-bold bg-crisis-critical/20 text-crisis-critical border border-crisis-critical/50 crisis-badge-critical">{critCount} CRITICAL</span>}
+              {warnCount > 0 && <span className="px-3 py-1 rounded-full text-xs font-bold bg-crisis-warning/20 text-crisis-warning border border-crisis-warning/50">{warnCount} WARNING</span>}
+            </div>
+          </div>
+          <div>
+            {indicators.map(ind => <IndicatorRow key={ind.id} indicator={ind} />)}
+          </div>
+        </div>
+      );
+    };
+    
+    const BankExposure = ({ silverPrice }) => {
+      const entry = 30;
+      const loss = silverPrice - entry;
+      const banks = [
+        { ticker: 'C', name: 'Citigroup', cap: 120, short: 3400, notes: null },
+        { ticker: 'BAC', name: 'Bank of America', cap: 350, short: 1000, notes: null },
+        { ticker: 'JPM', name: 'JPMorgan', cap: 650, short: null, notes: 'Reportedly NET LONG' },
+      ];
+      
+      return (
+        <div className="bg-abyss/80 backdrop-blur border border-gunmetal/50 rounded-lg">
+          <div className="px-4 py-3 border-b border-gunmetal/50 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-crisis-severe/20">🏦</div>
+              <div>
+                <h3 className="font-display font-semibold text-white">Bank Exposure Analysis</h3>
+                <p className="text-xs text-steel">Est. losses at ${silverPrice}/oz (entry: ${entry}/oz)</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-steel">Loss per oz</div>
+              <div className="text-xl font-mono font-bold text-crisis-critical">${loss.toFixed(2)}</div>
+            </div>
+          </div>
+          <div className="p-4 space-y-4">
+            {banks.map(bank => {
+              const bankLoss = bank.short ? (bank.short * loss) / 1000 : null;
+              const ratio = bankLoss ? (bankLoss / bank.cap) * 100 : null;
+              const critical = ratio && ratio > 50;
+              
+              return (
+                <div key={bank.ticker} className={`p-4 rounded-lg border ${critical ? 'bg-crisis-critical/10 border-crisis-critical/30' : 'bg-gunmetal/30 border-gunmetal/50'}`}>
+                  <div className="flex justify-between mb-3">
+                    <div>
+                      <span className="font-mono font-bold text-lg text-white">{bank.ticker}</span>
+                      <span className="text-sm text-steel ml-2">{bank.name}</span>
+                      {critical && <span className="ml-2 text-crisis-critical animate-pulse">⚠</span>}
+                      {bank.notes && <p className="text-xs text-crisis-normal mt-1">{bank.notes}</p>}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-steel">Market Cap</div>
+                      <div className="font-mono text-white">${bank.cap}B</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div><div className="text-xs text-steel mb-1">Rumored Short</div><div className="font-mono text-white">{bank.short ? `${bank.short}M oz` : 'N/A'}</div></div>
+                    <div><div className="text-xs text-steel mb-1">Est. Loss</div><div className={`font-mono font-bold ${critical ? 'text-crisis-critical' : 'text-crisis-warning'}`}>{bankLoss ? `$${bankLoss.toFixed(1)}B` : 'N/A'}</div></div>
+                    <div><div className="text-xs text-steel mb-1">vs Market Cap</div><div className={`font-mono font-bold ${critical ? 'text-crisis-critical' : 'text-crisis-warning'}`}>{ratio ? `${ratio.toFixed(1)}%` : 'N/A'}</div></div>
+                  </div>
+                  {ratio && ratio > 100 && <p className="text-xs text-crisis-critical mt-3 font-semibold">⚠️ Losses EXCEED market cap by {(ratio-100).toFixed(0)}%</p>}
+                </div>
+              );
+            })}
+            <div className="p-3 bg-gunmetal/30 rounded-lg border border-gunmetal/50">
+              <p className="text-xs text-steel"><strong className="text-crisis-warning">⚠️ DISCLAIMER:</strong> Bank positions are UNVERIFIED rumors. CFTC only reports aggregate data. Not financial advice.</p>
+            </div>
+          </div>
+        </div>
+      );
+    };
+    
+    // ============================================================
+    // MAIN APP
+    // ============================================================
+    
+    const App = () => {
+      const [tab, setTab] = React.useState('indicators');
+      const level = getOverallLevel();
+      const silverPrice = INDICATORS.tier1.find(i => i.id === 'silver_spot')?.value || 94;
+      const critCount = [...INDICATORS.tier1, ...INDICATORS.tier2, ...INDICATORS.tier3].filter(i => getPhase(i).level >= 3).length;
+      const warnCount = [...INDICATORS.tier1, ...INDICATORS.tier2, ...INDICATORS.tier3].filter(i => getPhase(i).level === 2).length;
+      const now = new Date().toLocaleTimeString();
+      
+      return (
+        <div className="min-h-screen">
+          <div className="fixed inset-0 pointer-events-none overflow-hidden scanline" />
+          
+          {/* Header */}
+          <header className="bg-abyss/90 backdrop-blur border-b border-gunmetal/50 sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-neon-cyan text-2xl">🛡</span>
+                  <div>
+                    <h1 className="font-display font-bold text-xl"><span className="text-neon-cyan">FAULT</span> WATCH</h1>
+                    <p className="text-[10px] text-steel uppercase tracking-widest">Crisis Monitor v1.0</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gunmetal/50">
+                  <span className="w-2 h-2 rounded-full bg-crisis-normal animate-pulse" />
+                  <span className="text-xs text-steel">LIVE</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
+                {critCount > 0 && <span className="text-crisis-critical font-mono font-bold">⚡ {critCount} CRITICAL</span>}
+                {warnCount > 0 && <span className="text-crisis-warning font-mono font-bold">⚠ {warnCount} WARNING</span>}
+                <div className="text-right">
+                  <p className="text-xs text-steel">Last Updated</p>
+                  <p className="text-sm font-mono text-white">{now}</p>
+                </div>
+              </div>
+            </div>
+          </header>
+          
+          <main className="max-w-7xl mx-auto px-4 py-6">
+            {/* Top section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              <div className="bg-abyss/80 backdrop-blur border border-gunmetal/50 rounded-lg p-6 flex items-center justify-center">
+                <CrisisGauge level={level} />
+              </div>
+              <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-abyss/80 backdrop-blur border border-gunmetal/50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2"><span className="text-silver">📈</span><span className="text-xs text-steel uppercase">Silver</span></div>
+                  <div className="text-2xl font-mono font-bold text-white">${silverPrice.toFixed(2)}</div>
+                  <div className="text-xs text-crisis-critical">+{INDICATORS.tier1.find(i => i.id === 'silver_daily')?.value?.toFixed(2) || 0}% today</div>
+                </div>
+                <div className="bg-abyss/80 backdrop-blur border border-gunmetal/50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2"><span className="text-crisis-warning">⚠</span><span className="text-xs text-steel uppercase">Shanghai</span></div>
+                  <div className="text-2xl font-mono font-bold text-crisis-warning">{INDICATORS.tier1.find(i => i.id === 'shanghai_premium')?.value || 0}%</div>
+                  <div className="text-xs text-steel">premium</div>
+                </div>
+                <div className="bg-abyss/80 backdrop-blur border border-gunmetal/50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2"><span className="text-crisis-severe">🛡</span><span className="text-xs text-steel uppercase">COMEX</span></div>
+                  <div className="text-2xl font-mono font-bold text-crisis-severe">{INDICATORS.tier1.find(i => i.id === 'comex_inventory')?.value || 0}M</div>
+                  <div className="text-xs text-steel">oz registered</div>
+                </div>
+                <div className="bg-abyss/80 backdrop-blur border border-gunmetal/50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2"><span className="text-crisis-critical">⚡</span><span className="text-xs text-steel uppercase">Alerts</span></div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-mono font-bold text-crisis-critical">{critCount}</span>
+                    <span className="text-sm text-crisis-warning">+{warnCount}</span>
+                  </div>
+                  <div className="text-xs text-steel">critical/warning</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Tabs */}
+            <div className="flex gap-2 mb-6 border-b border-gunmetal/50 pb-4">
+              {[{id:'indicators',label:'Indicators',icon:'⚡'},{id:'exposure',label:'Bank Exposure',icon:'🏦'}].map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${tab === t.id ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50' : 'bg-gunmetal/30 text-steel hover:text-white border border-transparent'}`}>
+                  <span>{t.icon}</span><span className="text-sm font-medium">{t.label}</span>
+                </button>
+              ))}
+            </div>
+            
+            {/* Content */}
+            {tab === 'indicators' && (
+              <div className="space-y-6">
+                <TierPanel title="TIER 1: Immediate Warning Signs" subtitle="Check daily - highest priority" indicators={INDICATORS.tier1} tierNum={1} />
+                <TierPanel title="TIER 2: Confirming Signals" subtitle="Check weekly - validates Tier 1" indicators={INDICATORS.tier2} tierNum={2} />
+                <TierPanel title="TIER 3: Pre-Crisis Indicators" subtitle="Watch news - signals imminent crisis" indicators={INDICATORS.tier3} tierNum={3} />
+              </div>
+            )}
+            
+            {tab === 'exposure' && <BankExposure silverPrice={silverPrice} />}
+            
+            {/* Footer */}
+            <footer className="mt-8 p-4 bg-gunmetal/20 rounded-lg border border-gunmetal/50">
+              <p className="text-xs text-steel text-center"><strong className="text-crisis-warning">DISCLAIMER:</strong> For informational purposes only. Bank positions are unverified. Not financial advice.</p>
+            </footer>
+          </main>
+        </div>
+      );
+    };
+    
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

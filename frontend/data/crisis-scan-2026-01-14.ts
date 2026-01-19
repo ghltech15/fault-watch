@@ -1,0 +1,380 @@
+import { CrisisScanData } from '@/lib/crisis-scanner-types'
+
+export const crisisScanData: CrisisScanData = {
+  "scan_metadata": {
+    "scan_id": "FW-2026-01-14-001",
+    "scan_date": "2026-01-14",
+    "scan_timestamp": "2026-01-14T23:00:00Z",
+    "analyst": "Claude (Anthropic)",
+    "version": "1.0"
+  },
+
+  "system_status": {
+    "alert_level": "ELEVATED",
+    "alert_level_code": 3,
+    "primary_drivers": [
+      "Silver persistent backwardation",
+      "Fed removed Standing Repo Facility limits",
+      "Record year-end liquidity injection (resolved)",
+      "China silver export curbs effective Jan 1"
+    ],
+    "recommended_action": "INCREASED VIGILANCE"
+  },
+
+  "silver_market": {
+    "price_data": {
+      "spot_price": 90.42,
+      "user_tracked_high": 94.50,
+      "user_tracked_low": 87.00,
+      "recovery_from_low_pct": 45.6,
+      "user_thesis": "Strong buying from commercial companies needing silver + retail FOMO"
+    },
+    "market_structure": {
+      "backwardation": true,
+      "backwardation_status": "PERSISTENT",
+      "verification": "VERIFIED",
+      "source": "CME COMEX Futures Data",
+      "significance": "Spot price above futures indicates physical shortage pressure"
+    },
+    "comex_inventory": {
+      "registered_oz": 445737395,
+      "registered_tons": 13864,
+      "trend": "DECLINING",
+      "verification": "VERIFIED",
+      "source": "CME Warehouse Reports",
+      "as_of_date": "2026-01-07"
+    },
+    "delivery_activity": {
+      "date": "2026-01-07",
+      "contracts_delivered": 1624,
+      "ounces_delivered": 8100000,
+      "primary_issuer": "JPMorgan",
+      "issuer_percentage": 99,
+      "verification": "VERIFIED",
+      "source": "CME COMEX Delivery Notices",
+      "significance": "Buyers using COMEX as physical delivery market, not hedging"
+    },
+    "supply_deficit": {
+      "year": 2025,
+      "deficit_oz": 230000000,
+      "consecutive_deficit_years": 5,
+      "projected_2026_deficit_oz": 140000000,
+      "verification": "VERIFIED",
+      "sources": ["Silver Institute", "HSBC Research", "Metals Focus"]
+    },
+    "china_export_curbs": {
+      "effective_date": "2026-01-01",
+      "impact_description": "Ring-fenced ~65% of global refined silver supply for domestic use",
+      "verification": "VERIFIED",
+      "sources": ["South China Morning Post", "Multiple news outlets"]
+    },
+    "physical_premium_reports": {
+      "tokyo_premium_claimed": 130,
+      "dubai_premium_claimed": "80% above spot",
+      "verification": "UNVERIFIED",
+      "note": "Premium existence likely real, exact figures unconfirmed"
+    }
+  },
+
+  "federal_reserve": {
+    "standing_repo_facility": {
+      "current_balance": 0,
+      "daily_limit": "UNLIMITED",
+      "limit_change_date": "2025-12-10",
+      "previous_limit": 500000000000,
+      "verification": "VERIFIED",
+      "source": "Federal Reserve FOMC Statement",
+      "significance": "Fed opened unlimited liquidity backstop - major policy shift"
+    },
+    "year_end_spike": {
+      "date": "2025-12-31",
+      "amount": 74600000000,
+      "treasury_collateral": 31500000000,
+      "mbs_collateral": 43100000000,
+      "previous_record": 50350000000,
+      "status": "RESOLVED",
+      "resolution_date": "2026-01-05",
+      "verification": "VERIFIED",
+      "source": "NY Fed Daily Operations Data",
+      "significance": "Largest liquidity injection since COVID - attributed to year-end positioning"
+    },
+    "reverse_repo": {
+      "current_balance": 6000000000,
+      "year_end_spike": 106000000000,
+      "verification": "VERIFIED",
+      "source": "NY Fed"
+    },
+    "quantitative_tightening": {
+      "status": "ENDED",
+      "end_date": "2025-12-01",
+      "total_reduction": 2430000000000,
+      "verification": "VERIFIED"
+    }
+  },
+
+  "banks": {
+    "jpmorgan_chase": {
+      "ticker": "JPM",
+      "silver_exposure": {
+        "risk_level": "CRITICAL",
+        "verification_status": "UNVERIFIED",
+        "claimed_short_position_tons": 5900,
+        "claimed_exposure_usd": 13700000000,
+        "source": "DCReport.org",
+        "source_author": "David Cay Johnston",
+        "concerns": [
+          "No specific SEC filing cited",
+          "Exposure is author's calculation",
+          "No major financial outlet corroboration",
+          "CFTC does not disclose individual bank positions"
+        ],
+        "action": "Monitor for corroboration - do not treat as fact"
+      },
+      "whistleblower_allegations": {
+        "status": "CREDIBLE_ALLEGATION",
+        "source": "ICIJ",
+        "claim": "Misrepresented complexity indicators via prohibited netting practices",
+        "alleged_timeframe": "Since 2016",
+        "raised_internally": "2018",
+        "whistleblower_terminated": "2022",
+        "document": "35-page letter to board audit committee",
+        "action": "Monitor for regulatory response"
+      },
+      "liquidity_risk": {
+        "risk_level": "ELEVATED",
+        "verification_status": "VERIFIED"
+      },
+      "q4_2025_earnings": {
+        "eps_adjusted": 5.23,
+        "eps_expected": 5.00,
+        "revenue": 46770000000,
+        "beat_estimates": true,
+        "ceo_warning": "Markets seem to underappreciate potential hazards including elevated asset prices",
+        "verification": "VERIFIED",
+        "source": "CNBC, JPMorgan earnings release"
+      },
+      "overall_crisis_risk": "HIGH",
+      "risk_note": "HIGH rating driven by unverified silver exposure claims + whistleblower allegations"
+    },
+
+    "bank_of_america": {
+      "ticker": "BAC",
+      "silver_exposure": {
+        "risk_level": "MODERATE",
+        "verification_status": "UNKNOWN",
+        "notes": "Part of bullion bank consortium but specific position unknown"
+      },
+      "liquidity_risk": {
+        "risk_level": "ELEVATED",
+        "unrealized_bond_losses": 130000000000,
+        "verification_status": "VERIFIED",
+        "source": "Bank filings, financial analysis"
+      },
+      "q4_2025_earnings": {
+        "eps": 0.98,
+        "eps_expected": 0.96,
+        "revenue": 28530000000,
+        "nii_growth_pct": 9.7,
+        "beat_estimates": true,
+        "verification": "VERIFIED",
+        "source": "CNBC"
+      },
+      "overall_crisis_risk": "ELEVATED"
+    },
+
+    "citigroup": {
+      "ticker": "C",
+      "silver_exposure": {
+        "risk_level": "ELEVATED",
+        "verification_status": "UNVERIFIED",
+        "notes": "Second largest derivatives book in precious metals notionals per some reports"
+      },
+      "liquidity_risk": {
+        "risk_level": "MODERATE",
+        "verification_status": "VERIFIED"
+      },
+      "warning_signals": {
+        "z_score": 0,
+        "z_score_meaning": "Potential financial distress indicator",
+        "insider_selling_12mo": 17430000,
+        "source": "GuruFocus"
+      },
+      "loan_loss_provisions": {
+        "q1_2025": 2700000000,
+        "projected_increase": "A few hundred million",
+        "source": "Bloomberg report",
+        "verification": "VERIFIED"
+      },
+      "stress_test": {
+        "passed": true,
+        "cet1_ratio": 10.4,
+        "minimum_required": 4.5,
+        "verification": "VERIFIED"
+      },
+      "overall_crisis_risk": "ELEVATED"
+    },
+
+    "wells_fargo": {
+      "ticker": "WFC",
+      "silver_exposure": {
+        "risk_level": "LOW",
+        "notes": "Not a major bullion bank"
+      },
+      "liquidity_risk": {
+        "risk_level": "LOW",
+        "verification_status": "VERIFIED"
+      },
+      "regulatory_status": {
+        "asset_cap_removed": true,
+        "removal_date": "2025-06-03",
+        "previous_cap": 1900000000000,
+        "source": "Federal Reserve",
+        "verification": "VERIFIED"
+      },
+      "concerns": {
+        "sales_pressure_returning": true,
+        "employee_reports": "Aggressive targets and high-stress culture resurging",
+        "source": "Better Banks Accountability Project report"
+      },
+      "overall_crisis_risk": "LOW"
+    },
+
+    "hsbc": {
+      "ticker": "HSBC",
+      "silver_exposure": {
+        "risk_level": "ELEVATED",
+        "verification_status": "UNVERIFIED",
+        "notes": "Major bullion bank, historical short positions, but no confirmed distress"
+      },
+      "liquidity_risk": {
+        "risk_level": "MODERATE"
+      },
+      "analyst_position": {
+        "stance": "Raised silver price forecasts",
+        "2026_forecast_avg": 68.25,
+        "2026_range": "58-88",
+        "view": "Prices fundamentally overvalued but tightness to persist",
+        "source": "HSBC Research (James Steel)"
+      },
+      "overall_crisis_risk": "MODERATE"
+    },
+
+    "deutsche_bank": {
+      "ticker": "DB",
+      "silver_exposure": {
+        "risk_level": "ELEVATED",
+        "verification_status": "UNVERIFIED",
+        "historical": "Named in silver manipulation lawsuits, provided 'smoking gun' evidence"
+      },
+      "shadow_bank_exposure": {
+        "percentage": 30,
+        "comparison": "Highest among European lenders (avg 8%)",
+        "source": "UBS Research",
+        "verification": "VERIFIED"
+      },
+      "overall_crisis_risk": "ELEVATED"
+    },
+
+    "ubs": {
+      "ticker": "UBS",
+      "silver_exposure": {
+        "risk_level": "MODERATE",
+        "verification_status": "UNVERIFIED"
+      },
+      "analyst_position": {
+        "stance": "Bullish on silver",
+        "quote": "Favor being long silver",
+        "entry_range": "47-50",
+        "2026_target": 60,
+        "spike_possible": 65,
+        "source": "UBS Research"
+      },
+      "overall_crisis_risk": "MODERATE"
+    },
+
+    "goldman_sachs": {
+      "ticker": "GS",
+      "silver_exposure": {
+        "risk_level": "UNKNOWN",
+        "notes": "Part of bullion bank group but no specific exposure data found"
+      },
+      "recent_developments": {
+        "apple_card_exit": "Transferred to JPMorgan",
+        "consumer_banking": "Exited",
+        "earnings_boost": "One-time $0.46 EPS boost from reserve release"
+      },
+      "overall_crisis_risk": "MODERATE"
+    }
+  },
+
+  "unverified_claims_watchlist": [
+    {
+      "id": "UVC-001",
+      "claim": "JPMorgan 5,900 ton silver short position",
+      "exposure_claimed": "$13.7 billion",
+      "source": "DCReport.org",
+      "source_type": "Independent investigative outlet",
+      "author": "David Cay Johnston (Pulitzer Prize winner)",
+      "date_reported": "2025-12-29",
+      "verification_status": "UNVERIFIED",
+      "credibility_concerns": [
+        "No specific SEC/CFTC filing cited",
+        "Exposure figure is author calculation",
+        "No Bloomberg/Reuters/WSJ corroboration",
+        "Individual bank COMEX positions not publicly disclosed"
+      ],
+      "recommended_action": "Monitor for corroboration from official sources or major financial press",
+      "escalation_trigger": "SEC filing, CFTC report, or Bloomberg/Reuters confirmation"
+    },
+    {
+      "id": "UVC-002",
+      "claim": "Major bullion bank collapsed after margin call (Dec 29)",
+      "source": "Social media / Hal Turner Radio Show",
+      "source_type": "Fringe media",
+      "verification_status": "SPECULATIVE",
+      "debunked_by": [
+        "No FDIC bank seizure announcement",
+        "No CME trading halt",
+        "No Bloomberg/Reuters/WSJ confirmation",
+        "Fed repo spike consistent with normal year-end patterns"
+      ],
+      "recommended_action": "Disregard unless corroborated by official sources",
+      "status": "EFFECTIVELY_DEBUNKED"
+    },
+    {
+      "id": "UVC-003",
+      "claim": "Physical silver trading at $130/oz in Tokyo/Dubai",
+      "source": "Various independent analysts, social media",
+      "source_type": "Independent sources",
+      "verification_status": "UNVERIFIED",
+      "notes": "Premium existence is likely real - confirmed dealer backlogs and queues. Exact $130 figure unconfirmed.",
+      "recommended_action": "Seek primary dealer quotes for verification"
+    }
+  ],
+
+  "historical_context": {
+    "bank_manipulation_settlements": {
+      "total_fines": 1270000000,
+      "period_of_manipulation": "2008-2016",
+      "prosecution_period": "2016-2025",
+      "major_settlements": [
+        {"bank": "JPMorgan", "amount": 920000000, "year": 2020},
+        {"bank": "Scotiabank", "amount": 127500000, "year": 2020},
+        {"bank": "Deutsche Bank", "amount": 30000000, "year": 2016}
+      ],
+      "criminal_convictions": [
+        {"name": "Michael Nowak", "role": "JPM Head of Global PM Desk", "sentence": "1 year 1 day", "year": 2023},
+        {"name": "Gregg Smith", "role": "JPM Executive Director", "sentence": "2 years", "year": 2023}
+      ],
+      "note": "These are historical prosecutions for 2008-2016 manipulation, separate from 2025-2026 market events"
+    }
+  },
+
+  "next_scan_priorities": [
+    "Monitor CFTC weekly COT reports for bank position changes",
+    "Track COMEX registered inventory trend",
+    "Watch for JPMorgan response to whistleblower allegations",
+    "Monitor Fed repo facility usage for anomalies outside year-end",
+    "Track physical premium reports from primary dealers"
+  ]
+}
