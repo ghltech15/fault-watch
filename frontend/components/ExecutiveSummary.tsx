@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, CrisisGaugeData, DashboardData } from '@/lib/api'
 import { VerificationBadge, VerificationLegend, VerifiedDataPoint } from './VerificationBadge'
@@ -15,13 +16,26 @@ interface ExecutiveSummaryProps {
 
 // Market status indicator
 function MarketStatus() {
-  const now = new Date()
-  const hour = now.getUTCHours()
-  const day = now.getUTCDay()
-  const isWeekend = day === 0 || day === 6
-  const isMarketHours = hour >= 13 && hour < 21 // 9:30 AM - 4 PM ET in UTC
+  const [isOpen, setIsOpen] = React.useState<boolean | null>(null)
 
-  const isOpen = !isWeekend && isMarketHours
+  React.useEffect(() => {
+    const now = new Date()
+    const hour = now.getUTCHours()
+    const day = now.getUTCDay()
+    const isWeekend = day === 0 || day === 6
+    const isMarketHours = hour >= 13 && hour < 21 // 9:30 AM - 4 PM ET in UTC
+    setIsOpen(!isWeekend && isMarketHours)
+  }, [])
+
+  // Render a neutral placeholder until mounted to prevent hydration mismatch
+  if (isOpen === null) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-gray-500/20 text-gray-400">
+        <span className="w-2 h-2 rounded-full bg-gray-500" />
+        CHECKING...
+      </div>
+    )
+  }
 
   return (
     <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${
