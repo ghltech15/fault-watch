@@ -3,20 +3,19 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xieyimjykzccrjmlqdps.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpZXlpbWp5a3pjY3JqbWxxZHBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxNTE2NjcsImV4cCI6MjA4MzcyNzY2N30.lJtGhgJdPld5GTG_F6So7Gi-cRzzAcE3QXTqQJsEBeM'
 
-// Lazy singleton pattern to avoid SSR issues
+// Singleton pattern - only create client on browser
 let supabaseInstance: SupabaseClient | null = null
 
 export function getSupabase(): SupabaseClient {
+  if (typeof window === 'undefined') {
+    // Return a mock during SSR - actual calls won't be made
+    return null as unknown as SupabaseClient
+  }
   if (!supabaseInstance) {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey)
   }
   return supabaseInstance
 }
-
-// For backwards compatibility - only use in client components
-export const supabase = typeof window !== 'undefined'
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null as unknown as SupabaseClient
 
 // Types for our database
 export interface VisitorLog {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, DashboardData, ContagionRiskData, CascadeData, OpportunitiesData, NakedShortAnalysis, AlertData, TheoryData, CrisisGaugeData, CrisisScannerData } from '@/lib/api'
 import { VerificationBadge, VerificationDot, CardHeader, VerificationLegend } from '@/components/VerificationBadge'
@@ -2115,16 +2115,24 @@ function SectorsCard() {
 }
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false)
   const [expandedCard, setExpandedCard] = useState<CardType>(null)
   const { userId, showRegistration, setShowRegistration, handleRegistered, requestAccess, hasAccess } = useUserAccess()
+
+  // Ensure consistent rendering between server and client
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard'],
     queryFn: api.getDashboard,
     refetchInterval: 60000,
+    enabled: mounted, // Only fetch after client mount
   })
 
-  if (isLoading) {
+  // Show loading state on server and during initial client render
+  if (!mounted || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
