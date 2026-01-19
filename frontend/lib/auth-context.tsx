@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { supabase } from './supabase'
+import { getSupabase } from './supabase'
 
 interface AuthContextType {
   user: User | null
@@ -31,8 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
+    const supabase = getSupabase()
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -52,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [mounted])
 
   async function checkAdminStatus(userId: string | undefined) {
     if (!userId) {
@@ -60,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const supabase = getSupabase()
     const { data } = await supabase
       .from('user_profiles')
       .select('role')
@@ -70,16 +80,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
+    const supabase = getSupabase()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error as Error | null }
   }
 
   async function signUp(email: string, password: string) {
+    const supabase = getSupabase()
     const { error } = await supabase.auth.signUp({ email, password })
     return { error: error as Error | null }
   }
 
   async function signOut() {
+    const supabase = getSupabase()
     await supabase.auth.signOut()
   }
 

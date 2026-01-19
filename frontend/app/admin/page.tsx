@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { supabase, VisitorLog, UserProfile } from '@/lib/supabase'
+import { getSupabase, VisitorLog, UserProfile } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users,
@@ -43,6 +43,8 @@ export default function AdminPage() {
 
   async function fetchData() {
     setStatsLoading(true)
+
+    const supabase = getSupabase()
 
     const { data: visitorData } = await supabase
       .from('visitor_logs')

@@ -1,9 +1,22 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xieyimjykzccrjmlqdps.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpZXlpbWp5a3pjY3JqbWxxZHBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxNTE2NjcsImV4cCI6MjA4MzcyNzY2N30.lJtGhgJdPld5GTG_F6So7Gi-cRzzAcE3QXTqQJsEBeM'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Lazy singleton pattern to avoid SSR issues
+let supabaseInstance: SupabaseClient | null = null
+
+export function getSupabase(): SupabaseClient {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey)
+  }
+  return supabaseInstance
+}
+
+// For backwards compatibility - only use in client components
+export const supabase = typeof window !== 'undefined'
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null as unknown as SupabaseClient
 
 // Types for our database
 export interface VisitorLog {
@@ -27,7 +40,8 @@ export interface UserProfile {
 // Log a page visit
 export async function logVisit(path: string, userAgent: string, referrer?: string) {
   try {
-    const { error } = await supabase
+    const client = getSupabase()
+    const { error } = await client
       .from('visitor_logs')
       .insert({
         path,
@@ -42,7 +56,8 @@ export async function logVisit(path: string, userAgent: string, referrer?: strin
 
 // Get visitor stats
 export async function getVisitorStats() {
-  const { data, error } = await supabase
+  const client = getSupabase()
+  const { data, error } = await client
     .from('visitor_logs')
     .select('*')
     .order('created_at', { ascending: false })
@@ -57,7 +72,8 @@ export async function getVisitorStats() {
 
 // Get all users (admin only)
 export async function getUsers() {
-  const { data, error } = await supabase
+  const client = getSupabase()
+  const { data, error } = await client
     .from('user_profiles')
     .select('*')
     .order('created_at', { ascending: false })
