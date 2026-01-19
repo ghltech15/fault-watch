@@ -40,7 +40,7 @@ export default function RootLayout({
           </>
         )}
       </head>
-      <body className={inter.className} style={{ backgroundColor: '#0a0a0a', color: '#e5e5e5' }} suppressHydrationWarning>
+      <body className={`${inter.className} bg-background text-gray-200`} style={{ backgroundColor: '#0a0a0a', color: '#e5e5e5' }}>
         <Providers>{children}</Providers>
       </body>
     </html>
