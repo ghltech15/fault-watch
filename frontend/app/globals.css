@@ -506,3 +506,325 @@ body {
   width: 3px;
   background: linear-gradient(180deg, #F59E0B 0%, rgba(245, 158, 11, 0.3) 100%);
 }
+
+/* ============================================
+   NARRATIVE REDESIGN STYLES
+   Content Creator & Viral Video Ready
+   ============================================ */
+
+/* Giant Typography for Video */
+.headline-stat {
+  @apply font-black tabular-nums tracking-tight;
+  font-size: clamp(3rem, 10vw, 8rem);
+  line-height: 1;
+}
+
+.section-title {
+  @apply text-4xl md:text-5xl font-black tracking-tight;
+  letter-spacing: -0.02em;
+}
+
+/* Narrative Section Styling */
+.narrative-section {
+  @apply py-16 md:py-24;
+}
+
+.narrative-section-header {
+  @apply mb-12;
+}
+
+/* Phase Badge */
+.phase-badge {
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Flow Connector */
+.flow-connector {
+  @apply relative my-8;
+}
+
+.flow-connector::before {
+  content: '';
+  @apply absolute left-1/2 -translate-x-1/2 w-px h-16 bg-gradient-to-b from-amber-500/50 to-transparent;
+  top: -2rem;
+}
+
+.flow-connector-text {
+  @apply text-center text-sm text-gray-500 py-4;
+}
+
+/* Target Cards */
+.target-card {
+  @apply p-6 rounded-xl border transition-all duration-300;
+  background: linear-gradient(135deg, rgba(17,17,17,1) 0%, rgba(10,10,10,1) 100%);
+}
+
+.target-card:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.target-card.reached {
+  @apply border-green-500/50;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(10,10,10,1) 100%);
+}
+
+.target-card.next {
+  @apply border-amber-500/50;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(10,10,10,1) 100%);
+  animation: target-pulse 2s ease-in-out infinite;
+}
+
+.target-card.future {
+  @apply border-gray-700/50 opacity-60;
+}
+
+@keyframes target-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(245, 158, 11, 0.2);
+  }
+}
+
+/* Bank Cards */
+.bank-card {
+  @apply relative overflow-hidden rounded-xl border transition-all duration-300;
+}
+
+.bank-card-critical {
+  @apply border-red-500/30;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(10,10,10,1) 100%);
+}
+
+.bank-card-high {
+  @apply border-orange-500/30;
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.1) 0%, rgba(10,10,10,1) 100%);
+}
+
+.bank-card-elevated {
+  @apply border-amber-500/30;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(10,10,10,1) 100%);
+}
+
+.bank-card-moderate {
+  @apply border-gray-700;
+  background: linear-gradient(135deg, rgba(17,17,17,1) 0%, rgba(10,10,10,1) 100%);
+}
+
+/* Crack Indicators */
+.crack-indicator {
+  @apply p-4 rounded-xl border transition-all duration-200;
+}
+
+.crack-stable {
+  @apply border-green-500/30;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.crack-stressed {
+  @apply border-amber-500/30;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.crack-breaking {
+  @apply border-red-500/30;
+  background: rgba(220, 38, 38, 0.1);
+  animation: crack-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes crack-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px 3px rgba(220, 38, 38, 0.3);
+  }
+}
+
+/* Cascade Timeline */
+.cascade-timeline {
+  @apply relative;
+}
+
+.cascade-phase {
+  @apply relative flex gap-6 pb-8;
+}
+
+.cascade-phase-indicator {
+  @apply relative z-10 w-16 h-16 rounded-full flex items-center justify-center font-black text-2xl;
+}
+
+.cascade-phase-complete {
+  @apply bg-green-500/20 border-2 border-green-500 text-green-400;
+}
+
+.cascade-phase-active {
+  @apply bg-amber-500/20 border-2 border-amber-500 text-amber-400;
+  animation: phase-glow 2s ease-in-out infinite;
+}
+
+.cascade-phase-pending {
+  @apply bg-gray-800 border-2 border-gray-700 text-gray-500;
+}
+
+@keyframes phase-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(245, 158, 11, 0.2);
+  }
+}
+
+/* Record Mode - For video creation */
+body.record-mode {
+  /* Hide non-essential UI */
+}
+
+body.record-mode .creator-toolbar {
+  opacity: 0.3;
+}
+
+body.record-mode .creator-toolbar:hover {
+  opacity: 1;
+}
+
+body.record-mode .headline-stat {
+  font-size: clamp(4rem, 12vw, 10rem);
+}
+
+body.record-mode .section-title {
+  @apply text-5xl md:text-6xl;
+}
+
+/* Full Screen Mode Enhancements */
+:fullscreen {
+  background: #0a0a0a;
+}
+
+:fullscreen .hero-gradient {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Animated Number Counting */
+.counting-number {
+  animation: number-pop 0.3s ease-out;
+}
+
+@keyframes number-pop {
+  0% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Tier Badges */
+.tier-badge {
+  @apply px-2 py-1 rounded text-xs font-bold;
+}
+
+.tier-1 {
+  @apply bg-red-500/20 text-red-400;
+}
+
+.tier-2 {
+  @apply bg-amber-500/20 text-amber-400;
+}
+
+.tier-3 {
+  @apply bg-blue-500/20 text-blue-400;
+}
+
+/* Intervention Risk Gauge */
+.intervention-gauge {
+  @apply h-2 bg-gray-800 rounded-full overflow-hidden;
+}
+
+.intervention-fill {
+  @apply h-full rounded-full transition-all duration-1000;
+}
+
+.intervention-low {
+  @apply bg-green-500;
+}
+
+.intervention-medium {
+  @apply bg-amber-500;
+}
+
+.intervention-high {
+  @apply bg-red-500;
+}
+
+/* Share Modal */
+.share-modal-backdrop {
+  @apply fixed inset-0 bg-black/80 backdrop-blur-sm z-50;
+}
+
+.share-modal {
+  @apply fixed inset-0 flex items-center justify-center p-4 z-50;
+}
+
+.share-modal-content {
+  @apply bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md overflow-hidden;
+}
+
+/* Embed Preview */
+.embed-preview {
+  @apply inline-block bg-black rounded-xl p-4 border border-gray-700;
+}
+
+/* Creator Toolbar */
+.creator-toolbar {
+  @apply fixed bottom-6 left-1/2 -translate-x-1/2 z-50;
+}
+
+.creator-toolbar-inner {
+  @apply bg-gray-900/95 backdrop-blur-xl border border-gray-700 rounded-2xl shadow-2xl overflow-hidden;
+}
+
+.toolbar-button {
+  @apply relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition;
+}
+
+.toolbar-button:hover {
+  @apply bg-gray-800 text-white;
+}
+
+.toolbar-button.active {
+  @apply bg-blue-500/20 text-blue-400;
+}
+
+.toolbar-button.success {
+  @apply bg-green-500/20 text-green-400;
+}
+
+.toolbar-button.danger {
+  @apply bg-red-500/20 text-red-400;
+}
+
+/* Smooth scroll for narrative */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection Color */
+::selection {
+  background: rgba(220, 38, 38, 0.3);
+  color: white;
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  @apply outline-none ring-2 ring-amber-500 ring-offset-2 ring-offset-black;
+}

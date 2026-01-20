@@ -1,6 +1,7 @@
 """
 Price Monitor
 Fetches and tracks prices for silver, gold, bank stocks, and other assets
+Uses Yahoo Finance for real-time precious metal spot prices
 """
 
 import os
@@ -13,6 +14,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY', '')
+
+# Yahoo Finance symbols for real spot prices
+YAHOO_METAL_SYMBOLS = {
+    'silver': 'SI=F',   # Silver Futures (tracks spot price)
+    'gold': 'GC=F',     # Gold Futures (tracks spot price)
+}
 
 
 @dataclass
@@ -51,10 +58,10 @@ class PriceMonitor:
         self.cache_ttl = 60  # seconds
         self.last_fetch: Dict[str, datetime] = {}
 
-        # Symbol mapping
+        # Symbol mapping (silver/gold use Yahoo Finance for real spot prices)
         self.symbols = {
-            'silver': 'SLV',      # iShares Silver Trust (proxy for silver)
-            'gold': 'GLD',        # SPDR Gold Shares
+            'silver': 'SI=F',     # Silver Futures (via Yahoo Finance)
+            'gold': 'GC=F',       # Gold Futures (via Yahoo Finance)
             'vix': 'VIX',         # Volatility Index
             'morgan_stanley': 'MS',
             'citigroup': 'C',
@@ -91,9 +98,63 @@ class PriceMonitor:
             logger.error(f"Error fetching quote for {symbol}: {e}")
             return None
 
+    def _fetch_yahoo_quote(self, symbol: str) -> Optional[Dict]:
+        """Fetch quote from Yahoo Finance API (free, no key required)"""
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            params = {'interval': '1d', 'range': '2d'}
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            result = data.get('chart', {}).get('result', [])
+            if not result:
+                logger.error(f"No data returned from Yahoo for {symbol}")
+                return None
+
+            meta = result[0].get('meta', {})
+            quote = result[0].get('indicators', {}).get('quote', [{}])[0]
+
+            # Get current price and previous close
+            current_price = meta.get('regularMarketPrice', 0)
+            prev_close = meta.get('previousClose', meta.get('chartPreviousClose', current_price))
+
+            # Calculate change
+            change = current_price - prev_close if prev_close else 0
+            change_pct = (change / prev_close * 100) if prev_close else 0
+
+            # Get high/low from today's data
+            highs = quote.get('high', [])
+            lows = quote.get('low', [])
+            today_high = highs[-1] if highs and highs[-1] else current_price
+            today_low = lows[-1] if lows and lows[-1] else current_price
+
+            return {
+                'c': current_price,      # Current price
+                'd': change,             # Change
+                'dp': change_pct,        # Change percent
+                'pc': prev_close,        # Previous close
+                'h': today_high,         # High
+                'l': today_low,          # Low
+            }
+        except Exception as e:
+            logger.error(f"Error fetching Yahoo quote for {symbol}: {e}")
+            return None
+
+    def _is_metal(self, asset: str) -> bool:
+        """Check if asset is a precious metal"""
+        return asset in YAHOO_METAL_SYMBOLS
+
     def get_price(self, asset: str, force_refresh: bool = False) -> Optional[PriceData]:
         """Get current price for an asset"""
-        symbol = self.symbols.get(asset, asset.upper())
+        # Use Yahoo Finance for precious metals (real spot prices)
+        if self._is_metal(asset):
+            symbol = YAHOO_METAL_SYMBOLS[asset]
+        else:
+            symbol = self.symbols.get(asset, asset.upper())
 
         # Check cache
         if not force_refresh and symbol in self.last_fetch:
@@ -101,12 +162,16 @@ class PriceMonitor:
             if elapsed < self.cache_ttl and symbol in self.cache:
                 return self.cache[symbol]
 
-        # Fetch from API
-        quote = self._fetch_quote(symbol)
+        # Fetch from appropriate API
+        if self._is_metal(asset):
+            quote = self._fetch_yahoo_quote(symbol)
+            logger.info(f"Fetched {asset} spot price from Yahoo Finance: ${quote.get('c', 0):.2f}" if quote else f"Failed to fetch {asset}")
+        else:
+            quote = self._fetch_quote(symbol)
+
         if not quote or quote.get('c', 0) == 0:
             return self.cache.get(symbol)  # Return cached if available
 
-        # Handle SLV -> silver price conversion (SLV is ~1:1 with silver)
         price = quote['c']
 
         price_data = PriceData(
