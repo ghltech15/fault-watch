@@ -7,6 +7,7 @@ import { LiveTicker } from './LiveTicker'
 import { DashboardData } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { Activity } from 'lucide-react'
 
 interface HeroSectionProps {
   dashboard: DashboardData
@@ -99,17 +100,46 @@ export function HeroSection({ dashboard }: HeroSectionProps) {
 
       {/* Header */}
       <header className="relative z-10 border-b border-gray-800 bg-black/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-black text-white tracking-tight">
-              fault<span className="text-red-500">.</span>watch
-            </h1>
-            <span className="px-2 py-1 bg-red-500/20 text-red-400 text-[10px] font-bold rounded uppercase tracking-wider">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="relative w-10 h-10 flex items-center justify-center">
+                {/* Seismograph-style logo */}
+                <svg viewBox="0 0 40 40" className="w-10 h-10">
+                  {/* Outer ring */}
+                  <circle cx="20" cy="20" r="18" fill="none" stroke="#dc2626" strokeWidth="2" opacity="0.3" />
+                  {/* Inner pulse ring */}
+                  <circle cx="20" cy="20" r="12" fill="none" stroke="#dc2626" strokeWidth="1.5" opacity="0.5" />
+                  {/* Seismograph line - the "fault" */}
+                  <path
+                    d="M6 20 L12 20 L14 14 L16 26 L18 12 L20 28 L22 16 L24 24 L26 18 L28 20 L34 20"
+                    fill="none"
+                    stroke="#dc2626"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {/* Pulse animation */}
+                <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white tracking-tight leading-none">
+                  fault<span className="text-red-500">.</span>watch
+                </h1>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Crisis Probability Tracker</p>
+              </div>
+            </div>
+            <span className="px-2 py-1 bg-red-500/20 text-red-400 text-[10px] font-bold rounded uppercase tracking-wider animate-pulse">
               LIVE
             </span>
           </div>
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            <span>Last updated: {new Date(dashboard.last_updated).toLocaleTimeString()}</span>
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-green-500" />
+              <span>Updated: {new Date(dashboard.last_updated).toLocaleTimeString()}</span>
+            </div>
           </div>
         </div>
       </header>
