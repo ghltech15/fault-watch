@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Clock, Building2, Layers, AlertTriangle } from 'lucide-react'
+import { Sparkline, generateMockPriceData } from '@/components/engagement/Sparkline'
 
 interface StatItem {
   label: string
@@ -13,6 +14,7 @@ interface StatItem {
   icon: React.ReactNode
   color?: string
   subtext?: string
+  showSparkline?: boolean
 }
 
 interface KeyStatsProps {
@@ -62,6 +64,12 @@ function StatCard({ stat, index }: { stat: StatItem; index: number }) {
   const isNumeric = typeof stat.value === 'number'
   const colorClass = stat.color || 'text-white'
 
+  // Generate mock sparkline data (in production, this would come from API)
+  const sparklineData = useMemo(() => {
+    if (!stat.showSparkline || !isNumeric) return null
+    return generateMockPriceData(stat.value as number, 14, 0.015)
+  }, [stat.showSparkline, stat.value, isNumeric])
+
   return (
     <motion.div
       className="relative bg-gray-900/50 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors"
@@ -86,18 +94,36 @@ function StatCard({ stat, index }: { stat: StatItem; index: number }) {
         )}
       </div>
 
-      {/* Value */}
-      <div className={`text-3xl md:text-4xl font-black mb-1 ${colorClass}`}>
-        {isNumeric ? (
-          <AnimatedNumber value={stat.value as number} prefix={stat.prefix} suffix={stat.suffix} />
-        ) : (
-          <span>{stat.prefix}{stat.value}{stat.suffix}</span>
-        )}
-      </div>
+      {/* Value with optional sparkline */}
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <div className={`text-3xl md:text-4xl font-black mb-1 ${colorClass}`}>
+            {isNumeric ? (
+              <AnimatedNumber value={stat.value as number} prefix={stat.prefix} suffix={stat.suffix} />
+            ) : (
+              <span>{stat.prefix}{stat.value}{stat.suffix}</span>
+            )}
+          </div>
 
-      {/* Label */}
-      <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">
-        {stat.label}
+          {/* Label */}
+          <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">
+            {stat.label}
+          </div>
+        </div>
+
+        {/* Sparkline */}
+        {sparklineData && (
+          <div className="flex-shrink-0">
+            <Sparkline
+              data={sparklineData}
+              width={60}
+              height={28}
+              color="auto"
+              showArea
+            />
+            <div className="text-[9px] text-gray-600 text-right mt-0.5">14d</div>
+          </div>
+        )}
       </div>
 
       {/* Subtext */}
@@ -136,7 +162,8 @@ export function createKeyStats(data: {
       change: data.silverChange,
       prefix: '$',
       icon: <Layers className="w-5 h-5" />,
-      color: 'text-gray-100'
+      color: 'text-gray-100',
+      showSparkline: true
     },
     {
       label: 'Bank Exposure',
@@ -144,7 +171,8 @@ export function createKeyStats(data: {
       prefix: '$',
       icon: <Building2 className="w-5 h-5" />,
       color: 'text-red-400',
-      subtext: 'Est. short positions'
+      subtext: 'Est. short positions',
+      showSparkline: true
     },
     {
       label: data.deadlineLabel,

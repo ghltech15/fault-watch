@@ -1,8 +1,8 @@
 'use client'
 
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
-import { ChevronRight, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
+import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { useRef, useState } from 'react'
+import { ChevronRight, ChevronDown, AlertTriangle, CheckCircle, Clock, Minimize2, Maximize2 } from 'lucide-react'
 
 interface NarrativeSectionProps {
   id: string
@@ -12,6 +12,8 @@ interface NarrativeSectionProps {
   status: 'active' | 'warning' | 'critical' | 'complete'
   children: React.ReactNode
   flowText?: string
+  defaultExpanded?: boolean
+  collapsible?: boolean
 }
 
 export function NarrativeSection({
@@ -21,10 +23,13 @@ export function NarrativeSection({
   subtitle,
   status,
   children,
-  flowText
+  flowText,
+  defaultExpanded = true,
+  collapsible = true
 }: NarrativeSectionProps) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-100px' })
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
 
   const statusConfig = {
     active: {
@@ -81,29 +86,64 @@ export function NarrativeSection({
       <div className="max-w-6xl mx-auto px-4">
         {/* Section Header */}
         <motion.div
-          className="mb-12"
+          className={`${collapsible ? 'cursor-pointer' : ''} ${isExpanded ? 'mb-12' : 'mb-4'}`}
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
+          onClick={collapsible ? () => setIsExpanded(!isExpanded) : undefined}
         >
-          {/* Phase indicator */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${config.bg} ${config.border} border`}>
-              <span className={`text-xs font-bold ${config.color}`}>PHASE {phaseNumber}</span>
+          {/* Phase indicator and collapse button row */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${config.bg} ${config.border} border`}>
+                <span className={`text-xs font-bold ${config.color}`}>PHASE {phaseNumber}</span>
+              </div>
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${config.bg} ${config.border} border`}>
+                {config.icon}
+                <span className={`text-xs font-bold ${config.color}`}>{config.label}</span>
+              </div>
             </div>
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${config.bg} ${config.border} border`}>
-              {config.icon}
-              <span className={`text-xs font-bold ${config.color}`}>{config.label}</span>
-            </div>
+
+            {/* Collapse/Expand button */}
+            {collapsible && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setIsExpanded(!isExpanded)
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 transition text-gray-400 hover:text-white"
+              >
+                {isExpanded ? (
+                  <>
+                    <Minimize2 className="w-4 h-4" />
+                    <span className="text-xs font-medium hidden sm:inline">Collapse</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-4 h-4" />
+                    <span className="text-xs font-medium hidden sm:inline">Expand</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Title */}
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-3 tracking-tight">
-            {title}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+              {title}
+            </h2>
+            {collapsible && (
+              <ChevronDown
+                className={`w-8 h-8 text-gray-500 transition-transform duration-300 ${
+                  isExpanded ? 'rotate-180' : ''
+                }`}
+              />
+            )}
+          </div>
 
-          {/* Subtitle */}
-          <p className="text-lg text-gray-400 max-w-2xl">
+          {/* Subtitle - always visible as preview */}
+          <p className={`text-lg text-gray-400 max-w-2xl mt-3 ${!isExpanded ? 'line-clamp-2' : ''}`}>
             {subtitle}
           </p>
 
@@ -117,14 +157,39 @@ export function NarrativeSection({
           }} />
         </motion.div>
 
-        {/* Section Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          {children}
-        </motion.div>
+        {/* Section Content - Collapsible */}
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                {children}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Collapsed preview hint */}
+        {!isExpanded && collapsible && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-4"
+          >
+            <span className="text-xs text-gray-500">
+              Click to expand section
+            </span>
+          </motion.div>
+        )}
       </div>
     </section>
   )

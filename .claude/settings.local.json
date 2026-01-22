@@ -83,7 +83,9 @@
       "WebFetch(domain:fault-watch-api.fly.dev)",
       "Bash(flyctl logs:*)",
       "WebFetch(domain:fault.watch)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "WebFetch(domain:api.metals.live)",
+      "WebFetch(domain:goldpricez.com)"
     ]
   }
 }

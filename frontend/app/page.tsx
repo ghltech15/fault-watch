@@ -10,10 +10,17 @@ import {
   CascadeSection
 } from '@/components/narrative'
 import { CreatorToolbar } from '@/components/creator'
-import { useState, useEffect } from 'react'
+import {
+  LiveIndicators,
+  SectionNav,
+  MobileSectionNav,
+  ProjectionCard
+} from '@/components/engagement'
+import { useState, useEffect, useRef } from 'react'
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState('hero')
+  const initialSilverPriceRef = useRef<number | null>(null)
 
   // Fetch dashboard data
   const { data: dashboard } = useQuery({
@@ -59,6 +66,13 @@ export default function Home() {
   const silverPrice = dashboard?.prices?.silver?.price || 95.02
   const silverChange = dashboard?.prices?.silver?.change_pct || 0
   const comexInventory = 280.5 // Million oz (would come from API)
+
+  // Capture initial silver price on first load
+  useEffect(() => {
+    if (silverPrice && initialSilverPriceRef.current === null) {
+      initialSilverPriceRef.current = silverPrice
+    }
+  }, [silverPrice])
 
   // Bank exposure data (derived from crisis gauge losses or defaults)
   const getLossForBank = (bankName: string, defaultLoss: number) => {
@@ -138,6 +152,16 @@ export default function Home() {
 
   return (
     <main id="main-content" className="min-h-screen bg-black">
+      {/* Live Engagement Indicators */}
+      <LiveIndicators
+        initialSilverPrice={initialSilverPriceRef.current || silverPrice}
+        currentSilverPrice={silverPrice}
+      />
+
+      {/* Section Navigation */}
+      <SectionNav />
+      <MobileSectionNav />
+
       {/* Hero Section */}
       <div data-section id="hero">
         {dashboard && <HeroSection dashboard={dashboard} />}
@@ -152,6 +176,14 @@ export default function Home() {
             silverChange={silverChange}
             comexInventory={comexInventory}
           />
+
+          {/* Price Projections Card */}
+          <div className="max-w-6xl mx-auto px-4 -mt-8 mb-8">
+            <ProjectionCard
+              currentPrice={silverPrice}
+              dailyChangePercent={Math.abs(silverChange) || 0.5}
+            />
+          </div>
         </div>
 
         {/* Section 2: The Exposure */}
