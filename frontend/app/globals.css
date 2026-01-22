@@ -7,7 +7,9 @@
    Energetic, Urgent, Exciting (Not Depressing)
    ============================================ */
 
-:root {
+:root,
+:root.dark,
+[data-theme="dark"] {
   /* Backgrounds - Deep navy, not black */
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
@@ -60,15 +62,91 @@
   --critical: #7f1d1d;
 }
 
+/* ============================================
+   LIGHT MODE THEME
+   Clean, Professional, Shareable
+   ============================================ */
+
+:root.light,
+[data-theme="light"] {
+  /* Backgrounds - Clean whites and light grays */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.8);
+
+  /* Crisis Colors - Slightly deeper for contrast */
+  --crisis-red: #dc2626;
+  --crisis-glow: #ef4444;
+  --crisis-deep: #b91c1c;
+  --warning-orange: #ea580c;
+  --warning-yellow: #d97706;
+  --warning-amber: #b45309;
+
+  /* Positive/Excitement - Deeper for light bg */
+  --success-green: #059669;
+  --success-glow: #10b981;
+  --highlight-cyan: #0891b2;
+  --accent-purple: #7c3aed;
+  --accent-blue: #2563eb;
+
+  /* Text - Dark for readability */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+
+  /* Borders - Subtle shadows */
+  --border-subtle: rgba(15, 23, 42, 0.05);
+  --border-medium: rgba(15, 23, 42, 0.1);
+  --border-bright: rgba(15, 23, 42, 0.15);
+
+  /* Glows - Softer for light mode */
+  --glow-red: rgba(220, 38, 38, 0.3);
+  --glow-orange: rgba(234, 88, 12, 0.3);
+  --glow-cyan: rgba(8, 145, 178, 0.3);
+  --glow-purple: rgba(124, 58, 237, 0.25);
+  --glow-green: rgba(5, 150, 105, 0.3);
+
+  /* Legacy mappings for existing components */
+  --background: var(--bg-primary);
+  --surface: var(--bg-secondary);
+  --border: var(--border-medium);
+  --danger: var(--crisis-red);
+  --danger-glow: var(--glow-red);
+  --warning: var(--warning-amber);
+  --warning-glow: var(--glow-orange);
+  --success: var(--success-green);
+  --info: var(--accent-blue);
+  --critical: #fecaca;
+}
+
 body {
   background: var(--bg-primary);
+  color: var(--text-primary);
+  font-feature-settings: 'tnum' on, 'lnum' on;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode body background */
+.dark body,
+[data-theme="dark"] body,
+:root:not(.light) body {
   background-image:
     radial-gradient(ellipse at 50% 0%, rgba(34, 211, 238, 0.08) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%),
     radial-gradient(ellipse at 20% 60%, rgba(239, 68, 68, 0.05) 0%, transparent 40%);
   background-attachment: fixed;
-  color: var(--text-primary);
-  font-feature-settings: 'tnum' on, 'lnum' on;
+}
+
+/* Light mode body background */
+.light body,
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(8, 145, 178, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(124, 58, 237, 0.04) 0%, transparent 40%),
+    radial-gradient(ellipse at 20% 60%, rgba(220, 38, 38, 0.04) 0%, transparent 40%);
+  background-attachment: fixed;
 }
 
 /* ============================================
@@ -76,28 +154,61 @@ body {
    ============================================ */
 
 .glass-card {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-medium);
+  border-radius: 1rem;
+  transition: all 0.3s ease;
+}
+
+/* Dark mode glass card */
+:root:not(.light) .glass-card,
+.dark .glass-card,
+[data-theme="dark"] .glass-card {
   background: linear-gradient(
     135deg,
     rgba(30, 58, 95, 0.8) 0%,
     rgba(15, 23, 42, 0.9) 100%
   );
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-medium);
-  border-radius: 1rem;
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.3),
     0 2px 4px -2px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 
+/* Light mode glass card */
+.light .glass-card,
+[data-theme="light"] .glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.95) 100%
+  );
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.07),
+    0 2px 4px -2px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+}
+
 .glass-card:hover {
   border-color: var(--highlight-cyan);
+  transform: translateY(-2px);
+}
+
+:root:not(.light) .glass-card:hover,
+.dark .glass-card:hover,
+[data-theme="dark"] .glass-card:hover {
   box-shadow:
     0 10px 40px -10px rgba(34, 211, 238, 0.3),
     0 4px 6px -1px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
+}
+
+.light .glass-card:hover,
+[data-theme="light"] .glass-card:hover {
+  box-shadow:
+    0 10px 40px -10px rgba(8, 145, 178, 0.2),
+    0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .glass-card-danger {
@@ -271,11 +382,24 @@ body {
    HERO GRADIENT - More Vibrant
    ============================================ */
 
-.hero-gradient {
+/* Dark mode hero gradient */
+:root:not(.light) .hero-gradient,
+.dark .hero-gradient,
+[data-theme="dark"] .hero-gradient {
   background:
     radial-gradient(ellipse at 50% -20%, rgba(239, 68, 68, 0.25) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 50%, rgba(168, 85, 247, 0.15) 0%, transparent 40%),
     radial-gradient(ellipse at 20% 80%, rgba(34, 211, 238, 0.1) 0%, transparent 40%),
+    linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+/* Light mode hero gradient */
+.light .hero-gradient,
+[data-theme="light"] .hero-gradient {
+  background:
+    radial-gradient(ellipse at 50% -20%, rgba(220, 38, 38, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(124, 58, 237, 0.08) 0%, transparent 40%),
+    radial-gradient(ellipse at 20% 80%, rgba(8, 145, 178, 0.06) 0%, transparent 40%),
     linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
 }
 
@@ -631,6 +755,17 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--highlight-cyan);
+}
+
+/* Light mode scrollbar */
+.light::-webkit-scrollbar-track,
+[data-theme="light"]::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.light::-webkit-scrollbar-thumb,
+[data-theme="light"]::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent-purple) 0%, var(--highlight-cyan) 100%);
 }
 
 /* ============================================

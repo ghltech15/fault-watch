@@ -7,13 +7,16 @@ import { LiveTicker } from './LiveTicker'
 import { DashboardData } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Activity } from 'lucide-react'
+import { Activity, Sun, Moon, Monitor } from 'lucide-react'
+import { useTheme } from '@/lib/theme-context'
 
 interface HeroSectionProps {
   dashboard: DashboardData
 }
 
 export function HeroSection({ dashboard }: HeroSectionProps) {
+  const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme()
+
   // Fetch crisis gauge data
   const { data: crisisGauge } = useQuery({
     queryKey: ['crisis-gauge'],
@@ -113,7 +116,7 @@ export function HeroSection({ dashboard }: HeroSectionProps) {
       </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-cyan-500/20 bg-slate-900/80 backdrop-blur-xl">
+      <header className="relative z-10 border-b border-cyan-500/20 bg-[var(--bg-secondary)]/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             {/* Logo */}
@@ -146,17 +149,54 @@ export function HeroSection({ dashboard }: HeroSectionProps) {
                 <div className="absolute inset-0 rounded-full bg-cyan-500/20 animate-ping" style={{ animationDuration: '2s' }} />
               </div>
               <div>
-                <h1 className="text-2xl font-black text-white tracking-tight leading-none">
+                <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: 'var(--text-primary)' }}>
                   fault<span className="text-cyan-400">.</span>watch
                 </h1>
-                <p className="text-[10px] text-cyan-400/70 uppercase tracking-wider font-medium">Crisis Probability Tracker</p>
+                <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--highlight-cyan)', opacity: 0.7 }}>Crisis Probability Tracker</p>
               </div>
             </div>
             <span className="live-badge">
               LIVE
             </span>
           </div>
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          <div className="flex items-center gap-3 text-sm text-gray-400">
+            {/* Theme Toggle */}
+            <div className="flex items-center rounded-lg border border-slate-600/50 overflow-hidden">
+              <button
+                onClick={() => setTheme('light')}
+                className={`p-2 transition-colors ${
+                  theme === 'light'
+                    ? 'bg-yellow-500/20 text-yellow-400'
+                    : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-300'
+                }`}
+                title="Light mode"
+              >
+                <Sun className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setTheme('system')}
+                className={`p-2 transition-colors ${
+                  theme === 'system'
+                    ? 'bg-cyan-500/20 text-cyan-400'
+                    : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-300'
+                }`}
+                title="System preference"
+              >
+                <Monitor className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={`p-2 transition-colors ${
+                  theme === 'dark'
+                    ? 'bg-purple-500/20 text-purple-400'
+                    : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-300'
+                }`}
+                title="Dark mode"
+              >
+                <Moon className="w-4 h-4" />
+              </button>
+            </div>
+
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
               <div className="live-dot" />
               <span className="text-green-400 font-medium">Updated: {new Date(dashboard.last_updated).toLocaleTimeString()}</span>
