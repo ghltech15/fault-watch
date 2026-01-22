@@ -14,7 +14,9 @@ import {
   LiveIndicators,
   SectionNav,
   MobileSectionNav,
-  ProjectionCard
+  ProjectionCard,
+  MilestoneCelebration,
+  CommunityPredictions
 } from '@/components/engagement'
 import { useState, useEffect, useRef } from 'react'
 
@@ -151,7 +153,10 @@ export default function Home() {
     : 35
 
   return (
-    <main id="main-content" className="min-h-screen bg-black">
+    <main id="main-content" className="min-h-screen">
+      {/* Milestone Celebration Overlay */}
+      <MilestoneCelebration silverPrice={silverPrice} />
+
       {/* Live Engagement Indicators */}
       <LiveIndicators
         initialSilverPrice={initialSilverPriceRef.current || silverPrice}
@@ -210,6 +215,11 @@ export default function Home() {
             currentPhase={currentPhase}
             interventionRisk={interventionRisk}
           />
+        </div>
+
+        {/* Community Predictions Section */}
+        <div className="max-w-2xl mx-auto mt-16">
+          <CommunityPredictions />
         </div>
       </div>
 

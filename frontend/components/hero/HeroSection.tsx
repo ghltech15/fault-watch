@@ -86,59 +86,80 @@ export function HeroSection({ dashboard }: HeroSectionProps) {
   ]
 
   return (
-    <section className="relative min-h-[80vh] flex flex-col">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-red-950/20 via-black to-black pointer-events-none" />
-
-      {/* Radial glow behind gauge */}
-      <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-20"
-        style={{
-          background: `radial-gradient(circle, ${crisisPercentage >= 60 ? 'rgba(220,38,38,0.4)' : 'rgba(245,158,11,0.3)'} 0%, transparent 70%)`
-        }}
-      />
+    <section className="relative min-h-[80vh] flex flex-col hero-gradient">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Primary glow */}
+        <div
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full opacity-30 blur-3xl"
+          style={{
+            background: `radial-gradient(circle, ${crisisPercentage >= 60 ? 'rgba(239,68,68,0.5)' : 'rgba(34,211,238,0.4)'} 0%, transparent 70%)`
+          }}
+        />
+        {/* Secondary accent glow */}
+        <div
+          className="absolute top-1/2 right-0 w-[400px] h-[400px] rounded-full opacity-20 blur-3xl"
+          style={{
+            background: 'radial-gradient(circle, rgba(168,85,247,0.5) 0%, transparent 70%)'
+          }}
+        />
+        {/* Tertiary accent */}
+        <div
+          className="absolute bottom-0 left-1/4 w-[300px] h-[300px] rounded-full opacity-15 blur-3xl"
+          style={{
+            background: 'radial-gradient(circle, rgba(34,211,238,0.5) 0%, transparent 70%)'
+          }}
+        />
+      </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-gray-800 bg-black/80 backdrop-blur-sm">
+      <header className="relative z-10 border-b border-cyan-500/20 bg-slate-900/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 flex items-center justify-center">
-                {/* Seismograph-style logo */}
-                <svg viewBox="0 0 40 40" className="w-10 h-10">
-                  {/* Outer ring */}
-                  <circle cx="20" cy="20" r="18" fill="none" stroke="#dc2626" strokeWidth="2" opacity="0.3" />
+              <div className="relative w-12 h-12 flex items-center justify-center">
+                {/* Seismograph-style logo with glow */}
+                <svg viewBox="0 0 40 40" className="w-12 h-12">
+                  {/* Outer ring with glow */}
+                  <circle cx="20" cy="20" r="18" fill="none" stroke="#22d3ee" strokeWidth="2" opacity="0.4" />
                   {/* Inner pulse ring */}
-                  <circle cx="20" cy="20" r="12" fill="none" stroke="#dc2626" strokeWidth="1.5" opacity="0.5" />
+                  <circle cx="20" cy="20" r="12" fill="none" stroke="#ef4444" strokeWidth="1.5" opacity="0.6" />
                   {/* Seismograph line - the "fault" */}
                   <path
                     d="M6 20 L12 20 L14 14 L16 26 L18 12 L20 28 L22 16 L24 24 L26 18 L28 20 L34 20"
                     fill="none"
-                    stroke="#dc2626"
-                    strokeWidth="2"
+                    stroke="url(#logo-gradient)"
+                    strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
+                  <defs>
+                    <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#ef4444" />
+                      <stop offset="50%" stopColor="#f97316" />
+                      <stop offset="100%" stopColor="#22d3ee" />
+                    </linearGradient>
+                  </defs>
                 </svg>
                 {/* Pulse animation */}
-                <div className="absolute inset-0 rounded-full bg-red-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+                <div className="absolute inset-0 rounded-full bg-cyan-500/20 animate-ping" style={{ animationDuration: '2s' }} />
               </div>
               <div>
                 <h1 className="text-2xl font-black text-white tracking-tight leading-none">
-                  fault<span className="text-red-500">.</span>watch
+                  fault<span className="text-cyan-400">.</span>watch
                 </h1>
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Crisis Probability Tracker</p>
+                <p className="text-[10px] text-cyan-400/70 uppercase tracking-wider font-medium">Crisis Probability Tracker</p>
               </div>
             </div>
-            <span className="px-2 py-1 bg-red-500/20 text-red-400 text-[10px] font-bold rounded uppercase tracking-wider animate-pulse">
+            <span className="live-badge">
               LIVE
             </span>
           </div>
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-green-500" />
-              <span>Updated: {new Date(dashboard.last_updated).toLocaleTimeString()}</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
+              <div className="live-dot" />
+              <span className="text-green-400 font-medium">Updated: {new Date(dashboard.last_updated).toLocaleTimeString()}</span>
             </div>
           </div>
         </div>
