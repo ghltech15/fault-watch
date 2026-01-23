@@ -21,8 +21,12 @@ import {
   Calendar,
   RefreshCw,
   Shield,
-  Zap
+  Zap,
+  KeyRound
 } from 'lucide-react'
+
+// Simple password gate - change this to your preferred password
+const ADMIN_ACCESS_PASSWORD = 'faultwatch2024'
 
 export default function AdminPage() {
   const { user, loading, signIn, signOut, isAdmin } = useAuth()
@@ -34,6 +38,30 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'analytics' | 'users'>('analytics')
   const [statsLoading, setStatsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Password gate state
+  const [accessGranted, setAccessGranted] = useState(false)
+  const [accessPassword, setAccessPassword] = useState('')
+  const [accessError, setAccessError] = useState('')
+
+  // Check if access was previously granted (session storage)
+  useEffect(() => {
+    const granted = sessionStorage.getItem('fw_admin_access')
+    if (granted === 'true') {
+      setAccessGranted(true)
+    }
+  }, [])
+
+  const handleAccessSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (accessPassword === ADMIN_ACCESS_PASSWORD) {
+      setAccessGranted(true)
+      sessionStorage.setItem('fw_admin_access', 'true')
+      setAccessError('')
+    } else {
+      setAccessError('Invalid access code')
+    }
+  }
 
   useEffect(() => {
     if (user && isAdmin) {
@@ -126,6 +154,81 @@ export default function AdminPage() {
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
         >
           <RefreshCw className="w-8 h-8 text-emerald-400" />
+        </motion.div>
+      </div>
+    )
+  }
+
+  // Password gate - must enter access code first
+  if (!accessGranted) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Background effects */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500/5 rounded-full blur-3xl" />
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gray-500/5 rounded-full blur-3xl" />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-sm relative z-10"
+        >
+          <div className="bg-gradient-to-b from-[#16161f] to-[#0f0f15] border border-gray-800/50 rounded-2xl p-8 shadow-2xl backdrop-blur-xl">
+            <div className="text-center mb-8">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring' }}
+                className="w-16 h-16 bg-gradient-to-br from-gray-700 to-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg"
+              >
+                <KeyRound className="w-8 h-8 text-gray-400" />
+              </motion.div>
+              <h1 className="text-xl font-bold text-white mb-2">Restricted Area</h1>
+              <p className="text-gray-500 text-sm">Enter access code to continue</p>
+            </div>
+
+            <form onSubmit={handleAccessSubmit} className="space-y-5">
+              <div>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-gray-400 transition-colors" />
+                  <input
+                    type="password"
+                    value={accessPassword}
+                    onChange={(e) => setAccessPassword(e.target.value)}
+                    className="w-full bg-[#0a0a0f] border border-gray-800 rounded-xl py-3.5 pl-11 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-gray-600 focus:ring-2 focus:ring-gray-500/20 transition-all text-center tracking-widest"
+                    placeholder="••••••••"
+                    autoFocus
+                    required
+                  />
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {accessError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex items-center justify-center gap-2 text-red-400 text-sm"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                    {accessError}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <motion.button
+                type="submit"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3.5 rounded-xl transition-all"
+              >
+                Enter
+              </motion.button>
+            </form>
+          </div>
         </motion.div>
       </div>
     )
