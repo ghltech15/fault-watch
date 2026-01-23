@@ -16,7 +16,9 @@ import {
   MobileSectionNav,
   ProjectionCard,
   MilestoneCelebration,
-  CommunityPredictions
+  CommunityPredictions,
+  CommunityContributionModal,
+  CommunityStatsWidget
 } from '@/components/engagement'
 import { useState, useEffect, useRef } from 'react'
 
@@ -157,6 +159,9 @@ export default function Home() {
       {/* Milestone Celebration Overlay */}
       <MilestoneCelebration silverPrice={silverPrice} />
 
+      {/* Community Contribution Modal */}
+      <CommunityContributionModal />
+
       {/* Live Engagement Indicators */}
       <LiveIndicators
         initialSilverPrice={initialSilverPriceRef.current || silverPrice}
@@ -217,8 +222,12 @@ export default function Home() {
           />
         </div>
 
-        {/* Community Predictions Section */}
-        <div className="max-w-2xl mx-auto mt-16">
+        {/* Community Section */}
+        <div className="max-w-2xl mx-auto mt-16 space-y-6">
+          {/* Global Watch Party Stats */}
+          <CommunityStatsWidget />
+
+          {/* Community Predictions */}
           <CommunityPredictions />
         </div>
       </div>
