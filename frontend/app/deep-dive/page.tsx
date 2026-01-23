@@ -48,9 +48,9 @@ export default function DeepDivePage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
-            <div className="inline-flex items-center gap-2 bg-red-500/20 text-red-400 px-4 py-2 rounded-full mb-6">
+            <div className="inline-flex items-center gap-2 bg-amber-500/20 text-amber-400 px-4 py-2 rounded-full mb-6">
               <AlertTriangle className="w-4 h-4" />
-              <span className="text-sm font-bold">HIGH CONFIDENCE ANALYSIS</span>
+              <span className="text-sm font-bold">UNVERIFIED SPECULATIVE ANALYSIS</span>
             </div>
             <h1 className="text-4xl md:text-6xl font-black text-[var(--text-primary)] mb-4">
               THE SILVER SHORT<br />
@@ -63,16 +63,71 @@ export default function DeepDivePage() {
         </div>
       </section>
 
+      {/* Unverified Notice */}
+      <section className="max-w-4xl mx-auto px-4 mb-6">
+        <div className="bg-amber-500/20 border-2 border-amber-500 rounded-xl p-6">
+          <div className="flex items-center justify-center gap-3 text-amber-400 mb-3">
+            <AlertTriangle className="w-6 h-6" />
+            <span className="font-bold text-xl">UNVERIFIED ANALYSIS</span>
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <p className="text-center text-amber-200/80">
+            The information in this report has NOT been independently verified. We are actively working to verify all claims and data points.
+            This represents one possible scenario based on available information and should be treated as speculative analysis only.
+          </p>
+        </div>
+      </section>
+
+      {/* Legal Notice */}
+      <section className="max-w-4xl mx-auto px-4 mb-6">
+        <div className="bg-red-500/10 border-2 border-red-500/50 rounded-xl p-6">
+          <div className="flex items-start gap-4">
+            <Scale className="w-8 h-8 text-red-400 flex-shrink-0" />
+            <div>
+              <h3 className="font-bold text-red-400 text-lg mb-3">LEGAL NOTICE - NOT INVESTMENT ADVICE</h3>
+              <div className="space-y-2 text-sm text-[var(--text-secondary)]">
+                <p>
+                  <strong className="text-[var(--text-primary)]">EDUCATIONAL PURPOSES ONLY:</strong> Nothing on this website constitutes financial,
+                  investment, legal, or tax advice. The content is for informational and educational purposes only. We are not registered
+                  investment advisors, broker-dealers, or financial planners.
+                </p>
+                <p>
+                  <strong className="text-[var(--text-primary)]">EXPLORING POSSIBILITIES:</strong> This report explores potential scenarios and
+                  "what if" analyses based on publicly available information, rumors, and mathematical modeling. We present these possibilities
+                  to help readers understand potential market dynamics - these are NOT predictions of what will happen.
+                </p>
+                <p>
+                  <strong className="text-[var(--text-primary)]">NO RECOMMENDATIONS:</strong> We do not recommend buying, selling, or holding any
+                  securities, commodities, or financial instruments. Any decisions you make are solely your own responsibility.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Disclaimer */}
       <section className="max-w-4xl mx-auto px-4 mb-12">
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6">
           <div className="flex items-start gap-4">
             <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-1" />
             <div>
-              <h3 className="font-bold text-amber-400 mb-2">DISCLAIMER</h3>
-              <p className="text-sm text-[var(--text-secondary)]">
-                This analysis is based on a combination of publicly available data, leaked documents, unverified rumors from credible financial sources, and mathematical modeling. While we believe this analysis is directionally accurate, specific position sizes and entry prices cannot be independently verified. All banks mentioned deny having problematic silver exposure. This is not financial advice.
-              </p>
+              <h3 className="font-bold text-amber-400 mb-2">UNVERIFIED INFORMATION DISCLAIMER</h3>
+              <div className="space-y-2 text-sm text-[var(--text-secondary)]">
+                <p>
+                  <strong className="text-amber-300">VERIFICATION STATUS:</strong> The data and claims in this report have NOT been independently
+                  verified. We are continuously working to verify all information through multiple sources.
+                </p>
+                <p>
+                  <strong className="text-amber-300">SOURCES:</strong> Information is compiled from publicly available data, leaked documents,
+                  unverified rumors from financial sources, and mathematical modeling. Position sizes and entry prices cannot be independently
+                  confirmed. All banks mentioned deny having problematic silver exposure.
+                </p>
+                <p>
+                  <strong className="text-amber-300">YOUR RESPONSIBILITY:</strong> Always conduct your own due diligence. Consult with qualified
+                  financial professionals before making any investment decisions.
+                </p>
+              </div>
             </div>
           </div>
         </div>

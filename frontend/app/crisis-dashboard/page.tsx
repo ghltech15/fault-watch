@@ -15,7 +15,8 @@ import {
   Target,
   BarChart3,
   Calendar,
-  Zap
+  Zap,
+  Scale
 } from 'lucide-react'
 
 // Bank data
@@ -115,6 +116,19 @@ export default function CrisisDashboardPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4">
+        {/* Unverified Notice */}
+        <div className="bg-amber-500/20 border-2 border-amber-500 rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-center gap-3 text-amber-400">
+            <AlertTriangle className="w-6 h-6" />
+            <span className="font-bold text-lg">UNVERIFIED ANALYSIS</span>
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <p className="text-center text-amber-200/80 text-sm mt-2">
+            The information presented below has NOT been independently verified. We are actively working to verify all claims and data points.
+            This represents one possible scenario based on available information and should be treated as speculative analysis only.
+          </p>
+        </div>
+
         {/* Alert Banner */}
         <motion.div
           className="bg-gradient-to-r from-red-500 to-red-400 text-white py-4 px-6 rounded-xl mb-8 text-center font-bold"
@@ -373,15 +387,53 @@ export default function CrisisDashboardPage() {
           </Card>
         </div>
 
+        {/* Legal Notice */}
+        <div className="bg-red-500/10 border-2 border-red-500 rounded-xl p-6 mb-4">
+          <h4 className="text-red-400 font-bold mb-3 flex items-center gap-2 text-lg">
+            <Scale className="w-6 h-6" />
+            LEGAL NOTICE - PLEASE READ
+          </h4>
+          <div className="space-y-3 text-gray-300 text-sm">
+            <p>
+              <strong className="text-white">NOT INVESTMENT ADVICE:</strong> Nothing on this website constitutes financial, investment, legal, or tax advice.
+              The content presented is for informational and educational purposes only. We are not registered investment advisors,
+              broker-dealers, or financial planners.
+            </p>
+            <p>
+              <strong className="text-white">NO RECOMMENDATIONS:</strong> We do not recommend buying, selling, or holding any securities,
+              commodities, or financial instruments. Any decisions you make based on information found on this site are solely your own responsibility.
+            </p>
+            <p>
+              <strong className="text-white">SPECULATIVE SCENARIOS:</strong> This site explores potential scenarios and possibilities based on
+              publicly available information, rumors, and mathematical modeling. We present "what if" analyses to help readers understand
+              potential market dynamics - not predictions of what will happen.
+            </p>
+          </div>
+        </div>
+
         {/* Disclaimer */}
         <div className="bg-amber-500/10 border border-amber-500 rounded-xl p-6 mb-8">
-          <h4 className="text-amber-400 font-bold mb-2 flex items-center gap-2">
+          <h4 className="text-amber-400 font-bold mb-3 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5" />
-            IMPORTANT DISCLAIMER
+            UNVERIFIED INFORMATION DISCLAIMER
           </h4>
-          <p className="text-gray-400 text-sm">
-            This analysis is based on a combination of publicly available data, leaked documents, unverified rumors from financial sources, and mathematical modeling. Position sizes and entry prices cannot be independently verified. All banks mentioned deny having problematic silver exposure. This is NOT financial advice. Conduct your own due diligence before making any investment decisions. The operators of this site may hold positions in securities and commodities mentioned.
-          </p>
+          <div className="space-y-2 text-gray-400 text-sm">
+            <p>
+              <strong className="text-amber-300">VERIFICATION STATUS:</strong> The data and claims presented on this site have NOT been independently verified.
+              We are continuously working to verify all information through multiple sources. Until verification is complete,
+              all content should be considered UNVERIFIED and SPECULATIVE.
+            </p>
+            <p>
+              <strong className="text-amber-300">SOURCES:</strong> Information is compiled from publicly available data, regulatory filings,
+              news reports, social media, anonymous tips, and mathematical projections. Position sizes and entry prices cannot be
+              independently confirmed. All banks mentioned deny having problematic silver exposure.
+            </p>
+            <p>
+              <strong className="text-amber-300">YOUR RESPONSIBILITY:</strong> Always conduct your own due diligence. Consult with qualified
+              financial professionals before making any investment decisions. The operators of this site may hold positions in
+              securities and commodities discussed.
+            </p>
+          </div>
         </div>
 
         {/* Footer */}
