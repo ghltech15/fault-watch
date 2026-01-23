@@ -7,8 +7,9 @@ import { LiveTicker } from './LiveTicker'
 import { DashboardData } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Activity, Sun, Moon, Monitor } from 'lucide-react'
+import { Activity, Sun, Moon, Monitor, FileText, BarChart3 } from 'lucide-react'
 import { useTheme } from '@/lib/theme-context'
+import Link from 'next/link'
 
 interface HeroSectionProps {
   dashboard: DashboardData
@@ -159,6 +160,25 @@ export function HeroSection({ dashboard }: HeroSectionProps) {
               LIVE
             </span>
           </div>
+
+          {/* Navigation Links */}
+          <nav className="hidden md:flex items-center gap-1">
+            <Link
+              href="/crisis-dashboard"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Crisis Dashboard
+            </Link>
+            <Link
+              href="/deep-dive"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              Deep Dive Report
+            </Link>
+          </nav>
+
           <div className="flex items-center gap-3 text-sm text-gray-400">
             {/* Theme Toggle */}
             <div className="flex items-center rounded-lg border border-slate-600/50 overflow-hidden">
