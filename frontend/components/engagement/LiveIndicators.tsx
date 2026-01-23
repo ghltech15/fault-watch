@@ -17,15 +17,15 @@ export function LiveIndicators({ initialSilverPrice, currentSilverPrice }: LiveI
 
   // Simulate realistic viewer count (would be real WebSocket in production)
   useEffect(() => {
-    // Start with a base count
-    const baseCount = 847 + Math.floor(Math.random() * 400)
+    // Start with a base count (~4,800 to match community stats)
+    const baseCount = 4800 + Math.floor(Math.random() * 100)
     setViewerCount(baseCount)
 
     // Fluctuate viewer count realistically
     const interval = setInterval(() => {
       setViewerCount(prev => {
-        const change = Math.floor(Math.random() * 20) - 8 // -8 to +12
-        return Math.max(500, Math.min(2000, prev + change))
+        const change = Math.floor(Math.random() * 30) - 12 // -12 to +18
+        return Math.max(4500, Math.min(5500, prev + change))
       })
     }, 5000)
 
@@ -166,13 +166,13 @@ export function LiveIndicators({ initialSilverPrice, currentSilverPrice }: LiveI
 
 // Export a mini version for mobile
 export function LiveViewerBadge() {
-  const [viewerCount, setViewerCount] = useState(847)
+  const [viewerCount, setViewerCount] = useState(4823)
 
   useEffect(() => {
     const interval = setInterval(() => {
       setViewerCount(prev => {
-        const change = Math.floor(Math.random() * 10) - 4
-        return Math.max(500, Math.min(2000, prev + change))
+        const change = Math.floor(Math.random() * 20) - 8
+        return Math.max(4500, Math.min(5500, prev + change))
       })
     }, 5000)
     return () => clearInterval(interval)
