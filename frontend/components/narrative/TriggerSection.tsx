@@ -25,7 +25,7 @@ export function TriggerSection({
   targets = defaultTargets
 }: TriggerSectionProps) {
   // Determine section status based on silver price
-  const status = silverPrice >= 75 ? 'critical' : silverPrice >= 50 ? 'warning' : 'active'
+  const status = silverPrice >= 125 ? 'critical' : silverPrice >= 105 ? 'warning' : 'active'
 
   return (
     <NarrativeSection
@@ -70,17 +70,17 @@ export function TriggerSection({
               Per ounce • COMEX/LBMA spot
             </p>
 
-            {/* Mini progress to $50 */}
+            {/* Mini progress to $105 */}
             <div className="mt-6">
               <div className="flex justify-between text-xs mb-2">
-                <span className="text-gray-500">Progress to $50 trigger</span>
-                <span className="text-amber-400 font-bold">{((silverPrice / 50) * 100).toFixed(0)}%</span>
+                <span className="text-gray-500">Progress to $105 breakout</span>
+                <span className="text-amber-400 font-bold">{((silverPrice / 105) * 100).toFixed(0)}%</span>
               </div>
               <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-gradient-to-r from-amber-500 to-red-500 rounded-full"
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min((silverPrice / 50) * 100, 100)}%` }}
+                  animate={{ width: `${Math.min((silverPrice / 105) * 100, 100)}%` }}
                   transition={{ duration: 1, delay: 0.5 }}
                 />
               </div>
@@ -184,22 +184,22 @@ export function TriggerSection({
 
 const defaultTargets: PriceTarget[] = [
   {
-    price: 50,
-    label: 'CRISIS',
-    impact: 'All-time high breached. Margin calls triggered forced covering.',
-    status: 'reached'
+    price: 105,
+    label: 'BREAKOUT',
+    impact: 'Triple-digit silver confirmed. Margin pressure intensifying on shorts.',
+    status: 'approaching'
   },
   {
-    price: 75,
+    price: 110,
     label: 'CRITICAL',
-    impact: 'Major bank losses materialized. Credit stress spreading to other markets.',
-    status: 'reached'
+    impact: 'Major bank losses materializing. Credit stress spreading to other markets.',
+    status: 'approaching'
   },
   {
-    price: 100,
+    price: 125,
     label: 'SYSTEMIC',
     impact: 'Potential bank insolvencies. Government intervention likely.',
-    status: 'approaching'
+    status: 'distant'
   },
   {
     price: 150,
