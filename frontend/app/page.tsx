@@ -18,7 +18,8 @@ import {
   MilestoneCelebration,
   CommunityPredictions,
   CommunityContributionModal,
-  CommunityStatsWidget
+  CommunityStatsWidget,
+  NewsSummary
 } from '@/components/engagement'
 import { useState, useEffect, useRef } from 'react'
 
@@ -176,6 +177,9 @@ export default function Home() {
       <div data-section id="hero">
         {dashboard && <HeroSection dashboard={dashboard} />}
       </div>
+
+      {/* Latest Analysis / News Summary */}
+      <NewsSummary />
 
       {/* Narrative Timeline */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">

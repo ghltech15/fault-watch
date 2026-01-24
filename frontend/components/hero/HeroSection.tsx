@@ -7,7 +7,7 @@ import { LiveTicker } from './LiveTicker'
 import { DashboardData } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Activity, Sun, Moon, Monitor, FileText, BarChart3 } from 'lucide-react'
+import { Activity, Sun, Moon, Monitor, FileText, BarChart3, Flag } from 'lucide-react'
 import { useTheme } from '@/lib/theme-context'
 import Link from 'next/link'
 
@@ -176,6 +176,13 @@ export function HeroSection({ dashboard }: HeroSectionProps) {
             >
               <FileText className="w-4 h-4" />
               Deep Dive Report
+            </Link>
+            <Link
+              href="/trump-eo-analysis"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Flag className="w-4 h-4" />
+              EO Analysis
             </Link>
           </nav>
 
