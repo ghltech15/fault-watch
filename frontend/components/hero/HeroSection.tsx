@@ -7,7 +7,7 @@ import { LiveTicker } from './LiveTicker'
 import { DashboardData } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Activity, Sun, Moon, Monitor, FileText, BarChart3, Flag } from 'lucide-react'
+import { Activity, Sun, Moon, Monitor, FileText, BarChart3, Flag, Video } from 'lucide-react'
 import { useTheme } from '@/lib/theme-context'
 import Link from 'next/link'
 
@@ -183,6 +183,13 @@ export function HeroSection({ dashboard }: HeroSectionProps) {
             >
               <Flag className="w-4 h-4" />
               EO Analysis
+            </Link>
+            <Link
+              href="/content"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+            >
+              <Video className="w-4 h-4" />
+              Create Content
             </Link>
           </nav>
 
