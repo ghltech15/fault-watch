@@ -38,7 +38,7 @@ const DEADLINES = [
 ]
 
 const TIMELINE_EVENTS = [
-  { date: 'January 23', event: 'Silver breaks $102. 5 banks technically insolvent. Covering accelerates.', price: '$102.91', current: true },
+  { date: 'January 23', event: 'Silver breaks $102. 5 banks technically insolvent. Covering accelerates.', price: '$103.92', current: true },
   { date: 'January 25-26', event: 'UBS margin call failure likely. Swiss regulator emergency consultation.', price: '$120-130' },
   { date: 'January 27-28', event: 'HSBC margin call failure. UK Treasury alerted. MS stress acute.', price: '$140-160' },
   { date: 'January 31', event: 'HSBC internal deadline. First official bank failure?', price: '$180-200' },
@@ -67,7 +67,7 @@ const MARKET_DATA = [
 ]
 
 export default function CrisisDashboardPage() {
-  const [silverPrice] = useState(102.91)
+  const [silverPrice] = useState(103.92)
   const [countdowns, setCountdowns] = useState<Record<string, number>>({})
 
   useEffect(() => {

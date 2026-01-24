@@ -308,7 +308,7 @@ export default function DeepDivePage() {
           </table>
         </div>
 
-        <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4">Current Losses vs Capital (@ $102.91)</h3>
+        <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4">Current Losses vs Capital (@ $103.92)</h3>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           <LossCard bank="UBS" loss="$275B" tier1="$69B" wipeout="3.99x" />
           <LossCard bank="HSBC" loss="$386B" tier1="$180B" wipeout="2.14x" />
@@ -332,7 +332,7 @@ export default function DeepDivePage() {
             <CascadeEvent
               date="Jan 23"
               day="TODAY"
-              event="Silver $102.91. All banks except BAC technically insolvent."
+              event="Silver $103.92. All banks except BAC technically insolvent."
               price="$103"
               current
             />
