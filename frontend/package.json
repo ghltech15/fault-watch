@@ -6,11 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "cron": "tsx scripts/hourly-cron.ts",
+    "cron:test": "HOURLY_SEARCH_API_URL=http://localhost:3000/api/hourly-parameter-search tsx scripts/hourly-cron.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.90.1",
     "@tanstack/react-query": "^5.17.0",
+    "uuid": "^9.0.0",
     "clsx": "^2.1.0",
     "copy-to-clipboard": "^3.3.3",
     "framer-motion": "^10.18.0",
@@ -23,6 +26,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/uuid": "^9.0.0",
+    "tsx": "^4.7.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.0",

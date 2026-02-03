@@ -8,6 +8,18 @@ primary_region = 'ord'
 [build.args]
   NEXT_PUBLIC_API_URL = "https://fault-watch-api.fly.dev"
 
+# ============================================
+# Process Groups
+# ============================================
+
+[processes]
+  app = "node server.js"
+  cron = "npx tsx scripts/hourly-cron.ts"
+
+# ============================================
+# HTTP Service (app process only)
+# ============================================
+
 [http_service]
   internal_port = 3000
   force_https = true
@@ -16,10 +28,31 @@ primary_region = 'ord'
   min_machines_running = 1
   processes = ['app']
 
+# ============================================
+# VM Configuration
+# ============================================
+
 [[vm]]
   memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
 
+# ============================================
+# Environment Variables
+# ============================================
+
 [env]
   NODE_ENV = "production"
+  # Cron worker config (API key set via fly secrets)
+  HOURLY_SEARCH_API_URL = "https://fault-watch-ui.fly.dev/api/hourly-parameter-search"
+
+# ============================================
+# Cron Process Configuration
+# ============================================
+# The cron process runs the hourly parameter search worker.
+# It calls the API endpoint every hour; the API enforces
+# the 05:00-22:00 EST active window.
+#
+# Required secrets (set via `fly secrets set`):
+#   - SUPABASE_SERVICE_ROLE_KEY
+#   - HOURLY_SEARCH_API_KEY (optional, uses service role key if not set)

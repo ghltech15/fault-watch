@@ -8,6 +8,8 @@ WORKDIR /app
 
 COPY package.json ./
 RUN npm install
+# Install tsx globally for running TypeScript scripts (cron worker)
+RUN npm install -g tsx
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -27,6 +29,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Install tsx globally for running TypeScript cron scripts
+RUN npm install -g tsx
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
@@ -40,6 +45,9 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy scripts for cron worker
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
 USER nextjs
 
 EXPOSE 3000
@@ -47,4 +55,6 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+# Default command runs the Next.js server
+# For cron process, fly.toml overrides this with tsx scripts/hourly-cron.ts
 CMD ["node", "server.js"]
