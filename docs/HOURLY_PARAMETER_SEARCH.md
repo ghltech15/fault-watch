@@ -214,8 +214,73 @@ npm run cron:test
       "errors": 0,
       "notes": null
     }
-  ]
+  ],
+  "narrative_blocks": {
+    "generated": true,
+    "generated_at_utc": "2026-02-03T10:02:10Z",
+    "generated_at_est": "2026-02-03 05:02:10 EST",
+    "net_assessment_status": "NET ASSESSMENT as of 2026-02-03 05:02 EST: Silver bouncing..."
+  }
 }
+```
+
+## Core Narrative Blocks (Sections 8.1-8.5)
+
+In addition to parameter sheet searches, every hourly run generates these narrative blocks:
+
+### 8.1 FDIC Failed Banks Status
+- Header: "NO NEW BANK CLOSURES TODAY" or "BANK FAILURE ALERT"
+- 2026 YTD failure count (Metropolitan Capital Bank & Trust = 1)
+- Banking sector unrealized losses ($337.1B as of Q3 2025)
+- Table: `fault_watch_fdic_status`
+
+### 8.2 Morgan Stanley Insider Selling Tracker
+- 90-day insider selling totals (shares & dollar value)
+- Recent trades with names, shares, prices
+- "Zero insider purchases" flag if applicable
+- Table: `fault_watch_ms_insider_tracker`
+
+### 8.3 Flagstar Risk/CRE Block
+- Q4 EPS and profitability status
+- CRE concentration ratio vs 300% danger zone
+- Upcoming events (conferences, earnings)
+- Table: `fault_watch_flagstar_cre`
+
+### 8.4 Silver Price & Bank Sell-off
+- Silver: current price, intraday range, vs $95 danger zone
+- Bank moves: individual % changes for C, BAC, WFC, MS, JPM
+- Banker Fear Index reading
+- Tables: `fault_watch_silver_status`, `fault_watch_bank_selloff`, `fault_watch_banker_fear_index`
+
+### 8.5 Net Assessment Synthesis
+- Integrates all blocks into single status line
+- Conditions vs prior run: improved/unchanged/worsened
+- Systemic risk level: low/moderate/elevated/high/critical
+- Table: `fault_watch_net_assessments`
+
+### Timestamping Requirements (Section 9)
+
+All narrative blocks include:
+- `generated_at_utc` (TIMESTAMPTZ)
+- `generated_at_est` (TEXT, formatted for display)
+- Source window timestamps where applicable
+
+Frontend displays EST timestamps so users know when each block was last refreshed.
+
+### Querying Latest Blocks
+
+```sql
+-- All latest blocks in one call
+SELECT * FROM fault_watch_narrative_dashboard;
+
+-- Individual latest blocks
+SELECT * FROM fault_watch_latest_fdic;
+SELECT * FROM fault_watch_latest_ms_insider;
+SELECT * FROM fault_watch_latest_silver;
+SELECT * FROM fault_watch_latest_net_assessment;
+
+-- Intraday history for a block
+SELECT * FROM get_narrative_history('silver_status', 24);
 ```
 
 ## Troubleshooting

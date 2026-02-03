@@ -21,6 +21,7 @@ import {
   RunPayload,
   RunStatus,
 } from '@/lib/supabase-server'
+import { generateAllNarrativeBlocks, NarrativeBlocksResult } from '@/lib/narrative-blocks'
 
 // Backend API base URL (Fly.io hosted FastAPI)
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:8000'
@@ -632,6 +633,21 @@ export async function POST(request: NextRequest) {
   totalSkippedRows += sheet5Summary.skipped_rows
   totalErrors += sheet5Summary.errors
 
+  // ============================================
+  // Generate Core Narrative Blocks (Sections 8.1-8.5)
+  // These MUST run every hour during active window
+  // ============================================
+  let narrativeBlocks: NarrativeBlocksResult | null = null
+  try {
+    console.log(`[${new Date().toISOString()}] Generating narrative blocks...`)
+    narrativeBlocks = await generateAllNarrativeBlocks(supabase, runId)
+    console.log(`[${new Date().toISOString()}] Narrative blocks generated successfully`)
+  } catch (narrativeError) {
+    console.error('Failed to generate narrative blocks:', narrativeError)
+    totalErrors += 1
+    // Don't fail the entire run if narrative blocks fail
+  }
+
   // Update run record with completion
   const runCompletedAt = new Date().toISOString()
   await supabase
@@ -648,15 +664,24 @@ export async function POST(request: NextRequest) {
     })
     .eq('run_id', runId)
 
-  // Return run payload
-  const payload: RunPayload = {
+  // Return run payload with narrative blocks status
+  const payload = {
     run_id: runId,
-    status: 'completed',
+    status: 'completed' as RunStatus,
     run_started_at_utc: runStartedAt,
     run_completed_at_utc: runCompletedAt,
     est_hour_start: estBoundaries.start,
     est_hour_end: estBoundaries.end,
     sheets: sheetsSummary,
+    narrative_blocks: narrativeBlocks ? {
+      generated: true,
+      generated_at_utc: narrativeBlocks.generated_at_utc,
+      generated_at_est: narrativeBlocks.generated_at_est,
+      net_assessment_status: narrativeBlocks.netAssessment.status_line,
+    } : {
+      generated: false,
+      error: 'Narrative block generation failed',
+    },
   }
 
   return NextResponse.json(payload)

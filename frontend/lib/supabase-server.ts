@@ -148,3 +148,17 @@ export interface RunPayload {
   est_hour_end: string
   sheets: SheetSummary[]
 }
+
+// Narrative blocks summary (for API response)
+export interface NarrativeBlocksSummary {
+  generated: boolean
+  generated_at_utc?: string
+  generated_at_est?: string
+  net_assessment_status?: string
+  error?: string
+}
+
+// Extended run payload with narrative blocks
+export interface ExtendedRunPayload extends RunPayload {
+  narrative_blocks: NarrativeBlocksSummary
+}
