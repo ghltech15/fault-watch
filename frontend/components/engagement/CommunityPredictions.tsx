@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Users, TrendingUp, Clock, ChevronRight, Zap, Target } from 'lucide-react'
+import { Users, TrendingUp, Clock, ChevronRight, Zap, Target, Share2 } from 'lucide-react'
 
 interface PredictionOption {
   id: string
@@ -183,13 +183,43 @@ export function CommunityPredictions() {
             Cast your vote to see community predictions
           </p>
         ) : (
-          <motion.p
-            className="text-sm text-cyan-400"
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="space-y-3"
           >
-            Thanks for voting! Check back to see if you're right.
-          </motion.p>
+            {/* Comparison text */}
+            <p className="text-sm text-cyan-400">
+              {(() => {
+                const selectedOpt = options.find(o => o.id === selectedOption)
+                if (!selectedOpt) return "Thanks for voting!"
+                const selectedPct = parseFloat(getPercentage(selectedOpt.votes))
+                const leadingPct = parseFloat(getPercentage(leadingOption.votes))
+                if (selectedOpt.id === leadingOption.id) {
+                  return `You're with the majority (${leadingPct.toFixed(0)}%)`
+                }
+                const isMoreAggressive = ['30', '60'].includes(selectedOption || '') && !['30', '60'].includes(leadingOption.id)
+                if (isMoreAggressive) {
+                  const moreAggressiveThan = 100 - selectedPct
+                  return `More aggressive than ${moreAggressiveThan.toFixed(0)}% of watchers`
+                }
+                return `You're in the ${selectedPct.toFixed(0)}% minority`
+              })()}
+            </p>
+
+            {/* Share button */}
+            <button
+              onClick={() => {
+                const selectedOpt = options.find(o => o.id === selectedOption)
+                const text = `I bet silver hits $100 ${selectedOpt?.label.toLowerCase() || 'soon'} – what's your call? fault.watch`
+                window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank')
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-400 text-sm font-medium hover:bg-blue-500/30 transition-colors"
+            >
+              <Share2 className="w-4 h-4" />
+              Share your prediction
+            </button>
+          </motion.div>
         )}
       </div>
     </motion.div>

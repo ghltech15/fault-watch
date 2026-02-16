@@ -1,8 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Flag, FileText, BarChart3, ArrowRight, AlertTriangle, Clock, TrendingUp } from 'lucide-react'
+import { Flag, FileText, BarChart3, ArrowRight, AlertTriangle, Clock, TrendingUp, Activity, Share2 } from 'lucide-react'
 
 interface NewsItem {
   id: string
@@ -13,6 +14,19 @@ interface NewsItem {
   category: 'analysis' | 'report' | 'alert'
   isNew?: boolean
   date: string
+}
+
+interface RiskScanData {
+  timestamp: string
+  headline: string
+  summary: string
+  direction: 'rising' | 'falling' | 'stable'
+  severity: string
+  silverPrice: number
+  silverChange: number
+  phase: number
+  cracksShowing: number
+  formattedDate: string
 }
 
 const NEWS_ITEMS: NewsItem[] = [
@@ -47,8 +61,76 @@ const NEWS_ITEMS: NewsItem[] = [
 ]
 
 export function NewsSummary() {
+  const [riskScan, setRiskScan] = useState<RiskScanData | null>(null)
+
+  // Fetch daily risk scan
+  useEffect(() => {
+    fetch('/api/risk-scan')
+      .then(res => res.json())
+      .then(data => setRiskScan(data))
+      .catch(err => console.error('Failed to fetch risk scan:', err))
+  }, [])
+
+  const handleShareDailyScan = () => {
+    if (!riskScan) return
+    const text = `${riskScan.headline} | fault.watch`
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
   return (
     <section className="max-w-6xl mx-auto px-4 py-8">
+      {/* Daily Systemic Risk Scan - Pinned */}
+      {riskScan && (
+        <motion.div
+          className={`mb-6 p-5 rounded-xl border ${
+            riskScan.direction === 'rising' ? 'bg-red-500/5 border-red-500/30' :
+            riskScan.direction === 'falling' ? 'bg-green-500/5 border-green-500/30' :
+            'bg-gray-500/5 border-gray-500/30'
+          }`}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg ${
+                riskScan.direction === 'rising' ? 'bg-red-500/20' :
+                riskScan.direction === 'falling' ? 'bg-green-500/20' :
+                'bg-gray-500/20'
+              }`}>
+                <Activity className={`w-5 h-5 ${
+                  riskScan.direction === 'rising' ? 'text-red-400' :
+                  riskScan.direction === 'falling' ? 'text-green-400' :
+                  'text-gray-400'
+                }`} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-bold text-[var(--text-primary)]">Daily Systemic Risk Scan</h3>
+                  <span className="text-xs text-[var(--text-muted)]">{riskScan.formattedDate}</span>
+                </div>
+                <p className={`text-sm font-medium ${
+                  riskScan.direction === 'rising' ? 'text-red-400' :
+                  riskScan.direction === 'falling' ? 'text-green-400' :
+                  'text-gray-400'
+                }`}>
+                  {riskScan.headline}
+                </p>
+                <p className="text-sm text-[var(--text-secondary)] mt-2">
+                  {riskScan.summary}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleShareDailyScan}
+              className="flex-shrink-0 p-2 rounded-lg hover:bg-white/5 transition-colors"
+              title="Share on Twitter"
+            >
+              <Share2 className="w-4 h-4 text-gray-400 hover:text-blue-400" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Section Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

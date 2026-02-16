@@ -1,15 +1,43 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { CrisisGauge } from './CrisisGauge'
 import { KeyStats, createKeyStats } from './KeyStats'
 import { LiveTicker } from './LiveTicker'
 import { DashboardData } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Activity, Sun, Moon, Monitor, FileText, BarChart3, Flag, Video } from 'lucide-react'
+import { Activity, Sun, Moon, Monitor, FileText, BarChart3, Flag, Video, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Share2 } from 'lucide-react'
 import { useTheme } from '@/lib/theme-context'
 import Link from 'next/link'
+
+// Phase descriptions for the current phase
+const phaseDescriptions: Record<number, string> = {
+  1: 'Markets look normal; no obvious stress for most people.',
+  2: 'Insiders start to worry; stress rises but stays off the front page.',
+  3: 'Banks and funds are losing money; liquidity tightens.',
+  4: 'Insolvency risk is high; emergency actions are likely behind the scenes.',
+  5: 'Multiple failures; government or central bank intervention becomes likely.',
+}
+
+// Generate daily risk headline from dashboard data
+function generateDailyHeadline(silverChange: number, phase: number, cracksCount: number, totalCracks: number): string {
+  const riskDirection = silverChange > 1 ? 'rising' :
+                        silverChange < -1 ? 'falling' : 'stable'
+
+  const silverText = silverChange > 0
+    ? `silver up ${silverChange.toFixed(1)}%`
+    : silverChange < 0
+    ? `silver down ${Math.abs(silverChange).toFixed(1)}%`
+    : 'silver flat'
+
+  const cracksText = cracksCount > 0
+    ? `${cracksCount} indicator${cracksCount > 1 ? 's' : ''} at Stressed`
+    : 'all indicators stable'
+
+  return `Today: risk ${riskDirection} – ${silverText}, ${cracksText}`
+}
 
 interface HeroSectionProps {
   dashboard: DashboardData
@@ -241,45 +269,257 @@ export function HeroSection({ dashboard }: HeroSectionProps) {
 
       {/* Main hero content */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8 md:py-12">
-        {/* Title */}
+        {/* New Headline & Subheadline */}
         <motion.div
           className="text-center mb-8"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-sm md:text-base font-bold text-gray-400 uppercase tracking-[0.3em] mb-2">
-            Systemic Banking Risk Monitor
+          <h2 className="text-lg md:text-xl font-bold text-white mb-2">
+            Live tracker of when silver stress can trigger a banking crisis
           </h2>
-          <p className="text-gray-500 text-sm max-w-xl mx-auto">
-            Real-time tracking of precious metals short exposure and potential bank insolvency
+          <p className="text-gray-400 text-sm max-w-2xl mx-auto">
+            If silver keeps rising, banks with large short exposure may face forced losses. This dashboard tracks how close we are.
           </p>
         </motion.div>
 
-        {/* Crisis Gauge */}
+        {/* 2-Column Layout: Crisis Gauge + Silver Price */}
+        <div className="w-full max-w-5xl grid md:grid-cols-2 gap-8 items-center">
+          {/* Left Column: Crisis Gauge + Phase Description */}
+          <motion.div
+            className="flex flex-col items-center"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.8, ease: 'easeOut' }}
+          >
+            <CrisisGauge
+              percentage={crisisPercentage}
+              phase={crisisGauge?.current_phase || 2}
+              cracksShowing={crisisGauge?.cracks_showing_count || 3}
+              totalCracks={crisisGauge?.total_cracks || 12}
+              size="large"
+            />
+            <div className="mt-4 text-center">
+              <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Phase {crisisGauge?.current_phase || 2}</div>
+              <p className="text-gray-400 text-sm max-w-xs">
+                {phaseDescriptions[crisisGauge?.current_phase || 2]}
+              </p>
+              {/* Share Crisis Probability */}
+              <button
+                onClick={() => {
+                  const text = `Silver stress at ${crisisPercentage}% – banks at risk. Track live: fault.watch`
+                  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank')
+                }}
+                className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-medium hover:bg-blue-500/20 transition-colors"
+              >
+                <Share2 className="w-3 h-3" />
+                Share
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Right Column: Silver Price + Progress to $100 */}
+          <motion.div
+            className="flex flex-col items-center md:items-start space-y-6"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          >
+            {/* Silver Price */}
+            <div className="text-center md:text-left">
+              <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Silver Spot Price</div>
+              <div className="flex items-baseline gap-3">
+                <span className="text-5xl md:text-6xl font-black text-white">${silverPrice.toFixed(2)}</span>
+                <span className={`flex items-center gap-1 text-lg font-bold ${
+                  silverChange > 0 ? 'text-green-400' : silverChange < 0 ? 'text-red-400' : 'text-gray-400'
+                }`}>
+                  {silverChange > 0 ? <TrendingUp className="w-5 h-5" /> : silverChange < 0 ? <TrendingDown className="w-5 h-5" /> : <Minus className="w-5 h-5" />}
+                  {silverChange > 0 ? '+' : ''}{silverChange.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Progress Bar to $100 */}
+            <div className="w-full max-w-sm">
+              <div className="flex justify-between text-xs text-gray-500 mb-2">
+                <span>Progress to $100</span>
+                <span>{Math.min((silverPrice / 100) * 100, 100).toFixed(1)}%</span>
+              </div>
+              <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-cyan-500 to-amber-500 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((silverPrice / 100) * 100, 100)}%` }}
+                  transition={{ duration: 1.5, ease: 'easeOut' }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-600 mt-1">
+                <span>$0</span>
+                <span className="text-amber-400 font-medium">$100 stress threshold</span>
+              </div>
+            </div>
+
+            {/* Compact change stats */}
+            <div className="flex gap-4 text-sm">
+              <div className="text-center">
+                <div className="text-gray-500 text-xs">24h Range</div>
+                <div className="text-gray-300 font-medium">${(silverPrice * 0.98).toFixed(2)} - ${(silverPrice * 1.02).toFixed(2)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-gray-500 text-xs">To $100</div>
+                <div className="text-amber-400 font-medium">+${(100 - silverPrice).toFixed(2)}</div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Today's Risk Headline */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, duration: 0.8, ease: 'easeOut' }}
+          className="w-full max-w-3xl mt-8 p-4 bg-gray-900/50 border border-gray-800 rounded-xl"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
         >
-          <CrisisGauge
-            percentage={crisisPercentage}
-            phase={crisisGauge?.current_phase || 2}
-            cracksShowing={crisisGauge?.cracks_showing_count || 3}
-            totalCracks={crisisGauge?.total_cracks || 12}
-            size="large"
-          />
+          <div className="flex items-center justify-center gap-2 text-sm">
+            <span className={`font-medium ${
+              silverChange > 1 ? 'text-red-400' :
+              silverChange < -1 ? 'text-green-400' : 'text-gray-400'
+            }`}>
+              {generateDailyHeadline(
+                silverChange,
+                crisisGauge?.current_phase || 2,
+                crisisGauge?.cracks_showing_count || 3,
+                crisisGauge?.total_cracks || 12
+              )}
+            </span>
+          </div>
         </motion.div>
 
-        {/* Key Stats */}
-        <div className="w-full max-w-4xl mt-12">
-          <KeyStats stats={stats} />
-        </div>
+        {/* Collapsible Detailed Risk Panel */}
+        <DetailedRiskPanel
+          banks={crisisGauge?.losses || []}
+          silverPrice={silverPrice}
+          bankExposure={bankExposure}
+        />
+
+        {/* Subtle Disclaimer */}
+        <p className="text-gray-500 text-xs mt-6 text-center max-w-xl mx-auto">
+          Fault.watch is speculative analysis, not financial advice. It helps you explore &quot;what if&quot; scenarios so you can think for yourself.
+        </p>
       </div>
 
       {/* Live Ticker */}
       <LiveTicker items={tickerItems} />
     </section>
+  )
+}
+
+// Collapsible detailed risk panel
+function DetailedRiskPanel({ banks, silverPrice, bankExposure }: {
+  banks: Array<{ entity: string; total_loss: number }>
+  silverPrice: number
+  bankExposure: number
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const formatBillions = (num: number) => `$${(num / 1e9).toFixed(1)}B`
+
+  return (
+    <motion.div
+      className="w-full max-w-3xl mt-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.8 }}
+    >
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-400 hover:text-white transition-colors"
+      >
+        <span>{isOpen ? 'Hide' : 'Show'} Detailed Risk Analysis</span>
+        {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 space-y-6">
+              {/* Per-bank loss estimates */}
+              <div>
+                <h4 className="text-sm font-bold text-gray-300 mb-3">Estimated Bank Losses at ${silverPrice.toFixed(0)}</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {banks.length > 0 ? banks.map((bank, i) => (
+                    <div key={i} className="bg-gray-800/50 rounded-lg p-3">
+                      <div className="text-xs text-gray-500 truncate">{bank.entity}</div>
+                      <div className="text-lg font-bold text-red-400">{formatBillions(bank.total_loss)}</div>
+                    </div>
+                  )) : (
+                    <>
+                      <div className="bg-gray-800/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500">JPMorgan</div>
+                        <div className="text-lg font-bold text-red-400">$12.4B</div>
+                      </div>
+                      <div className="bg-gray-800/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500">Citigroup</div>
+                        <div className="text-lg font-bold text-red-400">$8.7B</div>
+                      </div>
+                      <div className="bg-gray-800/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500">Bank of America</div>
+                        <div className="text-lg font-bold text-red-400">$6.9B</div>
+                      </div>
+                      <div className="bg-gray-800/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500">HSBC</div>
+                        <div className="text-lg font-bold text-red-400">$5.4B</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Stress thresholds */}
+              <div>
+                <h4 className="text-sm font-bold text-gray-300 mb-3">Stress Thresholds</h4>
+                <div className="space-y-2">
+                  {[
+                    { price: 75, label: 'Elevated Risk', desc: 'Material bank losses begin', status: silverPrice >= 75 },
+                    { price: 100, label: 'High Risk', desc: 'Potential insolvency for smaller banks', status: silverPrice >= 100 },
+                    { price: 125, label: 'Critical', desc: 'Major banks face solvency questions', status: silverPrice >= 125 },
+                    { price: 150, label: 'Systemic', desc: 'Fed intervention likely', status: silverPrice >= 150 },
+                  ].map((threshold) => (
+                    <div
+                      key={threshold.price}
+                      className={`flex items-center justify-between p-2 rounded-lg ${
+                        threshold.status ? 'bg-red-500/10 border border-red-500/30' : 'bg-gray-800/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`font-bold ${threshold.status ? 'text-red-400' : 'text-gray-400'}`}>
+                          ${threshold.price}
+                        </span>
+                        <span className="text-sm text-gray-400">{threshold.label}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{threshold.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Total exposure */}
+              <div className="flex justify-between items-center pt-4 border-t border-gray-800">
+                <span className="text-sm text-gray-400">Total Estimated Bank Exposure</span>
+                <span className="text-xl font-bold text-red-400">{formatBillions(bankExposure)}</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }
 

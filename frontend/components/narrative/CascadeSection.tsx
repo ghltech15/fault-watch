@@ -202,35 +202,35 @@ const defaultPhases: CascadePhase[] = [
   {
     phase: 1,
     name: 'STABLE',
-    description: 'Markets functioning normally. Silver positions manageable. No stress signals.',
+    description: 'Markets look normal; no obvious stress for most people.',
     triggers: ['Normal trading volumes', 'Stable credit spreads', 'Adequate COMEX inventory'],
     status: 'complete'
   },
   {
     phase: 2,
     name: 'ELEVATED',
-    description: 'Credit spreads widening. Silver delivery pressure building. Early stress indicators.',
+    description: 'Insiders start to worry; stress rises but stays off the front page.',
     triggers: ['CDS spreads +20-50bps', 'COMEX inventory declining', 'Increased hedging activity'],
     status: 'active'
   },
   {
     phase: 3,
     name: 'STRESSED',
-    description: 'Bank losses materializing. COMEX inventory critical. Credit markets tightening.',
+    description: 'Banks and funds are losing money; liquidity tightens.',
     triggers: ['CDS spreads +50-100bps', 'Delivery delays > 7 days', 'Bank stock volatility > 30%'],
     status: 'pending'
   },
   {
     phase: 4,
     name: 'CRITICAL',
-    description: 'Bank insolvency imminent. Margin calls cascading. Flight to safety accelerating.',
+    description: 'Insolvency risk is high; emergency actions are likely behind the scenes.',
     triggers: ['CDS spreads +100-200bps', 'COMEX delivery failures', 'Interbank lending freeze'],
     status: 'pending'
   },
   {
     phase: 5,
     name: 'SYSTEMIC',
-    description: 'Multiple bank failures. Credit frozen. Fed emergency intervention likely.',
+    description: 'Multiple failures; government or central bank intervention becomes likely.',
     triggers: ['Bank failures announced', 'Trading halts', 'Government intervention activated'],
     status: 'pending'
   }

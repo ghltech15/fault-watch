@@ -500,20 +500,12 @@ export function CommunityStatsWidget() {
 
   return (
     <div className="glass-card p-4">
+      {/* Main headline with live indicator */}
       <div className="flex items-center gap-2 mb-4">
-        <Users className="w-5 h-5 text-cyan-400" />
-        <h3 className="font-bold text-white">Global Watch Party</h3>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="text-center p-3 rounded-lg bg-slate-800/50">
-          <div className="text-xl font-bold text-cyan-400">{stats.totalContributors.toLocaleString()}</div>
-          <div className="text-xs text-gray-400">Watchers</div>
-        </div>
-        <div className="text-center p-3 rounded-lg bg-slate-800/50">
-          <div className="text-xl font-bold text-purple-400">{stats.countries}</div>
-          <div className="text-xs text-gray-400">Countries</div>
-        </div>
+        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+        <p className="text-gray-300">
+          You're watching with <span className="text-cyan-400 font-bold">{stats.totalContributors.toLocaleString()}</span> people from <span className="text-purple-400 font-bold">{stats.countries}</span> countries right now.
+        </p>
       </div>
 
       {/* Recent activity feed */}

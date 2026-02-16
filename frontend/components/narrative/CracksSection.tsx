@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Activity, CheckCircle, AlertTriangle, XCircle, Radio, Eye } from 'lucide-react'
+import { Activity, CheckCircle, AlertTriangle, XCircle, Eye, Coins, Building2, CreditCard, Car, Home, Landmark } from 'lucide-react'
 import { NarrativeSection } from './NarrativeSection'
 
 interface CrackIndicator {
@@ -19,6 +19,132 @@ interface CracksSectionProps {
   totalCracks: number
 }
 
+// Sector definitions with their indicators
+interface SectorDefinition {
+  id: string
+  name: string
+  icon: React.ReactNode
+  color: string
+  indicatorNames: string[] // Maps to indicator names from props
+  placeholder?: boolean // True if no real data yet
+}
+
+const SECTORS: SectorDefinition[] = [
+  {
+    id: 'silver',
+    name: 'Silver & Precious Metals',
+    icon: <Coins className="w-5 h-5" />,
+    color: 'cyan',
+    indicatorNames: ['COMEX Delivery Failures', 'Gold-Silver Ratio', 'ETF Outflows', 'Dealer Positioning']
+  },
+  {
+    id: 'banks',
+    name: 'Banks / Funding Markets',
+    icon: <Building2 className="w-5 h-5" />,
+    color: 'red',
+    indicatorNames: ['Credit Default Swaps', 'Bank Stock Volatility', 'Interbank Lending', 'LBMA Forward Rates']
+  },
+  {
+    id: 'consumer',
+    name: 'Consumer Credit',
+    icon: <CreditCard className="w-5 h-5" />,
+    color: 'amber',
+    indicatorNames: [],
+    placeholder: true
+  },
+  {
+    id: 'auto',
+    name: 'Auto Loans',
+    icon: <Car className="w-5 h-5" />,
+    color: 'orange',
+    indicatorNames: [],
+    placeholder: true
+  },
+  {
+    id: 'housing',
+    name: 'Housing / Foreclosures',
+    icon: <Home className="w-5 h-5" />,
+    color: 'purple',
+    indicatorNames: [],
+    placeholder: true
+  },
+  {
+    id: 'govt',
+    name: 'Government / Central Bank',
+    icon: <Landmark className="w-5 h-5" />,
+    color: 'blue',
+    indicatorNames: ['Fed Facility Usage', 'Dollar Liquidity', 'Repo Market Stress', 'Treasury Volatility']
+  }
+]
+
+// Determine sector status from its indicators
+function getSectorStatus(indicators: CrackIndicator[]): 'stable' | 'elevated' | 'stressed' | 'breaking' {
+  const breakingCount = indicators.filter(i => i.status === 'breaking').length
+  const stressedCount = indicators.filter(i => i.status === 'stressed').length
+
+  if (breakingCount > 0) return 'breaking'
+  if (stressedCount >= 2) return 'stressed'
+  if (stressedCount === 1) return 'elevated'
+  return 'stable'
+}
+
+// Generate interpretive sentence for sector
+function getSectorSentence(sectorId: string, status: string, indicators: CrackIndicator[]): string {
+  if (indicators.length === 0) {
+    return 'Data coming soon. We are adding new indicators to this sector.'
+  }
+
+  const stressedIndicators = indicators.filter(i => i.status !== 'stable')
+
+  switch (sectorId) {
+    case 'silver':
+      if (status === 'breaking') return 'Physical silver markets showing severe strain with delivery failures.'
+      if (status === 'stressed') return 'COMEX and dealer markets under pressure; physical premiums likely rising.'
+      if (status === 'elevated') return 'Minor stress signals in precious metals markets.'
+      return 'Silver markets functioning normally with adequate supply.'
+
+    case 'banks':
+      if (status === 'breaking') return 'Banking sector in distress; credit markets freezing.'
+      if (status === 'stressed') return 'Banks showing stress; CDS spreads and volatility elevated.'
+      if (status === 'elevated') return 'Early warning signs in bank funding markets.'
+      return 'Banking sector stable with normal credit conditions.'
+
+    case 'govt':
+      if (status === 'breaking') return 'Emergency Fed facilities activated; crisis response underway.'
+      if (status === 'stressed') return 'Unusual activity in Fed facilities and Treasury markets.'
+      if (status === 'elevated') return 'Government watchdogs on alert; monitoring increased.'
+      return 'No unusual central bank or government activity detected.'
+
+    default:
+      return 'Monitoring this sector for early warning signs.'
+  }
+}
+
+const statusConfig = {
+  stable: { label: 'Stable', color: 'green', bgClass: 'bg-green-500/10 border-green-500/30' },
+  elevated: { label: 'Elevated', color: 'yellow', bgClass: 'bg-yellow-500/10 border-yellow-500/30' },
+  stressed: { label: 'Stressed', color: 'amber', bgClass: 'bg-amber-500/10 border-amber-500/30' },
+  breaking: { label: 'Breaking', color: 'red', bgClass: 'bg-red-500/10 border-red-500/30 animate-pulse' }
+}
+
+const colorMap: Record<string, string> = {
+  cyan: 'text-cyan-400',
+  red: 'text-red-400',
+  amber: 'text-amber-400',
+  orange: 'text-orange-400',
+  purple: 'text-purple-400',
+  blue: 'text-blue-400'
+}
+
+const bgColorMap: Record<string, string> = {
+  cyan: 'bg-cyan-500/20',
+  red: 'bg-red-500/20',
+  amber: 'bg-amber-500/20',
+  orange: 'bg-orange-500/20',
+  purple: 'bg-purple-500/20',
+  blue: 'bg-blue-500/20'
+}
+
 export function CracksSection({
   indicators = defaultIndicators,
   cracksActive,
@@ -30,104 +156,107 @@ export function CracksSection({
   const status = breakingCount > 0 ? 'critical' :
                  stressedCount >= 3 ? 'warning' : 'active'
 
-  const statusIcons = {
-    stable: <CheckCircle className="w-4 h-4 text-green-400" />,
-    stressed: <AlertTriangle className="w-4 h-4 text-amber-400" />,
-    breaking: <XCircle className="w-4 h-4 text-red-400" />
-  }
-
-  const statusColors = {
-    stable: 'border-green-500/30 bg-green-500/5',
-    stressed: 'border-amber-500/30 bg-amber-500/5',
-    breaking: 'border-red-500/30 bg-red-500/5 animate-pulse'
-  }
-
-  const tierLabels = {
-    tier1: { label: 'TIER 1', color: 'text-red-400', description: 'Critical early warnings' },
-    tier2: { label: 'TIER 2', color: 'text-amber-400', description: 'Secondary stress signals' },
-    tier3: { label: 'TIER 3', color: 'text-blue-400', description: 'Systemic indicators' }
-  }
-
-  const groupedIndicators = {
-    tier1: indicators.filter(i => i.category === 'tier1'),
-    tier2: indicators.filter(i => i.category === 'tier2'),
-    tier3: indicators.filter(i => i.category === 'tier3')
-  }
-
   return (
     <NarrativeSection
       id="cracks"
       phaseNumber={3}
       title="THE CRACKS"
-      subtitle="Early warning signs of systemic stress. When these indicators turn red, the cascade is beginning."
+      subtitle="Early warning signs of systemic stress across key sectors. When multiple sectors turn red, the cascade may be beginning."
       status={status}
       flowText="Bank losses trigger credit stress and early warning signals"
     >
       {/* Status Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center">
-          <div className="text-3xl font-black text-green-400">
-            {indicators.filter(i => i.status === 'stable').length}
-          </div>
-          <div className="text-xs text-green-400/70 uppercase tracking-wider mt-1">Stable</div>
-        </div>
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
-          <div className="text-3xl font-black text-amber-400">{stressedCount}</div>
-          <div className="text-xs text-amber-400/70 uppercase tracking-wider mt-1">Stressed</div>
-        </div>
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
-          <div className="text-3xl font-black text-red-400">{breakingCount}</div>
-          <div className="text-xs text-red-400/70 uppercase tracking-wider mt-1">Breaking</div>
-        </div>
+      <div className="grid grid-cols-4 gap-3 mb-8">
+        {(['stable', 'elevated', 'stressed', 'breaking'] as const).map((s) => {
+          const sectorStatuses = SECTORS.map(sector => {
+            const sectorIndicators = indicators.filter(i =>
+              sector.indicatorNames.includes(i.name)
+            )
+            return getSectorStatus(sectorIndicators)
+          })
+          const count = sectorStatuses.filter(ss => ss === s).length
+
+          return (
+            <div
+              key={s}
+              className={`${statusConfig[s].bgClass} border rounded-xl p-3 text-center`}
+            >
+              <div className={`text-2xl font-black text-${statusConfig[s].color}-400`}>
+                {count}
+              </div>
+              <div className={`text-xs text-${statusConfig[s].color}-400/70 uppercase tracking-wider mt-1`}>
+                {statusConfig[s].label}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Indicators by Tier */}
-      {(['tier1', 'tier2', 'tier3'] as const).map((tier) => (
-        <div key={tier} className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <span className={`px-2 py-1 rounded text-xs font-bold ${tierLabels[tier].color} bg-gray-800`}>
-              {tierLabels[tier].label}
-            </span>
-            <span className="text-sm text-gray-500">{tierLabels[tier].description}</span>
-          </div>
+      {/* Sector Cards - 6 card grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {SECTORS.map((sector, index) => {
+          // Get indicators for this sector
+          const sectorIndicators = indicators.filter(i =>
+            sector.indicatorNames.includes(i.name)
+          )
+          const sectorStatus = sector.placeholder ? 'stable' : getSectorStatus(sectorIndicators)
+          const config = statusConfig[sectorStatus]
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {groupedIndicators[tier].map((indicator, index) => (
-              <motion.div
-                key={indicator.name}
-                className={`relative p-4 rounded-xl border ${statusColors[indicator.status]}`}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {statusIcons[indicator.status]}
-                    <span className="font-medium text-white text-sm">{indicator.name}</span>
+          return (
+            <motion.div
+              key={sector.id}
+              className={`relative p-5 rounded-xl border ${config.bgClass}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${bgColorMap[sector.color]}`}>
+                    <span className={colorMap[sector.color]}>{sector.icon}</span>
                   </div>
-                  <span className={`text-xs font-bold uppercase ${
-                    indicator.status === 'stable' ? 'text-green-400' :
-                    indicator.status === 'stressed' ? 'text-amber-400' : 'text-red-400'
-                  }`}>
-                    {indicator.status}
-                  </span>
+                  <h4 className="font-bold text-white text-sm">{sector.name}</h4>
                 </div>
+                <span className={`px-2 py-1 rounded text-xs font-bold uppercase text-${config.color}-400 bg-${config.color}-500/20`}>
+                  {config.label}
+                </span>
+              </div>
 
-                <p className="text-xs text-gray-400 mb-2">{indicator.description}</p>
+              {/* Indicators or placeholder */}
+              {sector.placeholder ? (
+                <div className="text-gray-500 text-sm italic py-4 text-center border-t border-gray-800">
+                  Data coming soon
+                </div>
+              ) : (
+                <div className="space-y-2 mb-3">
+                  {sectorIndicators.slice(0, 4).map((indicator) => (
+                    <div
+                      key={indicator.name}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <span className="text-gray-400 truncate">{indicator.name}</span>
+                      <div className="flex items-center gap-2">
+                        {indicator.currentValue && (
+                          <span className="text-gray-300 font-medium">{indicator.currentValue}</span>
+                        )}
+                        {indicator.status === 'stable' && <CheckCircle className="w-3 h-3 text-green-400" />}
+                        {indicator.status === 'stressed' && <AlertTriangle className="w-3 h-3 text-amber-400" />}
+                        {indicator.status === 'breaking' && <XCircle className="w-3 h-3 text-red-400" />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-                {indicator.currentValue && (
-                  <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-gray-800">
-                    <span className="text-gray-500">Current: <span className="text-white font-medium">{indicator.currentValue}</span></span>
-                    {indicator.threshold && (
-                      <span className="text-gray-500">Threshold: <span className="text-amber-400">{indicator.threshold}</span></span>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      ))}
+              {/* Interpretive sentence */}
+              <p className="text-xs text-gray-400 pt-3 border-t border-gray-800">
+                {getSectorSentence(sector.id, sectorStatus, sectorIndicators)}
+              </p>
+            </motion.div>
+          )
+        })}
+      </div>
 
       {/* Monitoring Alert */}
       <motion.div
@@ -143,12 +272,12 @@ export function CracksSection({
           <div>
             <h4 className="font-bold text-white mb-1">24/7 Automated Monitoring</h4>
             <p className="text-gray-400 text-sm">
-              These indicators are monitored in real-time. When multiple Tier 1 indicators turn "Breaking",
-              it signals the beginning of a cascade event.
+              These sectors are monitored continuously. When multiple sectors show &quot;Stressed&quot; or &quot;Breaking&quot;,
+              it signals increasing systemic risk across the financial system.
             </p>
             <div className="mt-3 flex items-center gap-4 text-xs">
               <span className="flex items-center gap-1 text-green-400">
-                <Radio className="w-3 h-3" /> Auto-refresh: 5 min
+                <Activity className="w-3 h-3" /> Auto-refresh: 5 min
               </span>
               <span className="text-gray-500">
                 Last scan: {new Date().toLocaleTimeString()}
@@ -162,21 +291,21 @@ export function CracksSection({
 }
 
 const defaultIndicators: CrackIndicator[] = [
-  // Tier 1 - Critical
-  { name: 'Credit Default Swaps', category: 'tier1', status: 'stressed', description: 'Bank CDS spreads widening', currentValue: '+45 bps', threshold: '+100 bps' },
-  { name: 'Repo Market Stress', category: 'tier1', status: 'stable', description: 'Overnight funding rates', currentValue: '5.35%', threshold: '6.0%' },
+  // Silver & PM
   { name: 'COMEX Delivery Failures', category: 'tier1', status: 'stressed', description: 'Physical delivery backlog', currentValue: '12 days', threshold: '30 days' },
-  { name: 'Bank Stock Volatility', category: 'tier1', status: 'stable', description: 'Financial sector VIX', currentValue: '24.5', threshold: '40' },
-
-  // Tier 2 - Secondary
   { name: 'Gold-Silver Ratio', category: 'tier2', status: 'stressed', description: 'Abnormal ratio movement', currentValue: '78:1', threshold: '100:1' },
-  { name: 'LBMA Forward Rates', category: 'tier2', status: 'stable', description: 'London forward curve', currentValue: 'Normal', threshold: 'Inverted' },
   { name: 'ETF Outflows', category: 'tier2', status: 'stable', description: 'SLV/PSLV redemptions', currentValue: '-2.3M oz', threshold: '-10M oz' },
   { name: 'Dealer Positioning', category: 'tier2', status: 'stressed', description: 'COT report shorts', currentValue: '142K', threshold: '200K' },
 
-  // Tier 3 - Systemic
+  // Banks
+  { name: 'Credit Default Swaps', category: 'tier1', status: 'stressed', description: 'Bank CDS spreads widening', currentValue: '+45 bps', threshold: '+100 bps' },
+  { name: 'Bank Stock Volatility', category: 'tier1', status: 'stable', description: 'Financial sector VIX', currentValue: '24.5', threshold: '40' },
+  { name: 'Interbank Lending', category: 'tier3', status: 'stable', description: 'LIBOR-OIS spread', currentValue: '12 bps', threshold: '50 bps' },
+  { name: 'LBMA Forward Rates', category: 'tier2', status: 'stable', description: 'London forward curve', currentValue: 'Normal', threshold: 'Inverted' },
+
+  // Government / CB
   { name: 'Fed Facility Usage', category: 'tier3', status: 'stable', description: 'Emergency lending', currentValue: '$0.2B', threshold: '$50B' },
-  { name: 'Treasury Volatility', category: 'tier3', status: 'stable', description: 'MOVE index', currentValue: '98', threshold: '150' },
   { name: 'Dollar Liquidity', category: 'tier3', status: 'stable', description: 'Global USD shortage', currentValue: 'Normal', threshold: 'Stressed' },
-  { name: 'Interbank Lending', category: 'tier3', status: 'stable', description: 'LIBOR-OIS spread', currentValue: '12 bps', threshold: '50 bps' }
+  { name: 'Repo Market Stress', category: 'tier1', status: 'stable', description: 'Overnight funding rates', currentValue: '5.35%', threshold: '6.0%' },
+  { name: 'Treasury Volatility', category: 'tier3', status: 'stable', description: 'MOVE index', currentValue: '98', threshold: '150' }
 ]
