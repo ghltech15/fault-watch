@@ -15,7 +15,6 @@ import {
   SectionNav,
   MobileSectionNav,
   ProjectionCard,
-  MilestoneCelebration,
   CommunityPredictions,
   CommunityContributionModal,
   CommunityStatsWidget,
@@ -157,9 +156,6 @@ export default function Home() {
 
   return (
     <main id="main-content" className="min-h-screen">
-      {/* Milestone Celebration Overlay */}
-      <MilestoneCelebration silverPrice={silverPrice} />
-
       {/* Community Contribution Modal */}
       <CommunityContributionModal />
 
