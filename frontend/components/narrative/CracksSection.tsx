@@ -49,24 +49,21 @@ const SECTORS: SectorDefinition[] = [
     name: 'Consumer Credit',
     icon: <CreditCard className="w-5 h-5" />,
     color: 'amber',
-    indicatorNames: [],
-    placeholder: true
+    indicatorNames: ['Credit Card Delinquency', 'Total Card Debt', 'Debt Service Ratio', 'Low-Income Stress']
   },
   {
     id: 'auto',
     name: 'Auto Loans',
     icon: <Car className="w-5 h-5" />,
     color: 'orange',
-    indicatorNames: [],
-    placeholder: true
+    indicatorNames: ['Auto Loan Delinquency', 'Subprime Auto Default', 'Auto Repossessions', 'Auto Loan Balances']
   },
   {
     id: 'housing',
     name: 'Housing / Foreclosures',
     icon: <Home className="w-5 h-5" />,
     color: 'purple',
-    indicatorNames: [],
-    placeholder: true
+    indicatorNames: ['Mortgage Delinquency', 'FHA Delinquency', 'Foreclosure Inventory', 'Seriously Delinquent']
   },
   {
     id: 'govt',
@@ -94,8 +91,6 @@ function getSectorSentence(sectorId: string, status: string, indicators: CrackIn
     return 'Data coming soon. We are adding new indicators to this sector.'
   }
 
-  const stressedIndicators = indicators.filter(i => i.status !== 'stable')
-
   switch (sectorId) {
     case 'silver':
       if (status === 'breaking') return 'Physical silver markets showing severe strain with delivery failures.'
@@ -108,6 +103,24 @@ function getSectorSentence(sectorId: string, status: string, indicators: CrackIn
       if (status === 'stressed') return 'Banks showing stress; CDS spreads and volatility elevated.'
       if (status === 'elevated') return 'Early warning signs in bank funding markets.'
       return 'Banking sector stable with normal credit conditions.'
+
+    case 'consumer':
+      if (status === 'breaking') return 'Consumer credit markets in crisis; widespread defaults emerging.'
+      if (status === 'stressed') return 'Credit card debt at record highs; low-income borrowers showing strain.'
+      if (status === 'elevated') return 'Consumer delinquencies elevated; monitoring for broader stress.'
+      return 'Consumer credit conditions stable with manageable delinquency levels.'
+
+    case 'auto':
+      if (status === 'breaking') return 'Auto loan market collapsing; mass repossessions underway.'
+      if (status === 'stressed') return 'Auto delinquencies at 15-year highs; subprime borrowers hit hardest.'
+      if (status === 'elevated') return 'Auto loan stress rising; affordability stretched for many buyers.'
+      return 'Auto loan market stable with normal delinquency rates.'
+
+    case 'housing':
+      if (status === 'breaking') return 'Housing market in crisis; foreclosures accelerating rapidly.'
+      if (status === 'stressed') return 'FHA delinquencies at multi-year highs; foreclosure pipeline building.'
+      if (status === 'elevated') return 'Mortgage stress rising, especially for FHA borrowers.'
+      return 'Housing market stable with low foreclosure activity.'
 
     case 'govt':
       if (status === 'breaking') return 'Emergency Fed facilities activated; crisis response underway.'
@@ -302,6 +315,24 @@ const defaultIndicators: CrackIndicator[] = [
   { name: 'Bank Stock Volatility', category: 'tier1', status: 'stable', description: 'Financial sector VIX', currentValue: '24.5', threshold: '40' },
   { name: 'Interbank Lending', category: 'tier3', status: 'stable', description: 'LIBOR-OIS spread', currentValue: '12 bps', threshold: '50 bps' },
   { name: 'LBMA Forward Rates', category: 'tier2', status: 'stable', description: 'London forward curve', currentValue: 'Normal', threshold: 'Inverted' },
+
+  // Consumer Credit (Fed Data Q3-Q4 2025)
+  { name: 'Credit Card Delinquency', category: 'tier1', status: 'stable', description: 'All banks 30+ days', currentValue: '2.98%', threshold: '4.0%' },
+  { name: 'Total Card Debt', category: 'tier2', status: 'stressed', description: 'Record high since 1999', currentValue: '$1.28T', threshold: '$1.0T' },
+  { name: 'Debt Service Ratio', category: 'tier2', status: 'stable', description: 'Pct of disposable income', currentValue: '11.26%', threshold: '14%' },
+  { name: 'Low-Income Stress', category: 'tier1', status: 'stressed', description: 'All debt delinquent', currentValue: '4.8%', threshold: '4.0%' },
+
+  // Auto Loans (Fed/TransUnion Q3-Q4 2025)
+  { name: 'Auto Loan Delinquency', category: 'tier1', status: 'stressed', description: '30+ days past due', currentValue: '3.88%', threshold: '3.0%' },
+  { name: 'Subprime Auto Default', category: 'tier1', status: 'breaking', description: '30+ days - record high', currentValue: '15.78%', threshold: '10%' },
+  { name: 'Auto Repossessions', category: 'tier2', status: 'stressed', description: '2024 annual total', currentValue: '1.73M', threshold: '1.5M' },
+  { name: 'Auto Loan Balances', category: 'tier3', status: 'stable', description: 'Total outstanding', currentValue: '$1.67T', threshold: '$2.0T' },
+
+  // Housing / Foreclosures (MBA Q4 2025)
+  { name: 'Mortgage Delinquency', category: 'tier2', status: 'stressed', description: 'All loans 30+ days', currentValue: '4.26%', threshold: '4.0%' },
+  { name: 'FHA Delinquency', category: 'tier1', status: 'stressed', description: 'Highest since Q2 2021', currentValue: '11.52%', threshold: '8.0%' },
+  { name: 'Foreclosure Inventory', category: 'tier3', status: 'stable', description: 'Loans in process', currentValue: '0.53%', threshold: '1.0%' },
+  { name: 'Seriously Delinquent', category: 'tier2', status: 'stressed', description: '90+ days or foreclosure', currentValue: '1.85%', threshold: '1.5%' },
 
   // Government / CB
   { name: 'Fed Facility Usage', category: 'tier3', status: 'stable', description: 'Emergency lending', currentValue: '$0.2B', threshold: '$50B' },
