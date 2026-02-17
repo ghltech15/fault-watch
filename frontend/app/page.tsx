@@ -130,18 +130,41 @@ export default function Home() {
 
   // Crack indicators (derived from crisis gauge or defaults)
   const crackIndicators = [
-    { name: 'Credit Default Swaps', category: 'tier1' as const, status: 'stressed' as const, description: 'Bank CDS spreads widening', currentValue: '+45 bps', threshold: '+100 bps' },
-    { name: 'Repo Market Stress', category: 'tier1' as const, status: 'stable' as const, description: 'Overnight funding rates', currentValue: '5.35%', threshold: '6.0%' },
+    // Silver & Precious Metals
     { name: 'COMEX Delivery Failures', category: 'tier1' as const, status: 'stressed' as const, description: 'Physical delivery backlog', currentValue: '12 days', threshold: '30 days' },
-    { name: 'Bank Stock Volatility', category: 'tier1' as const, status: 'stable' as const, description: 'Financial sector VIX', currentValue: '24.5', threshold: '40' },
     { name: 'Gold-Silver Ratio', category: 'tier2' as const, status: 'stressed' as const, description: 'Abnormal ratio movement', currentValue: '78:1', threshold: '100:1' },
-    { name: 'LBMA Forward Rates', category: 'tier2' as const, status: 'stable' as const, description: 'London forward curve', currentValue: 'Normal', threshold: 'Inverted' },
     { name: 'ETF Outflows', category: 'tier2' as const, status: 'stable' as const, description: 'SLV/PSLV redemptions', currentValue: '-2.3M oz', threshold: '-10M oz' },
     { name: 'Dealer Positioning', category: 'tier2' as const, status: 'stressed' as const, description: 'COT report shorts', currentValue: '142K', threshold: '200K' },
+
+    // Banks / Funding Markets
+    { name: 'Credit Default Swaps', category: 'tier1' as const, status: 'stressed' as const, description: 'Bank CDS spreads widening', currentValue: '+45 bps', threshold: '+100 bps' },
+    { name: 'Bank Stock Volatility', category: 'tier1' as const, status: 'stable' as const, description: 'Financial sector VIX', currentValue: '24.5', threshold: '40' },
+    { name: 'Interbank Lending', category: 'tier3' as const, status: 'stable' as const, description: 'LIBOR-OIS spread', currentValue: '12 bps', threshold: '50 bps' },
+    { name: 'LBMA Forward Rates', category: 'tier2' as const, status: 'stable' as const, description: 'London forward curve', currentValue: 'Normal', threshold: 'Inverted' },
+
+    // Consumer Credit (Fed Q3-Q4 2025)
+    { name: 'Credit Card Delinquency', category: 'tier1' as const, status: 'stable' as const, description: 'All banks 30+ days', currentValue: '2.98%', threshold: '4.0%' },
+    { name: 'Total Card Debt', category: 'tier2' as const, status: 'stressed' as const, description: 'Record high since 1999', currentValue: '$1.28T', threshold: '$1.0T' },
+    { name: 'Debt Service Ratio', category: 'tier2' as const, status: 'stable' as const, description: 'Pct of disposable income', currentValue: '11.26%', threshold: '14%' },
+    { name: 'Low-Income Stress', category: 'tier1' as const, status: 'stressed' as const, description: 'All debt delinquent', currentValue: '4.8%', threshold: '4.0%' },
+
+    // Auto Loans (Fed/TransUnion Q3-Q4 2025)
+    { name: 'Auto Loan Delinquency', category: 'tier1' as const, status: 'stressed' as const, description: '30+ days past due', currentValue: '3.88%', threshold: '3.0%' },
+    { name: 'Subprime Auto Default', category: 'tier1' as const, status: 'breaking' as const, description: '30+ days - record high', currentValue: '15.78%', threshold: '10%' },
+    { name: 'Auto Repossessions', category: 'tier2' as const, status: 'stressed' as const, description: '2024 annual total', currentValue: '1.73M', threshold: '1.5M' },
+    { name: 'Auto Loan Balances', category: 'tier3' as const, status: 'stable' as const, description: 'Total outstanding', currentValue: '$1.67T', threshold: '$2.0T' },
+
+    // Housing / Foreclosures (MBA Q4 2025)
+    { name: 'Mortgage Delinquency', category: 'tier2' as const, status: 'stressed' as const, description: 'All loans 30+ days', currentValue: '4.26%', threshold: '4.0%' },
+    { name: 'FHA Delinquency', category: 'tier1' as const, status: 'stressed' as const, description: 'Highest since Q2 2021', currentValue: '11.52%', threshold: '8.0%' },
+    { name: 'Foreclosure Inventory', category: 'tier3' as const, status: 'stable' as const, description: 'Loans in process', currentValue: '0.53%', threshold: '1.0%' },
+    { name: 'Seriously Delinquent', category: 'tier2' as const, status: 'stressed' as const, description: '90+ days or foreclosure', currentValue: '1.85%', threshold: '1.5%' },
+
+    // Government / Central Bank
     { name: 'Fed Facility Usage', category: 'tier3' as const, status: 'stable' as const, description: 'Emergency lending', currentValue: '$0.2B', threshold: '$50B' },
-    { name: 'Treasury Volatility', category: 'tier3' as const, status: 'stable' as const, description: 'MOVE index', currentValue: '98', threshold: '150' },
     { name: 'Dollar Liquidity', category: 'tier3' as const, status: 'stable' as const, description: 'Global USD shortage', currentValue: 'Normal', threshold: 'Stressed' },
-    { name: 'Interbank Lending', category: 'tier3' as const, status: 'stable' as const, description: 'LIBOR-OIS spread', currentValue: '12 bps', threshold: '50 bps' }
+    { name: 'Repo Market Stress', category: 'tier1' as const, status: 'stable' as const, description: 'Overnight funding rates', currentValue: '5.35%', threshold: '6.0%' },
+    { name: 'Treasury Volatility', category: 'tier3' as const, status: 'stable' as const, description: 'MOVE index', currentValue: '98', threshold: '150' }
   ]
 
   const cracksActive = crackIndicators.filter(i => i.status !== 'stable').length
